@@ -43,7 +43,7 @@ plt.grid(True)
 plt.xlabel('strike')
 plt.ylabel('implied volatility of volatility')
 plt.legend()
-plt.savefig('vol_smile.png', dpi=300)
+plt.savefig('png/vol_smile.png', dpi=300)
 # plt.show()
 
 keep = ['PRICE', 'IMP_VOL']

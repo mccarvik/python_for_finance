@@ -1,4 +1,11 @@
 from bsm_functions import bsm_call_value
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+
+# Need this to set up modules
+import sys
+sys.path.append("/usr/local/lib/python2.7/dist-packages")
 
 def pure_python():
     # Parameters
@@ -22,7 +29,6 @@ def pure_python():
     
     # Simulating I paths with M time steps
     S = []
-    import pdb; pdb.set_trace()
     for i in range(I):
         path = []
         for t in range(M+1):
@@ -91,16 +97,62 @@ def vector_no_loop():
     M = 50
     dt = T / M
     I = 250000
-    
-    S = S0 * math.exp(np.cumsum((r - 0.5 * sigma **2) * dt + sigma * math.sqrt(dt) * \
-                        np.random.standard_normal((M+1, I)), axis=0))
+    # import pdb; pdb.set_trace()
+    S = S0 * np.exp(np.cumsum((r - 0.5 * sigma **2) * dt + sigma * math.sqrt(dt) * np.random.standard_normal((M+1, I)), axis=0))
     S[0] = S0
     
-    C0 = math.exp(-r * T) * sum(maximum(S[-1] - K, 0)) / I
+    C0 = math.exp(-r * T) * sum(np.maximum(S[-1] - K, 0)) / I
     
     # Results output
     tnp1 = time() - t0
     print("European Option value %7.3f" % C0)
     print("Duration in Seconds   %7.3f" % tnp1)
+    plt.plot(S[:, :10])
+    plt.grid(True)
+    plt.xlabel('time step')
+    plt.ylabel('index level')
+    plt.savefig('png/montecarlo.png', dpi=300)
+    plt.close()
     
-vector_no_loop()
+    plt.hist(S[-1], bins=50)
+    plt.grid(True)
+    plt.xlabel('index level')
+    plt.ylabel('frequency')
+    plt.savefig('png/mc_end_index_vals.png', dpi=300)
+    plt.close()
+    
+    plt.hist(np.maximum(S[-1]-K,0), bins=50)
+    plt.grid(True)
+    plt.xlabel('option inner value')
+    plt.ylabel('frequency')
+    plt.ylim(0, 50000)
+    plt.savefig('png/mc_option_end_value.png', dpi=300)
+    plt.close()
+
+def tech_analysis():
+    import numpy as np
+    import pandas as pd
+    import pandas_datareader.data as web
+    
+    sp500 = web.DataReader('^GSPC', data_source='yahoo', start='1/1/2000', end='4/14/2014')
+    sp500.info()
+    import pdb; pdb.set_trace()
+    sp500['42d'] = np.round(sp500['Close'].rolling(window=42, center=False).mean(), 2)
+    sp500['252d'] = np.round(sp500['Close'].rolling(window=252, center=False).mean(), 2)
+    # sp500['42d'] = np.round(pd.rolling_mean(sp500['Close'], window=42), 2)
+    sp500['42-252'] = sp500['42d'] - sp500['252d']
+    print(sp500['42-252'].tail())
+    
+    plt.plot(sp500['Close'])
+    plt.plot(sp500['42d'])
+    plt.plot(sp500['252d'])
+    plt.grid(True)
+    plt.xlabel('time')
+    plt.ylabel('index level')
+    # sp500['Close'].plot(grid=True, figsize=(8,5))
+    plt.savefig('png/sp500.png', dpi=300)
+    plt.close()
+
+if __name__ == "__main__":
+    # vector_no_loop()
+    tech_analysis()
