@@ -111,14 +111,14 @@ def vector_no_loop():
     plt.grid(True)
     plt.xlabel('time step')
     plt.ylabel('index level')
-    plt.savefig('png/montecarlo.png', dpi=300)
+    plt.savefig('png/ch3/montecarlo.png', dpi=300)
     plt.close()
     
     plt.hist(S[-1], bins=50)
     plt.grid(True)
     plt.xlabel('index level')
     plt.ylabel('frequency')
-    plt.savefig('png/mc_end_index_vals.png', dpi=300)
+    plt.savefig('png/ch3/mc_end_index_vals.png', dpi=300)
     plt.close()
     
     plt.hist(np.maximum(S[-1]-K,0), bins=50)
@@ -126,7 +126,7 @@ def vector_no_loop():
     plt.xlabel('option inner value')
     plt.ylabel('frequency')
     plt.ylim(0, 50000)
-    plt.savefig('png/mc_option_end_value.png', dpi=300)
+    plt.savefig('png/ch3/mc_option_end_value.png', dpi=300)
     plt.close()
 
 def tech_analysis():
@@ -136,12 +136,16 @@ def tech_analysis():
     
     sp500 = web.DataReader('^GSPC', data_source='yahoo', start='1/1/2000', end='4/14/2014')
     sp500.info()
-    import pdb; pdb.set_trace()
     sp500['42d'] = np.round(sp500['Close'].rolling(window=42, center=False).mean(), 2)
     sp500['252d'] = np.round(sp500['Close'].rolling(window=252, center=False).mean(), 2)
     # sp500['42d'] = np.round(pd.rolling_mean(sp500['Close'], window=42), 2)
     sp500['42-252'] = sp500['42d'] - sp500['252d']
-    print(sp500['42-252'].tail())
+    
+    # Setting up the regime
+    SD = 50
+    sp500['Regime'] = np.where(sp500['42-252'] > SD, 1, 0)
+    sp500['Regime'] = np.where(sp500['42-252'] < -SD, -1, sp500['Regime'])
+    print(sp500['Regime'].value_counts())
     
     plt.plot(sp500['Close'])
     plt.plot(sp500['42d'])
@@ -150,8 +154,25 @@ def tech_analysis():
     plt.xlabel('time')
     plt.ylabel('index level')
     # sp500['Close'].plot(grid=True, figsize=(8,5))
-    plt.savefig('png/sp500.png', dpi=300)
+    plt.savefig('png/ch3/sp500.png', dpi=300)
     plt.close()
+    
+    plt.plot(sp500['Regime'], lw=1.5)
+    plt.ylim([-1.1, 1.1])
+    plt.savefig('png/ch3/Regime.png', dpi=300)
+    plt.close()
+    
+    sp500['Market'] = np.log(sp500['Close'] / sp500['Close'].shift(1))
+    sp500['Strategy'] = sp500['Regime'].shift(1) * sp500['Market']
+    
+    import pdb; pdb.set_trace()
+    plt.plot(sp500[['Market','Strategy']].cumsum().apply(np.exp))
+    plt.grid(True)
+    plt.xlabel('time')
+    plt.ylabel('returns')
+    plt.savefig('png/ch3/strat_vs_market.png', dpi=300)
+    plt.close()
+    
 
 if __name__ == "__main__":
     # vector_no_loop()
