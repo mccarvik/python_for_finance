@@ -16,4 +16,8 @@ v[0]= 'python'
 # ndarray
 import numpy as np
 a = np.array([0, 0.5, 1.0, 1.5, 2.0])
-print(type(a))
+# print(type(a))
+# print(a[:2]) # slicing like list objects
+print(a.sum(), a.std(), a.cumsum())     # built in array functions
+print(a*2, a**2, np.sqrt(a))            # vectorized functions
+
