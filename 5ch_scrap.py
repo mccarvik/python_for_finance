@@ -33,6 +33,7 @@ def two_dims():
     np.random.seed(2000)
     y = np.random.standard_normal((20,2)).cumsum(axis=0)
     y[:, 0] = y[:, 0] * 100
+    # key line, gives us axis to the figure and axises separately
     fig, ax1 = plt.subplots()
     # plt.figure(figsize=(7,4))
     plt.plot(y[:, 0], 'b', lw=1.5, label='1st')
@@ -44,6 +45,7 @@ def two_dims():
     plt.ylabel('value 1st')
     plt.title('A Simple Plot')
     
+    # Key line below - get a second plot that shares the x axis
     ax2 = ax1.twinx()
     plt.plot(y[:,1], 'g', lw=1.5, label='2nd')
     plt.plot(y[:, 1], 'ro')
@@ -53,7 +55,32 @@ def two_dims():
     plt.savefig(PATH + 'two_dim_grid.png', dpi=300)
     plt.close()
 
+def sep_plots():
+    np.random.seed(2000)
+    y = np.random.standard_normal((20,2)).cumsum(axis=0)
+    y[:, 0] = y[:, 0] * 100
+    plt.figure(figsize=(7,5))
+    plt.subplot(211)
+    plt.plot(y[:, 0], lw=1.5, label='1st')
+    plt.plot(y[:,0], 'ro')
+    plt.grid(True)
+    plt.legend(loc=0)
+    plt.axis('tight')
+    plt.ylabel('value')
+    plt.title('A Simple Plot')
+    plt.subplot(212)
+    plt.plot(y[:, 1], lw=1.5, label='2nd')
+    plt.plot(y[:, 1], 'ro')
+    plt.grid(True)
+    plt.legend(loc=0)
+    plt.axis('tight')
+    plt.xlabel('index')
+    plt.ylabel('value')
+    plt.savefig(PATH + 'sep_plots.png', dpi=300)
+    plt.close()
+    
+
 if __name__ ==  "__main__":
-    two_dims()
+    sep_plots()
     
 
