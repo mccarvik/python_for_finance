@@ -60,6 +60,7 @@ def sep_plots():
     y = np.random.standard_normal((20,2)).cumsum(axis=0)
     y[:, 0] = y[:, 0] * 100
     plt.figure(figsize=(7,5))
+    # subplot(211) --> 2 rowa, 1 col, this is fignumber 1
     plt.subplot(211)
     plt.plot(y[:, 0], lw=1.5, label='1st')
     plt.plot(y[:,0], 'ro')
@@ -68,6 +69,7 @@ def sep_plots():
     plt.axis('tight')
     plt.ylabel('value')
     plt.title('A Simple Plot')
+    # subplot(212) --> 2 rowa, 1 col, this is fignumber 2
     plt.subplot(212)
     plt.plot(y[:, 1], lw=1.5, label='2nd')
     plt.plot(y[:, 1], 'ro')
@@ -78,9 +80,97 @@ def sep_plots():
     plt.ylabel('value')
     plt.savefig(PATH + 'sep_plots.png', dpi=300)
     plt.close()
+
+def line_bar():
+    np.random.seed(2000)
+    y = np.random.standard_normal((20,2)).cumsum(axis=0)
+    y[:, 0] = y[:, 0] * 100
+    plt.figure(figsize=(9, 4))
+    plt.subplot(121)
+    plt.plot(y[:, 0], lw=1.5, label='1st')
+    plt.plot(y[:, 0], 'ro')
+    plt.grid(True)
+    plt.legend(loc=0)
+    plt.axis('tight')
+    plt.xlabel('index')
+    plt.ylabel('value')
+    plt.title('1st Data Set')
+    plt.subplot(122)
+    plt.bar(np.arange(len(y)), y[:, 1], width=0.5, color='g', label='2nd')
+    plt.grid(True)
+    plt.legend(loc=0)
+    plt.axis('tight')
+    plt.xlabel('index')
+    plt.title('2nd Data Set')
+    plt.savefig(PATH + 'line_bar.png', dpi=300)
+    plt.close()
+
+def scatter():
+    y = np.random.standard_normal((1000, 2))
+    plt.figure(figsize=(7,5))
+    plt.plot(y[:, 0], y[:, 1], 'ro')
+    plt.grid(True)
+    plt.xlabel('1st')
+    plt.ylabel('2nd')
+    plt.title('Scatter Plot')
+    plt.savefig(PATH + 'scatter.png', dpi=300)
+    plt.close()
+    
+    # This time using scatter function
+    plt.figure(figsize=(7,5))
+    plt.scatter(y[:, 0], y[:, 1], marker='o')
+    plt.grid(True)
+    plt.xlabel('1st')
+    plt.ylabel('2nd')
+    plt.title('Scatter Plot')
+    plt.savefig(PATH + 'scatter2.png', dpi=300)
+    plt.close()
+    
+    c = np.random.randint(0, 10, len(y))
+    plt.figure(figsize=(7,5))
+    plt.scatter(y[:, 0], y[:, 1], c=c, marker='o')
+    plt.colorbar()
+    plt.grid(True)
+    plt.xlabel('1st')
+    plt.ylabel('2nd')
+    plt.title('Scatter Plot')
+    plt.savefig(PATH + 'scatter_heat.png', dpi=300)
+    plt.close()
+    
+    plt.figure(figsize=(7,4))
+    plt.hist(y, label=['1st', '2nd'], bins=25)
+    plt.grid(True)
+    plt.legend(loc=0)
+    plt.xlabel('value')
+    plt.ylabel('frequency')
+    plt.title('Histogram')
+    plt.savefig(PATH + 'hist.png', dpi=300)
+    plt.close()
+    
+    plt.figure(figsize=(7,4))
+    plt.hist(y, label=['1st', '2nd'], color=['b', 'g'], stacked=True, bins=20)
+    plt.grid(True)
+    plt.legend(loc=0)
+    plt.xlabel('value')
+    plt.ylabel('frequency')
+    plt.title('Histogram')
+    plt.savefig(PATH + 'hist_stacked.png', dpi=300)
+    plt.close()
+    
+def box_plot():
+    y = np.random.standard_normal((1000, 2))
+    fig, ax = plt.subplots(figsize=(7,4))
+    plt.boxplot(y)
+    plt.grid(True)
+    plt.setp(ax, xticklabels=['1st', '2nd'])
+    plt.xlabel('data set')
+    plt.ylabel('value')
+    plt.title('Boxplot')
+    plt.savefig(PATH + 'boxplot.png', dpi=300)
+    plt.close()
     
 
 if __name__ ==  "__main__":
-    sep_plots()
+    box_plot()
     
 
