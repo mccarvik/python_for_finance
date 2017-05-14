@@ -4,6 +4,9 @@ import pdb
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
+# from matplotlib.finance import quotes_historical_yahoo_ohlc
+import matplotlib.finance as mpf
+from mpl_toolkits.mplot3d import Axes3D
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch5/'
 
@@ -200,9 +203,73 @@ def exponential():
     plt.savefig(PATH + 'exponential.png', dpi=300)
     plt.close()
     
+def matplot_finance():
+    start = (2014, 5, 1)
+    end = (2014, 6, 30)
+    quotes = mpf.quotes_historical_yahoo_ohlc('^GDAXI', start, end)
+    fig, ax = plt.subplots(figsize=(8,5))
+    fig.subplots_adjust(bottom=0.2)
+    mpf.candlestick_ohlc(ax, quotes, width=0.6, colorup='b', colordown='r')
+    plt.grid(True)
+    ax.xaxis_date()
+    ax.autoscale_view()
+    # Rotate labels by 30 degrees
+    plt.setp(plt.gca().get_xticklabels(), rotation=30)
+    plt.savefig(PATH + 'candle.png', dpi=300)
+    plt.close()
     
+    fig, ax = plt.subplots(figsize=(8, 5))
+    mpf.plot_day_summary_ohlc(ax, quotes, colorup='b', colordown='r')
+    plt.grid(True)
+    ax.xaxis_date()
+    plt.title('DAX Index')
+    plt.ylabel('index level')
+    plt.setp(plt.gca().get_xticklabels(), rotation=30)
+    plt.savefig(PATH + 'plot_day_sum.png', dpi=300)
+    plt.close()
 
+    quotes = np.array(mpf.quotes_historical_yahoo_ohlc('YHOO', start, end))
+    fig, (ax1, ax2) = plt.subplots(2, sharex=True, figsize=(8,6))
+    mpf.candlestick_ohlc(ax1, quotes, width=0.6, colorup='b', colordown='r')
+    ax1.set_title('Yahoo Inc.')
+    ax1.set_ylabel('Index Level')
+    ax1.grid(True)
+    ax1.xaxis_date()
+    plt.bar(quotes[:, 0] - 0.25, quotes[:, 5], width=0.5)
+    ax2.set_ylabel('volume')
+    ax2.grid(True)
+    ax2.autoscale_view()
+    plt.setp(plt.gca().get_xticklabels(), rotation=30)
+    plt.savefig(PATH + 'candle2plot.png', dpi=300)
+    plt.close()
+
+def three_d():
+    strike = np.linspace(50, 150, 24)
+    ttm = np.linspace(0.5, 2.5, 24)
+    strike, ttm = np.meshgrid(strike, ttm)
+    iv = (strike - 100) ** 2 / (100 * strike) / ttm
+    fig = plt.figure(figsize=(9,6))
+    ax = fig.gca(projection='3d')
+    surf = ax.plot_surface(strike, ttm, iv, rstride=2, cstride=2, 
+    cmap=plt.cm.coolwarm, linewidth=0.5, antialiased=True)
+    ax.set_xlabel('strike')
+    ax.set_ylabel('time-to-maturity')
+    ax.set_zlabel('implied volatility')
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    plt.savefig(PATH + 'three_d.png', dpi=300)
+    plt.close()
+    
+    fig = plt.figure(figsize=(8,5))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(30,60)
+    ax.scatter(strike, ttm, iv, zdir='z', s=25, c='b', marker='^')
+    ax.set_xlabel('strike')
+    ax.set_ylabel('time-to-maturity')
+    ax.set_zlabel('implied volatility')
+    plt.savefig(PATH + 'three_d2.png', dpi=300)
+    plt.close()
+    
 if __name__ ==  "__main__":
-    exponential()
+    three_d()
     
 
