@@ -206,7 +206,8 @@ def exponential():
 def matplot_finance():
     start = (2014, 5, 1)
     end = (2014, 6, 30)
-    quotes = mpf.quotes_historical_yahoo_ohlc('^GDAXI', start, end)
+    pdb.set_trace()
+    quotes = mpf.quotes_historical_yahoo_ohlc('DIA', start, end)
     fig, ax = plt.subplots(figsize=(8,5))
     fig.subplots_adjust(bottom=0.2)
     mpf.candlestick_ohlc(ax, quotes, width=0.6, colorup='b', colordown='r')
@@ -270,6 +271,6 @@ def three_d():
     plt.close()
     
 if __name__ ==  "__main__":
-    three_d()
+    matplot_finance()
     
 
