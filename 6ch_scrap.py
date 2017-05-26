@@ -32,7 +32,16 @@ def intro():
     print(df)
     print(df[['numbers', 'squares']].mean())
     print(df[['numbers', 'squares']].std())
-    
+
+def second_steps():
+    a = np.random.standard_normal((9,4))
+    a.round(6)
+    df = pd.DataFrame(a)
+    df.columns = [['No1', 'No2', 'No3', 'No4']]
+    # print(df['No2'][3])
+    dates = pd.date_range('2015-1-1', periods=9, freq='M')
+    print(dates)
 
 if __name__ == "__main__":
-    intro()
+    # intro()
+    second_steps()
