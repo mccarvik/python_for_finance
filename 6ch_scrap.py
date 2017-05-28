@@ -198,7 +198,6 @@ def regr_analysis():
     plt.savefig(PATH + 'corr.png', dpi=300)
     plt.close()
     
-    
 def hf():
     # url1 = 'http://hopet.netfonds.no/quotes/posdump.php?'
     # url2 = 'date=%s%s%s&paper=AAPL.0&csv_format=csv'
