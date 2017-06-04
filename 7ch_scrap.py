@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import pdb, requests, math, requests, datetime, pickle
 import numpy as np
 import pandas as pd
+import sqlite3 as sq3
+import datetime as dt
 from random import gauss
 
 path = '/home/ubuntu/workspace/python_for_finance/data'
@@ -65,9 +67,25 @@ def read_write():
     csv_file.close()
     
 def sql_db():
-    pass
-        
     
+    query = 'CREATE TABLE numbs (Date date, No1 real, No2 real)'
+    con = sq3.connect(path + 'numbs.db')
+    con.execute(query)
+    con.commit()
+    con.execute('INSERT INTO numbs VALUES(?, ?, ?)',
+            (dt.datetime.now(), 0.12, 7.3))
+    data = np.random.standard_normal((10000, 2)).round(5)
+    for row in data:
+        con.execute('INSERT INTO numbs VALUES(?, ?, ?)',
+                    (dt.datetime.now(), row[0], row[1]))
+    con.commit()
+    con.execute('SELECT * FROM numbs').fetchmany(10)
+    pointer = con.execute('SELECT * FROM numbs')
+    for i in range(3):
+        print(pointer.fetchone())    
+    con.close()
+        
+def write_read_np_arrs():
     
     
     
