@@ -9,6 +9,7 @@ from math import *
 import numexpr as ne
 import numpy as np
 import multiprocessing as mp
+import numba as nb
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch8/'
 
@@ -152,6 +153,29 @@ def simulate_geometric_brownian_motion(p):
         paths[t] = paths[t - 1] * np.exp((r - 0.5 * sigma ** 2) * dt +
                     sigma * sqrt(dt) * np.random.standard_normal(I))
     return paths
+
+def dynamic_compiling():
+    I, J = 2500, 2500
+    %time f_py(I, J)
+    %time res, a = f_np(I, J)
+    a.nbytes
+    f_nb = nb.jit(f_py)
+    %time f_nb(I, J)
+    func_list = ['f_py', 'f_np', 'f_nb']
+    data_list = 3 * ['I, J']
+    perf_comp_data(func_list, data_list)
+
+def f_py(I, J):
+    res = 0
+    for i in range(I):
+        for j in range (J):
+            res += int(cos(log(1)))
+    return res
+    
+def f_np(I, J):
+    a = np.ones((I, J), dtype=np.float64)
+    return int(np.sum(np.cos(np.log(a)))), a
+
 
 def timeme(method):
     def wrapper(*args, **kw):
