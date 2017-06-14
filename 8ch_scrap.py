@@ -8,11 +8,7 @@ import pdb, time, timeit
 from math import *
 import numexpr as ne
 import numpy as np
-
-pdb.set_trace()
-from ipyparallel import Client
-c = Client(profile="default")
-view = c.load_balanced_view()
+import multiprocessing as mp
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch8/'
 
@@ -121,88 +117,41 @@ def memory_layout():
     timeme(F.std)(axis=1)
     C = 0.0; F = 0.0
 
-def bsm_mcs_valuation(strike):
-    ''' Dynamic Black-Scholes-Merton Monte Carlo estimator
-    for European calls.
-    
-    Parameters
-    ==========
-    strike : float
-        strike price of the option
-    
-    Results
-    =======
-    value : float
-        estimate for present value of call option
-    '''
-    import numpy as np
-    S0 = 100.; T = 1.0; r = 0.05; vola = 0.2
-    M = 50; I = 20000
-    dt = T / M
-    rand = np.random.standard_normal((M + 1, I))
-    S = np.zeros((M + 1, I)); S[0] = S0
-    for t in range(1, M + 1):
-        S[t] = S[t-1] * np.exp((r - 0.5 * vola ** 2) * dt
-                               + vola * np.sqrt(dt) * rand[t])
-    value = (np.exp(-r * T)
-                     * np.sum(np.maximum(S[-1] - strike, 0)) / I)
-    return value
-
-def seq_value(n):
-    ''' Sequential option valuation.
-    
-    Parameters
-    ==========
-    n : int
-        number of option valuations/strikes
-    '''
-    strikes = np.linspace(80, 120, n)
-    option_values = []
-    for strike in strikes:
-        option_values.append(bsm_mcs_valuation(strike))
-    return strikes, option_values
-
-def parallel_computing():
-    n = 10  # number of options to be valued
-    strikes, option_values_seq = timeme(seq_value)(n)
-    plt.figure(figsize=(8, 4))
-    plt.plot(strikes, option_values_seq, 'b')
-    plt.plot(strikes, option_values_seq, 'r.')
+def multiprocessing():
+    paths = simulate_geometric_brownian_motion((5, 2))
+    print(paths)
+    I = 1000  # number of paths
+    M = 50  # number of time steps
+    t = 20  # number of tasks/simulations
+    times = []
+    for w in range(1, 5):
+        t0 = time.time()
+        pool = mp.Pool(processes=w)
+        # the pool of workers
+        result = pool.map(simulate_geometric_brownian_motion, t * [(M, I), ])
+        # the mapping of the function to the list of parameter tuples
+        times.append(time.time() - t0)
+    plt.plot(range(1, 5), times)
+    plt.plot(range(1, 5), times, 'ro')
     plt.grid(True)
-    plt.xlabel('strikes')
-    plt.ylabel('European call option values')
-    plt.savefig(PATH + 'options.png', dpi=300)
-    plt.close()
-    
-    strikes, option_values_seq = timeme(par_value)(n)
-    option_values_obj[0].metadata
-    option_values_par = []
-    for res in option_values_obj:
-        option_values_par.append(res.result)
-    plt.figure(figsize=(8, 4))
-    plt.plot(strikes, option_values_seq, 'b', label='Sequential')
-    plt.plot(strikes, option_values_par, 'r.', label='Parallel')
-    plt.grid(True); plt.legend(loc=0)
-    plt.xlabel('strikes')
-    plt.ylabel('European call option values')
+    plt.xlabel('number of processes')
+    plt.ylabel('time in seconds')
+    plt.title('%d Monte Carlo simulations' % t)
     plt.savefig(PATH + 'parallel.png', dpi=300)
     plt.close()
-
-def par_value(n):
-    ''' Parallel option valuation.
     
-    Parameters
-    ==========
-    n : int
-        number of option valuations/strikes
-    '''
-    strikes = np.linspace(80, 120, n)
-    option_values = []
-    for strike in strikes:
-        value = view.apply_async(bsm_mcs_valuation, strike)
-        option_values.append(value)
-    c.wait(option_values)
-    return strikes, option_values
+def simulate_geometric_brownian_motion(p):
+    M, I = p
+      # time steps, paths
+    S0 = 100; r = 0.05; sigma = 0.2; T = 1.0
+      # model parameters
+    dt = T / M
+    paths = np.zeros((M + 1, I))
+    paths[0] = S0
+    for t in range(1, M + 1):
+        paths[t] = paths[t - 1] * np.exp((r - 0.5 * sigma ** 2) * dt +
+                    sigma * sqrt(dt) * np.random.standard_normal(I))
+    return paths
 
 def timeme(method):
     def wrapper(*args, **kw):
@@ -216,4 +165,5 @@ def timeme(method):
 if __name__ == '__main__':
     # paradigms()
     # memory_layout()
-    parallel_computing()
+    # parallel_computing()
+    multiprocessing()
