@@ -1,5 +1,4 @@
 import sys, pdb
-sys.path.append("/usr/local/lib/python3.5/dist_packages")
 sys.path.append("/usr/lib/python3/dist-packages")
 sys.path.append("/usr/local/lib/python3.4/dist-packages")
 sys.path.append("/usr/local/lib/python2.7/dist-packages")
@@ -11,6 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn import linear_model
 # import statsmodels.api as sm
 import scipy.interpolate as spi
+import scipy.optimize as spo
 
 import seaborn as sns; sns.set()
 mpl.rcParams['font.family'] = 'serif'
@@ -169,7 +169,6 @@ def reg_func(a, p):
 
 def interpolation():
     x = np.linspace(-2 * np.pi, 2 * np.pi, 25)
-    
     ipo = spi.splrep(x, ff(x), k=1)
     iy = spi.splev(x, ipo)
     plt.plot(x, ff(x), 'b', label='f(x)')
@@ -180,9 +179,78 @@ def interpolation():
     plt.ylabel('f(x)')
     plt.savefig(PATH + 'interp.png', dpi=300)
     plt.close()
+    print(np.allclose(ff(x), iy))
+    
+    xd = np.linspace(1.0, 3.0, 50)
+    iyd = spi.splev(xd, ipo)
+    plt.plot(xd, ff(xd), 'b', label='f(x)')
+    plt.plot(xd, iyd, 'r.', label='interpolation')
+    plt.legend(loc=0)
+    plt.grid(True)
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.savefig(PATH + 'interp2.png', dpi=300)
+    plt.close()
+    
+    ipo = spi.splrep(x, ff(x), k=3)
+    iyd = spi.splev(xd, ipo)
+    plt.plot(xd, ff(xd), 'b', label='f(x)')
+    plt.plot(xd, iyd, 'r.', label='interpolation')
+    plt.legend(loc=0)
+    plt.grid(True)
+    plt.xlabel('x')
+    plt.ylabel('f(x)')
+    plt.savefig(PATH + 'interp3.png', dpi=300)
+    plt.close()
+    print(np.allclose(ff(xd), iyd))
+    print(np.sum((ff(xd) - iyd) ** 2) / len(xd))
+    
+def convex_optimization():
+    x = np.linspace(-10, 10, 50)
+    y = np.linspace(-10, 10, 50)
+    X, Y = np.meshgrid(x, y)
+    Z = ffm(X, Y)
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.gca(projection='3d')
+    surf = ax.plot_surface(X, Y, Z, rstride=2, cstride=2, cmap=mpl.cm.coolwarm,
+            linewidth=0.5, antialiased=True)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('f(x, y)')
+    fig.colorbar(surf, shrink=0.5, aspect=5)
+    plt.savefig(PATH + 'convex.png', dpi=300)
+    plt.close()
+    
+def ffm(x, y):
+    return (np.sin(x) + 0.05 * x ** 2
+          + np.sin(y) + 0.05 * y ** 2)    
 
 def ff(x):
     return np.sin(x) + 0.5 * x
+
+def fo(x):
+    x, y = x
+    output = False
+    z = np.sin(x) + 0.05 * x ** 2 + np.sin(y) + 0.05 * y ** 2
+    if output == True:
+        print('%8.4f %8.4f %8.4f' % (x, y, z))
+    return z
+
+def global_opt():
+    spo.brute(fo, ((-10, 10.1, 5), (-10, 10.1, 5)), finish=None)
+    opt1 = spo.brute(fo, ((-10, 10.1, 0.1), (-10, 10.1, 0.1)), finish=None)
+    print(opt1)
+    print(ffm(opt1[0], opt1[1]))
+    
+def local_opt():
+    pdb.set_trace()
+    opt1 = spo.brute(fo, ((-10, 10.1, 0.1), (-10, 10.1, 0.1)), finish=None)
+    opt2 = spo.fmin(fo, opt1, xtol=0.001, ftol=0.001, maxiter=15, maxfun=20)
+    print(ffm(opt2[0], opt2[1]))
+    print(spo.fmin(fo, (2.0, 2.0), maxiter=250))
+
+def constrained_opt():
+    pass
 
 if __name__ == '__main__':
     # approx()
@@ -190,4 +258,8 @@ if __name__ == '__main__':
     # noisy()
     # unsorted()
     # multi_d()
-    interpolation()
+    # interpolation()
+    # convex_optimization()
+    # global_opt()
+    # local_opt()
+    constrained_opt()
