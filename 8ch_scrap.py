@@ -256,8 +256,6 @@ def timeme(method):
         return result
     return wrapper
 
-
-
 def f_py(I, J):
     res = 0
     for i in range(I):
