@@ -386,5 +386,5 @@ if __name__ == '__main__':
     # convex_optimization()
     # global_opt()
     # local_opt()
-    # constrained_opt()
-    integration()
+    constrained_opt()
+    # integration()
