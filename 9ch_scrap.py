@@ -11,6 +11,10 @@ from sklearn import linear_model
 # import statsmodels.api as sm
 import scipy.interpolate as spi
 import scipy.optimize as spo
+import scipy.integrate as sci
+from math import sqrt
+from matplotlib.patches import Polygon
+import sympy as sy
 
 import seaborn as sns; sns.set()
 mpl.rcParams['font.family'] = 'serif'
@@ -249,8 +253,128 @@ def local_opt():
     print(ffm(opt2[0], opt2[1]))
     print(spo.fmin(fo, (2.0, 2.0), maxiter=250))
 
+def Eu(s_b):
+    return -(0.5 * sqrt(s_b[0] * 15 + s_b[1] * 5) + 0.5 * sqrt(s_b[0] * 5 + s_b[1] * 12))
+
 def constrained_opt():
-    pass
+    pdb.set_trace()
+    # constraints
+    cons = ({'type': 'ineq', 'fun': lambda s_b:  100 - s_b[0] * 10 - s_b[1] * 10})
+    # budget constraint
+    bnds = [[0, 1000], [0, 1000]]  # uppper bounds large enough
+    result = spo.minimize(Eu, [5, 5], method='SLSQP',
+                       bounds=bnds, constraints=cons)
+    print(result)
+    print(result['x'])
+    print(-result['fun'])
+    print(np.dot(result['x'], [10, 10]))
+
+def fff(x):
+    return np.sin(x) + 0.5 * x
+
+def integration():
+    a = 0.5  # left integral limit
+    b = 9.5  # right integral limit
+    x = np.linspace(0, 10)
+    y = fff(x)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    plt.plot(x, y, 'b', linewidth=2)
+    plt.ylim(ymin=0)
+
+    # area under the function
+    # between lower and upper limit
+    Ix = np.linspace(a, b)
+    Iy = fff(Ix)
+    verts = [(a, 0)] + list(zip(Ix, Iy)) + [(b, 0)]
+    poly = Polygon(verts, facecolor='0.7', edgecolor='0.5')
+    ax.add_patch(poly)
+
+    # labels
+    plt.text(0.75 * (a + b), 1.5, r"$\int_a^b f(x)dx$",
+             horizontalalignment='center', fontsize=20)
+    plt.figtext(0.9, 0.075, '$x$')
+    plt.figtext(0.075, 0.9, '$f(x)$')
+    ax.set_xticks((a, b))
+    ax.set_xticklabels(('$a$', '$b$'))
+    ax.set_yticks([fff(a), fff(b)])
+    plt.savefig(PATH + 'integration.png', dpi=300)
+    plt.close()
+
+def numerical_int():
+    print(sci.fixed_quad(fff, a, b)[0])
+    print(sci.quad(fff, a, b)[0])
+    print(sci.romberg(fff, a, b))
+    xi = np.linspace(0.5, 9.5, 25)
+    print(sci.trapz(fff(xi), xi))
+    print(sci.simps(fff(xi), xi))
+
+def int_simulation():
+    for i in range(1, 20):
+        np.random.seed(1000)
+        x = np.random.random(i * 10) * (b - a) + a
+        print(np.sum(fff(x)) / len(x) * (b - a))
+
+def sym_comp_basics():
+    x = sy.Symbol('x')
+    y = sy.Symbol('y')
+    print(type(x))
+    print(sy.sqrt(x))
+    print(3 + sy.sqrt(x) - 4 ** 2)
+    f = x ** 2 + 3 + 0.5 * x ** 2 + 3 / 2
+    print(sy.simplify(f))
+    sy.init_printing(pretty_print=False, use_unicode=False)
+    print(sy.pretty(f))
+    print(sy.pretty(sy.sqrt(x) + 0.5))
+    pi_str = str(sy.N(sy.pi, 400000))
+    print(pi_str[:40])
+    print(pi_str[-40:])
+    print(pi_str.find('111272'))
+
+def sym_comp_eqs():
+    x = sy.Symbol('x')
+    y = sy.Symbol('y')
+    print(sy.solve(x ** 2 - 1))
+    print(sy.solve(x ** 2 - 1 - 3))
+    print(sy.solve(x ** 3 + 0.5 * x ** 2 - 1))
+    print(sy.solve(x ** 2 + y ** 2))
+
+def sym_comp_int():
+    x = sy.Symbol('x')
+    a, b = sy.symbols('a b')
+    print(sy.pretty(sy.Integral(sy.sin(x) + 0.5 * x, (x, a, b))))
+    int_func = sy.integrate(sy.sin(x) + 0.5 * x, x)
+    print(sy.pretty(int_func))
+    Fb = int_func.subs(x, 9.5).evalf()
+    Fa = int_func.subs(x, 0.5).evalf()
+    print(Fb - Fa)  # exact value of integral
+    int_func_limits = sy.integrate(sy.sin(x) + 0.5 * x, (x, a, b))
+    print(sy.pretty(int_func_limits))
+    print(int_func_limits.subs({a : 0.5, b : 9.5}).evalf())
+    print(sy.integrate(sy.sin(x) + 0.5 * x, (x, 0.5, 9.5)))
+
+def sym_comp_diff():
+    x = sy.Symbol('x')
+    y = sy.Symbol('y')
+    int_func = sy.integrate(sy.sin(x) + 0.5 * x, x)
+    print(int_func.diff())
+    f = (sy.sin(x) + 0.05 * x ** 2
+        + sy.sin(y) + 0.05 * y ** 2)
+    del_x = sy.diff(f, x)
+    print(del_x)
+    del_y = sy.diff(f, y)
+    print(del_y)
+    xo = sy.nsolve(del_x, -1.5)
+    print(xo)
+    yo = sy.nsolve(del_y, -1.5)
+    print(yo)
+    print(f.subs({x : xo, y : yo}).evalf())
+    xo = sy.nsolve(del_x, 1.5)
+    print(xo)
+    yo = sy.nsolve(del_y, 1.5)
+    print(yo)
+    print(f.subs({x : xo, y : yo}).evalf())
+
 
 if __name__ == '__main__':
     # approx()
@@ -262,4 +386,5 @@ if __name__ == '__main__':
     # convex_optimization()
     # global_opt()
     # local_opt()
-    constrained_opt()
+    # constrained_opt()
+    integration()
