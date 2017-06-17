@@ -1,6 +1,5 @@
 import sys
 sys.path.append("/usr/local/lib/python3.4/dist-packages")
-sys.path.append("/usr/local/lib/python3.5/dist_packages")
 sys.path.append("/usr/local/lib/python2.7/dist-packages")
 import matplotlib as mpl
 mpl.use('Agg')
@@ -11,7 +10,7 @@ import numexpr as ne
 import numpy as np
 # import numba as nb
 import multiprocessing as mp
-
+from distutils.core import setup
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch8/'
 
@@ -271,23 +270,23 @@ def dynamic_compiling():
     timeme(f_py)(I, J)
     res, a = timeme(f_np)(I, J)
     print(a.nbytes)
+
+    # TROUBLE Importing Numba and LLVM
+    # f_nb = nb.jit(f_py)
+    # timeme(f_nb)(I, J)
+    # func_list = ['f_py', 'f_np', 'f_nb']
+    # data_list = 3 * ['I, J']
+    # perf_comp_data(func_list, data_list)
     
-    pdb.set_trace()
-    f_nb = nb.jit(f_py)
-    timeme(f_nb)(I, J)
-    func_list = ['f_py', 'f_np', 'f_nb']
-    data_list = 3 * ['I, J']
-    perf_comp_data(func_list, data_list)
+    timeme(binomial_py_looping)(100)
+    # timeme(bsm_mcs_valuation)(100)
+    timeme(binomial_np)(100)
     
-    print(timeme(binomial_py_looping)(100))
-    print(timeme(bsm_mcs_valuation)(100))
-    print(timeme(binomial_np)(100))
-    
-    binomial_nb = nb.jit(binomial_py)
-    print(timeme(binomial_nb)(100))
-    func_list = ['binomial_py', 'binomial_np', 'binomial_nb']
-    data_list = 3 * ['K']
-    perf_comp_data(func_list, data_list)
+    # binomial_nb = nb.jit(binomial_py)
+    # print(timeme(binomial_nb)(100))
+    # func_list = ['binomial_py', 'binomial_np', 'binomial_nb']
+    # data_list = 3 * ['K']
+    # perf_comp_data(func_list, data_list)
 
 def binomial_py_looping(strike):
     ''' Binomial option pricing via looping.
@@ -388,43 +387,62 @@ def binomial_np(strike):
     return pv[0, 0]
 
 def static_comp_cython():
-    print(timeme(f_py)(I, J))
-
+    print(timeme(fs_py)(I, J))
+    
+    from Cython.Build import cythonize
+    # setup(
+    #   ext_modules = cythonize("helloworld.pyx")
+    # )    
+    
+    pdb.set_trace()
     import pyximport
     pyximport.install()
-    import sys
-    sys.path.append('data/')
-    # path to the Cython script
-    # not needed if in same directory
     from nested_loop import f_cy
     
     print(timeme(f_cy)(I, J))
     # %load_ext Cython
-    import numba as nb
-    f_nb = nb.jit(f_py)
-    print(timeme(f_nb)(I, J))
-    func_list = ['f_py', 'f_cy', 'f_nb']
-    data_list = 3 * ['I, J']
-    perf_comp_data(func_list, data_list)
+    
+    # MORE Issues from numba import
+    # import numba as nb
+    # f_nb = nb.jit(f_py)
+    # print(timeme(f_nb)(I, J))
+    # func_list = ['f_py', 'f_cy', 'f_nb']
+    # data_list = 3 * ['I, J']
+    # perf_comp_data(func_list, data_list)
 
-def f_py(I, J):
+def fs_py(I, J):
     res = 0.  # we work on a float object
     for i in range(I):
         for j in range (J * I):
             res += 1
     return res
 
-# def f_cy(int I, int J):
-#     cdef double res = 0
-#     # double float much slower than int or long
-#     for i in range(I):
-#         for j in range (J * I):
-#             res += 1
-#     return res
+def random_gpus():
+    # MORE issues with numba import
+    from numbapro.cudalib import curand
+    get_randoms(2, 2)
+    get_cuda_randoms(2, 2)
+
+def get_cuda_randoms(x, y):
+    rand = np.empty((x*y), np.float64)
+    # rand serves as a container for the randoms
+    # CUDA only fills 1-dimensional arrays
+    prng = curand.PRNG(rndtype=curand.PRNG.XORWOW)
+    # the argument sets the random number algorithm
+    prng.normal(rand, 0, 1) # filling the container
+    rand = rand.reshape(x, y)
+    # to be "fair", we reshape rand to 2 dimensions
+    return rand
+
+def get_randoms(x, y):
+    rand = np.random.standard_normal(x, y)
+    return rand
 
 if __name__ == '__main__':
     # paradigms()
     # memory_layout()
-    parallel_computing()
-    parallel_analysis(5)
+    # parallel_computing()
+    # parallel_analysis(5)
     # dynamic_compiling()
+    static_comp_cython()
+    # random_gpus
