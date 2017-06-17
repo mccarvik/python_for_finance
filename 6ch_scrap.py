@@ -173,6 +173,7 @@ def regr_analysis():
     xdat = rets['EUROSTOXX']
     ydat = rets['VSTOXX']
     
+    pdb.set_trace()
     regr = linear_model.LinearRegression()
     regr.fit(np.transpose(np.matrix(xdat)), np.transpose(np.matrix(ydat)))
     

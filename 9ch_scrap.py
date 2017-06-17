@@ -137,13 +137,12 @@ def multi_d():
     matrix[:, 1] = x
     matrix[:, 0] = 1
     
-    pdb.set_trace()
     regr = linear_model.LinearRegression()
-    regr.fit(fm((x, y)), (np.transpose(matrix)))
-    print(model.rsquared)
-    a = model.params
-    print(a)
+    matrix = np.column_stack(matrix+[[1]*len(matrix[0])])
+    regr.fit(np.transpose(matrix), fm((x,y)))  
+    a = regr.coef_
     
+    pdb.set_trace()
     RZ = reg_func(a, (X, Y))
     fig = plt.figure(figsize=(9, 6))
     ax = fig.gca(projection='3d')
@@ -389,7 +388,7 @@ if __name__ == '__main__':
     # regress()
     # noisy()
     # unsorted()
-    # multi_d()
+    multi_d()
     # interpolation()
     # convex_optimization()
     # global_opt()
@@ -399,6 +398,6 @@ if __name__ == '__main__':
     # numerical_int()
     # int_simulation()
     # sym_comp_basics()
-    sym_comp_eqs()
-    sym_comp_int()
-    sym_comp_diff()
+    # sym_comp_eqs()
+    # sym_comp_int()
+    # sym_comp_diff()
