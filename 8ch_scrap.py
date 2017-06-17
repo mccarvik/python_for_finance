@@ -9,7 +9,7 @@ import pdb, time, timeit
 from math import *
 import numexpr as ne
 import numpy as np
-import numba as nb
+# import numba as nb
 import multiprocessing as mp
 
 
@@ -189,7 +189,7 @@ def parallel_analysis(num):
     strikes = np.linspace(80, 120, num)
     from time import time
     times = []
-    for w in range(1, 5):
+    for w in range(1, 17):
         t0 = time()
         pool = mp.Pool(processes=w)
         # the pool of workers
@@ -197,8 +197,8 @@ def parallel_analysis(num):
         result = pool.map(simulate_geometric_brownian_motion, t * [(M, I), ])
         # the mapping of the function to the list of parameter tuples
         times.append(time() - t0)
-    plt.plot(range(1, 5), times)
-    plt.plot(range(1, 5), times, 'ro')
+    plt.plot(range(1, 17), times)
+    plt.plot(range(1, 17), times, 'ro')
     plt.grid(True)
     plt.xlabel('number of processes')
     plt.ylabel('time in seconds')
@@ -425,6 +425,6 @@ def f_py(I, J):
 if __name__ == '__main__':
     # paradigms()
     # memory_layout()
-    # parallel_computing()
-    # parallel_analysis(5)
-    dynamic_compiling()
+    parallel_computing()
+    parallel_analysis(5)
+    # dynamic_compiling()
