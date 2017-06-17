@@ -1,4 +1,5 @@
 import sys, pdb
+sys.path.append('/usr/share/doc')
 sys.path.append("/usr/lib/python3/dist-packages")
 sys.path.append("/usr/local/lib/python3.4/dist-packages")
 sys.path.append("/usr/local/lib/python2.7/dist-packages")
@@ -247,7 +248,6 @@ def global_opt():
     print(ffm(opt1[0], opt1[1]))
     
 def local_opt():
-    pdb.set_trace()
     opt1 = spo.brute(fo, ((-10, 10.1, 0.1), (-10, 10.1, 0.1)), finish=None)
     opt2 = spo.fmin(fo, opt1, xtol=0.001, ftol=0.001, maxiter=15, maxfun=20)
     print(ffm(opt2[0], opt2[1]))
@@ -257,7 +257,6 @@ def Eu(s_b):
     return -(0.5 * sqrt(s_b[0] * 15 + s_b[1] * 5) + 0.5 * sqrt(s_b[0] * 5 + s_b[1] * 12))
 
 def constrained_opt():
-    pdb.set_trace()
     # constraints
     cons = ({'type': 'ineq', 'fun': lambda s_b:  100 - s_b[0] * 10 - s_b[1] * 10})
     # budget constraint
@@ -302,6 +301,10 @@ def integration():
     plt.close()
 
 def numerical_int():
+    a = 0.5  # left integral limit
+    b = 9.5  # right integral limit
+    x = np.linspace(0, 10)
+    y = fff(x)
     print(sci.fixed_quad(fff, a, b)[0])
     print(sci.quad(fff, a, b)[0])
     print(sci.romberg(fff, a, b))
@@ -310,6 +313,11 @@ def numerical_int():
     print(sci.simps(fff(xi), xi))
 
 def int_simulation():
+    a = 0.5  # left integral limit
+    b = 9.5  # right integral limit
+    x = np.linspace(0, 10)
+    y = fff(x)
+    
     for i in range(1, 20):
         np.random.seed(1000)
         x = np.random.random(i * 10) * (b - a) + a
@@ -386,5 +394,11 @@ if __name__ == '__main__':
     # convex_optimization()
     # global_opt()
     # local_opt()
-    constrained_opt()
+    # constrained_opt()
     # integration()
+    # numerical_int()
+    # int_simulation()
+    # sym_comp_basics()
+    sym_comp_eqs()
+    sym_comp_int()
+    sym_comp_diff()
