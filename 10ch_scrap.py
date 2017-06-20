@@ -594,6 +594,8 @@ def VaR():
     plt.xlabel('absolute return')
     plt.ylabel('frequency')
     plt.grid(True)
+    plt.savefig(PATH + 'VaR0.png', dpi=300)
+    plt.close()
 
     percs = [0.01, 0.1, 1., 2.5, 5.0, 10.0]
     var = scs.scoreatpercentile(R_gbm, percs)
@@ -703,5 +705,5 @@ if __name__ == '__main__':
     # jump_diffusion()
     # var_reduction()
     # valuation()
-    # VaR()
-    credit_adjustments()
+    VaR()
+    # credit_adjustments()
