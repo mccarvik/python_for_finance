@@ -12,6 +12,12 @@ import seaborn as sns; sns.set()
 mpl.rcParams['font.family'] = 'serif'
 from pandas_datareader import data as web
 from sklearn.decomposition import KernelPCA
+import warnings
+warnings.simplefilter('ignore')
+import pymc3 as pm
+import pytz
+import datetime as dt
+np.random.seed(1000)
 
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch11/'
@@ -96,6 +102,113 @@ def constructing_pca_index():
                     format=mpl.dates.DateFormatter('%d %b %y'))
     plt.savefig(PATH + 'pca4.png', dpi=300)
     plt.close()
+
+def bayes_formula():
+    x = np.linspace(0, 10, 500)
+    y = 4 + 2 * x + np.random.standard_normal(len(x)) * 2
+    reg = np.polyfit(x, y, 1)
+    plt.figure(figsize=(8, 4))
+    plt.scatter(x, y, c=y, marker='v')
+    plt.plot(x, reg[1] + reg[0] * x, lw=2.0)
+    plt.colorbar()
+    plt.grid(True)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.savefig(PATH + 'bayes1.png', dpi=300)
+    plt.close()
+    print(reg)
     
+    with pm.Model() as model: 
+        # model specifications in PyMC3
+        # are wrapped in a with-statement
+        # define priors
+        alpha = pm.Normal('alpha', mu=0, sd=20)
+        beta = pm.Normal('beta', mu=0, sd=20)
+        sigma = pm.Uniform('sigma', lower=0, upper=10)
+        
+        # define linear regression
+        y_est = alpha + beta * x
+        
+        # define likelihood
+        likelihood = pm.Normal('y', mu=y_est, sd=sigma, observed=y)
+        
+        # inference
+        start = pm.find_MAP()
+        # find starting value by optimization
+        step = pm.NUTS(state=start)
+        # instantiate MCMC sampling algorithm
+        trace = pm.sample(100, step, start=start, progressbar=False)
+        # draw 100 posterior samples using NUTS sampling
+    
+    print(trace[0])
+    fig = pm.traceplot(trace, lines={'alpha': 4, 'beta': 2, 'sigma': 2})
+    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(8, 4))
+    plt.scatter(x, y, c=y, marker='v')
+    plt.colorbar()
+    plt.grid(True)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    for i in range(len(trace)):
+        plt.plot(x, trace['alpha'][i] + trace['beta'][i] * x)
+    plt.savefig(PATH + 'bayes2.png', dpi=300)
+    plt.close()
+
+def bayes_real_data():
+    data = pd.DataFrame()
+    symbols = ['GLD', 'GDX']
+    for sym in symbols:
+        data[sym] = web.DataReader(sym, data_source='yahoo')['Adj Close']
+    print(data.info())
+    data.plot(figsize=(7, 4))
+    plt.savefig(PATH + 'bayes3.png', dpi=300)
+    plt.close()
+    
+    print(data.ix[-1] / data.ix[0] - 1)
+    print(data.corr())
+    print(data.index)
+    mpl_dates = mpl.dates.date2num(data.index.to_pydatetime())
+    print(mpl_dates)
+    plt.figure(figsize=(8, 4))
+    plt.scatter(data['GDX'], data['GLD'], c=mpl_dates, marker='o')
+    plt.grid(True)
+    plt.xlabel('GDX')
+    plt.ylabel('GLD')
+    plt.colorbar(ticks=mpl.dates.DayLocator(interval=250),
+                 format=mpl.dates.DateFormatter('%d %b %y'))
+    plt.savefig(PATH + 'bayes3.png', dpi=300)
+    plt.close()
+
+    with pm.Model() as model:
+        alpha = pm.Normal('alpha', mu=0, sd=20)
+        beta = pm.Normal('beta', mu=0, sd=20)
+        sigma = pm.Uniform('sigma', lower=0, upper=50)
+        
+        y_est = alpha + beta * data['GDX'].values
+        
+        likelihood = pm.Normal('GLD', mu=y_est, sd=sigma,
+                               observed=data['GLD'].values)
+        
+        start = pm.find_MAP()
+        step = pm.NUTS(state=start)
+        trace = pm.sample(100, step, start=start, progressbar=False)
+
+    fig = pm.traceplot(trace)
+    plt.figure(figsize=(8, 8))
+    plt.savefig(PATH + 'bayes4.png', dpi=300)
+    plt.close()
+    
+    plt.figure(figsize=(8, 4))
+    plt.scatter(data['GDX'], data['GLD'], c=mpl_dates, marker='o')
+    plt.grid(True)
+    plt.xlabel('GDX')
+    plt.ylabel('GLD')
+    for i in range(len(trace)):
+        plt.plot(data['GDX'], trace['alpha'][i] + trace['beta'][i] * data['GDX'])
+    plt.colorbar(ticks=mpl.dates.DayLocator(interval=250),
+                format=mpl.dates.DateFormatter('%d %b %y'))
+    plt.savefig(PATH + 'bayes5.png', dpi=300)
+    plt.close()
+
 if __name__ == '__main__':
     pca_data()
