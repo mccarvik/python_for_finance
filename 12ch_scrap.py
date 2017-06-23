@@ -8,6 +8,8 @@ import pandas as pd
 import xlrd, xlwt
 import xlsxwriter
 import openpyxl as oxl
+import string
+from utils import timeme
 path = 'data/'
 
 def gen_wbs():
@@ -74,6 +76,7 @@ def reading_wbs():
             print ('%i' % sheet_1.cell(r, c).value, end=' ')
             
 def using_openpyxl():
+    data = np.arange(1, 65).reshape((8, 8))
     wb = oxl.Workbook()
     ws = wb.create_sheet(index=0, title='oxl_sheet')
     for c in range(data.shape[0]):
@@ -97,9 +100,41 @@ def using_openpyxl():
             print(cell.value, end=' ')
         print
 
+def pandas_rw():
+    data = np.arange(1, 65).reshape((8, 8))
+    df_1 = pd.read_excel(path + 'workbook.xlsx',
+                     'first_sheet', header=None)
+    df_2 = pd.read_excel(path + 'workbook.xlsx',
+                     'second_sheet', header=None)
+    columns = []
+    for c in range(data.shape[0]):
+        columns.append(string.ascii_uppercase[c])
+    print(columns)
+    df_1.columns = columns
+    df_2.columns = columns
+    print(df_1)
+    print(df_2)
+    df_1.to_excel(path + 'new_book_1.xlsx', 'my_sheet')
+    wbn = xlrd.open_workbook(path + 'new_book_1.xlsx')
+    print(wbn.sheet_names())
+    wbw = pd.ExcelWriter(path + 'new_book_2.xlsx')
+    df_1.to_excel(wbw, 'first_sheet')
+    df_2.to_excel(wbw, 'second_sheet')
+    wbw.save()
+    wbn = xlrd.open_workbook(path + 'new_book_2.xlsx')
+    print(wbn.sheet_names())
+    data = np.random.rand(20, 10000)
+    print(data.nbytes)
+    df = pd.DataFrame(data)
+    timeme(df.to_excel)(path + 'data.xlsx', 'data_sheet')
+    timeme(np.save)(path + 'data', data)
+    df = timeme(pd.read_excel)(path + 'data.xlsx', 'data_sheet')
+    data = timeme(np.load)(path + 'data.npy')
+    data, df = 0.0, 0.0
 
 if __name__ == '__main__':
     # gen_wbs()
     # gen_wbs2()
     # reading_wbs()
-    using_openpyxl()
+    # using_openpyxl()
+    pandas_rw()
