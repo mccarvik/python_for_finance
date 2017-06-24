@@ -91,7 +91,7 @@ def norm_tests():
     sigma = 0.2
     T = 1.0
     M = 50
-    I = 250000
+    I = 250
     paths = gen_paths(S0, r, sigma, T, M, I)
 
     plt.plot(paths[:, :10])
@@ -126,7 +126,6 @@ def norm_tests():
     plt.close()
     
     normality_tests(log_returns.flatten())
-
 
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4))
     ax1.hist(paths[-1], bins=30)
@@ -244,12 +243,12 @@ def min_func_port(weights):
     return statistics(weights)[1]
 
 def port_opt_data():
-    symbols = ['AAPL', 'MSFT', 'YHOO', 'DB', 'GLD']
+    # symbols = ['AAPL', 'MSFT', 'YHOO', 'DB', 'GLD']
+    symbols = ['IBM', 'DB', 'GLD']
     noa = len(symbols)
     data = pd.DataFrame()
     for sym in symbols:
-        data[sym] = web.DataReader(sym, data_source='google',
-                                   end='2014-09-12')['Close']
+        data[sym] = web.DataReader(sym, data_source='google', start='2014-09-01', end='2014-09-12')['Close']
     data.columns = symbols
     (data / data.ix[0] * 100).plot(figsize=(8, 5), grid=True)
     rets = np.log(data / data.shift(1))
@@ -286,11 +285,10 @@ def port_opt_theory():
     plt.grid(True)
     plt.xlabel('expected volatility')
     plt.ylabel('expected return')
-    plt.colorbar(label='Sharpe ratio')
+    # plt.colorbar(label='Sharpe ratio')
     plt.savefig(PATH + 'port_opt1.png', dpi=300)
     plt.close()
     
-    pdb.set_trace()
     cons = ({'type': 'eq', 'fun': lambda x:  np.sum(x) - 1})
     bnds = tuple((0, 1) for x in range(noa))
     print(noa * [1. / noa,])
@@ -300,7 +298,6 @@ def port_opt_theory():
     print(opts['x'].round(3))
     print(statistics(opts['x']).round(3))
 
-    pdb.set_trace()
     optv = timeme(sco.minimize)(min_func_variance, noa * [1. / noa,], method='SLSQP',
                            bounds=bnds, constraints=cons)
     print(optv)
@@ -310,9 +307,9 @@ def port_opt_theory():
             {'type': 'eq', 'fun': lambda x:  np.sum(x) - 1})
     bnds = tuple((0, 1) for x in weights)
     
-    pdb.set_trace()
     # Efficient Frontier
-    trets = np.linspace(0.0, 0.25, 50)
+    # trets = np.linspace(0.0, 0.25, 50)
+    trets = np.linspace(0.0, 0.25, 4)
     tvols = []
     for tret in trets:
         cons = ({'type': 'eq', 'fun': lambda x:  statistics(x)[0] - tret},
@@ -338,11 +335,10 @@ def port_opt_theory():
     plt.grid(True)
     plt.xlabel('expected volatility')
     plt.ylabel('expected return')
-    plt.colorbar(label='Sharpe ratio')
+    # plt.colorbar(label='Sharpe ratio')
     plt.savefig(PATH + 'port_opt_efficient_frontier.png', dpi=300)
     plt.close()
     
-    pdb.set_trace()
     ind = np.argmin(tvols)
     evols = tvols[ind:]
     erets = trets[ind:]
@@ -380,7 +376,7 @@ def port_opt_theory():
     plt.axvline(0, color='k', ls='--', lw=2.0)
     plt.xlabel('expected volatility')
     plt.ylabel('expected return')
-    plt.colorbar(label='Sharpe ratio')
+    # plt.colorbar(label='Sharpe ratio')
     plt.savefig(PATH + 'port_opt_capital_market_line.png', dpi=300)
     plt.close()
 

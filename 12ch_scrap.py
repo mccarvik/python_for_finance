@@ -123,7 +123,7 @@ def pandas_rw():
     wbw.save()
     wbn = xlrd.open_workbook(path + 'new_book_2.xlsx')
     print(wbn.sheet_names())
-    data = np.random.rand(20, 10000)
+    data = np.random.rand(10, 1000)
     print(data.nbytes)
     df = pd.DataFrame(data)
     timeme(df.to_excel)(path + 'data.xlsx', 'data_sheet')

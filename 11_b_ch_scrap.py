@@ -18,23 +18,17 @@ import pymc3 as pm
 import pytz
 import datetime as dt
 np.random.seed(1000)
-
+from pymc3.distributions.timeseries import GaussianRandomWalk
+import scipy.optimize as sco
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch11/'
 
 def pca_data():
-    symbols = ['ADS.DE', 'ALV.DE', 'BAS.DE', 'BAYN.DE', 'BEI.DE',
-           'BMW.DE', 'CBK.DE', 'CON.DE', 'DAI.DE', 'DB1.DE',
-           'DBK.DE', 'DPW.DE', 'DTE.DE', 'EOAN.DE', 'FME.DE',
-           'FRE.DE', 'HEI.DE', 'HEN3.DE', 'IFX.DE', 'LHA.DE',
-           'LIN.DE', 'LXS.DE', 'MRK.DE', 'MUV2.DE', 'RWE.DE',
-           'SAP.DE', 'SDF.DE', 'SIE.DE', 'TKA.DE', 'VOW3.DE',
-           '^GDAXI']
+    symbols = ['IBM', 'AAPL', 'MSFT', 'XOM', 'MCD', 'KO', 'SPY']
     data = pd.DataFrame()
     for sym in symbols:
-        data[sym] = web.DataReader(sym, data_source='yahoo')['Close']
+        data[sym] = web.DataReader(sym, data_source='google', start='1/1/2011')['Close']
     data = data.dropna()
-    dax = pd.DataFrame(data.pop('^GDAXI'))
     data[data.columns[:6]].head()
     return data
 
@@ -49,55 +43,57 @@ def applying_pca():
     print(get_we(pca.lambdas_)[:5].sum())
 
 def constructing_pca_index():
+    get_we = lambda x: x / x.sum()
     data = pca_data()
-    dax = pd.DataFrame(data.pop('^GDAXI'))
+    spy = pd.DataFrame(data.pop('SPY'))
     scale_function = lambda x: (x - x.mean()) / x.std()
     pca = KernelPCA(n_components=1).fit(data.apply(scale_function))
-    dax['PCA_1'] = pca.transform(-data)
-    dax.apply(scale_function).plot(figsize=(7, 4))
+    spy['PCA_1'] = pca.transform(-data)
+    spy.apply(scale_function).plot(figsize=(7, 4))
     plt.savefig(PATH + 'pca1.png', dpi=300)
     plt.close()
     
     pca = KernelPCA(n_components=5).fit(data.apply(scale_function))
     pca_components = pca.transform(-data)
     weights = get_we(pca.lambdas_)
-    dax['PCA_5'] = np.dot(pca_components, weights)
-    dax.apply(scale_function).plot(figsize=(7, 4))
+    spy['PCA_5'] = np.dot(pca_components, weights)
+    spy.apply(scale_function).plot(figsize=(7, 4))
     plt.savefig(PATH + 'pca2.png', dpi=300)
     plt.close()
 
+    pdb.set_trace()
     mpl_dates = mpl.dates.date2num(data.index.to_pydatetime())
     print(mpl_dates)
     plt.figure(figsize=(8, 4))
-    plt.scatter(dax['PCA_5'], dax['^GDAXI'], c=mpl_dates)
-    lin_reg = np.polyval(np.polyfit(dax['PCA_5'],
-                                    dax['^GDAXI'], 1),
-                                    dax['PCA_5'])
-    plt.plot(dax['PCA_5'], lin_reg, 'r', lw=3)
+    plt.scatter(spy['PCA_5'], spy['SPY'], c=mpl_dates)
+    lin_reg = np.polyval(np.polyfit(spy['PCA_5'],
+                                    spy['SPY'], 1),
+                                    spy['PCA_5'])
+    plt.plot(spy['PCA_5'], lin_reg, 'r', lw=3)
     plt.grid(True)
     plt.xlabel('PCA_5')
-    plt.ylabel('^GDAXI')
+    plt.ylabel('SPY')
     plt.colorbar(ticks=mpl.dates.DayLocator(interval=250),
                 format=mpl.dates.DateFormatter('%d %b %y'))
     plt.savefig(PATH + 'pca3.png', dpi=300)
     plt.close()
 
     cut_date = '2011/7/1'
-    early_pca = dax[dax.index < cut_date]['PCA_5']
+    early_pca = spy[spy.index < cut_date]['PCA_5']
     early_reg = np.polyval(np.polyfit(early_pca,
-                    dax['^GDAXI'][dax.index < cut_date], 1),
+                    spy['SPY'][spy.index < cut_date], 1),
                     early_pca)
-    late_pca = dax[dax.index >= cut_date]['PCA_5']
+    late_pca = spy[spy.index >= cut_date]['PCA_5']
     late_reg = np.polyval(np.polyfit(late_pca,
-                    dax['^GDAXI'][dax.index >= cut_date], 1),
+                    spy['SPY'][spy.index >= cut_date], 1),
                     late_pca)
     plt.figure(figsize=(8, 4))
-    plt.scatter(dax['PCA_5'], dax['^GDAXI'], c=mpl_dates)
+    plt.scatter(spy['PCA_5'], spy['SPY'], c=mpl_dates)
     plt.plot(early_pca, early_reg, 'r', lw=3)
     plt.plot(late_pca, late_reg, 'r', lw=3)
     plt.grid(True)
     plt.xlabel('PCA_5')
-    plt.ylabel('^GDAXI')
+    plt.ylabel('SPY')
     plt.colorbar(ticks=mpl.dates.DayLocator(interval=250),
                     format=mpl.dates.DateFormatter('%d %b %y'))
     plt.savefig(PATH + 'pca4.png', dpi=300)
@@ -142,7 +138,8 @@ def bayes_formula():
     
     print(trace[0])
     fig = pm.traceplot(trace, lines={'alpha': 4, 'beta': 2, 'sigma': 2})
-    plt.figure(figsize=(8, 8))
+    plt.savefig(PATH + 'bayes2.png', dpi=300)
+    plt.close()
     plt.figure(figsize=(8, 4))
     plt.scatter(x, y, c=y, marker='v')
     plt.colorbar()
@@ -151,17 +148,17 @@ def bayes_formula():
     plt.ylabel('y')
     for i in range(len(trace)):
         plt.plot(x, trace['alpha'][i] + trace['beta'][i] * x)
-    plt.savefig(PATH + 'bayes2.png', dpi=300)
+    plt.savefig(PATH + 'bayes3.png', dpi=300)
     plt.close()
 
 def bayes_real_data():
     data = pd.DataFrame()
     symbols = ['GLD', 'GDX']
     for sym in symbols:
-        data[sym] = web.DataReader(sym, data_source='yahoo')['Adj Close']
+        data[sym] = web.DataReader(sym, data_source='google')['Close']
     print(data.info())
     data.plot(figsize=(7, 4))
-    plt.savefig(PATH + 'bayes3.png', dpi=300)
+    plt.savefig(PATH + 'bayes4.png', dpi=300)
     plt.close()
     
     print(data.ix[-1] / data.ix[0] - 1)
@@ -176,7 +173,7 @@ def bayes_real_data():
     plt.ylabel('GLD')
     plt.colorbar(ticks=mpl.dates.DayLocator(interval=250),
                  format=mpl.dates.DateFormatter('%d %b %y'))
-    plt.savefig(PATH + 'bayes3.png', dpi=300)
+    plt.savefig(PATH + 'bayes5.png', dpi=300)
     plt.close()
 
     with pm.Model() as model:
@@ -193,9 +190,9 @@ def bayes_real_data():
         step = pm.NUTS(state=start)
         trace = pm.sample(100, step, start=start, progressbar=False)
 
+    pdb.set_trace()
     fig = pm.traceplot(trace)
-    plt.figure(figsize=(8, 8))
-    plt.savefig(PATH + 'bayes4.png', dpi=300)
+    plt.savefig(PATH + 'bayes7.png', dpi=300)
     plt.close()
     
     plt.figure(figsize=(8, 4))
@@ -207,8 +204,106 @@ def bayes_real_data():
         plt.plot(data['GDX'], trace['alpha'][i] + trace['beta'][i] * data['GDX'])
     plt.colorbar(ticks=mpl.dates.DayLocator(interval=250),
                 format=mpl.dates.DateFormatter('%d %b %y'))
-    plt.savefig(PATH + 'bayes5.png', dpi=300)
+    plt.savefig(PATH + 'bayes6.png', dpi=300)
+    plt.close()
+
+def bayes_randomwalk():
+    # NOTE not compatible in python 3 version
+    data = pd.DataFrame()
+    symbols = ['GLD', 'GDX']
+    for sym in symbols:
+        data[sym] = web.DataReader(sym, data_source='google')['Close']
+    
+    pdb.set_trace()
+    model_randomwalk = pm.Model()
+    with model_randomwalk:
+        # std of random walk best sampled in log space
+        sigma_alpha, log_sigma_alpha = \
+                model_randomwalk.TransformedVar('sigma_alpha', 
+                                pm.Exponential.dist(1. / .02, testval=.1), 
+                                pm.logtransform)
+        sigma_beta, log_sigma_beta = \
+                model_randomwalk.TransformedVar('sigma_beta', 
+                                pm.Exponential.dist(1. / .02, testval=.1),
+                                pm.logtransform)
+    # to make the model more simple, we will apply the same coefficients
+    # to 50 data points at a time
+    
+    subsample_alpha = 50
+    subsample_beta = 50
+    with model_randomwalk:
+        alpha = GaussianRandomWalk('alpha', sigma_alpha**-2, 
+                                   shape=len(data) / subsample_alpha)
+        beta = GaussianRandomWalk('beta', sigma_beta**-2, 
+                                  shape=len(data) / subsample_beta)
+        
+        # make coefficients have the same length as prices
+        alpha_r = np.repeat(alpha, subsample_alpha)
+        beta_r = np.repeat(beta, subsample_beta)
+        print(len(data.dropna().GDX.values))  # a bit longer than 1,950
+    
+    with model_randomwalk:
+        # define regression
+        regression = alpha_r + beta_r * data.GDX.values[:1950]
+    
+        # assume prices are normally distributed,
+        # the mean comes from the regression
+        sd = pm.Uniform('sd', 0, 20)
+        likelihood = pm.Normal('GLD', 
+                               mu=regression, 
+                               sd=sd, 
+                               observed=data.GLD.values[:1950])
+
+    with model_randomwalk:
+        # first optimize random walk
+        start = pm.find_MAP(vars=[alpha, beta], fmin=sco.fmin_l_bfgs_b)
+        
+        # sampling
+        step = pm.NUTS(scaling=start)
+        trace_rw = pm.sample(100, step, start=start, progressbar=False)
+    print(np.shape(trace_rw['alpha']))
+
+    part_dates = np.linspace(min(mpl_dates), max(mpl_dates), 39)
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+    plt.plot(part_dates, np.mean(trace_rw['alpha'], axis=0),
+             'b', lw=2.5, label='alpha')
+    for i in range(45, 55):
+        plt.plot(part_dates, trace_rw['alpha'][i], 'b-.', lw=0.75)
+    plt.xlabel('date')
+    plt.ylabel('alpha')
+    plt.axis('tight')
+    plt.grid(True)
+    plt.legend(loc=2)
+    ax1.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d %b %y') )
+    ax2 = ax1.twinx()
+    plt.plot(part_dates, np.mean(trace_rw['beta'], axis=0),
+             'r', lw=2.5, label='beta')
+    for i in range(45, 55):
+        plt.plot(part_dates, trace_rw['beta'][i], 'r-.', lw=0.75)
+    plt.ylabel('beta')
+    plt.legend(loc=4)
+    fig.autofmt_xdate()
+    plt.savefig(PATH + 'bayes8.png', dpi=300)
+    plt.close()
+    
+    plt.figure(figsize=(10, 5))
+    plt.scatter(data['GDX'], data['GLD'], c=mpl_dates, marker='o')
+    plt.colorbar(ticks=mpl.dates.DayLocator(interval=250),
+                 format=mpl.dates.DateFormatter('%d %b %y'))
+    plt.grid(True)
+    plt.xlabel('GDX')
+    plt.ylabel('GLD')
+    x = np.linspace(min(data['GDX']), max(data['GDX'])) 
+    for i in range(39):
+        alpha_rw = np.mean(trace_rw['alpha'].T[i])
+        beta_rw = np.mean(trace_rw['beta'].T[i]) 
+        plt.plot(x, alpha_rw + beta_rw * x, color=plt.cm.jet(256 * i / 39))
+    plt.savefig(PATH + 'bayes9.png', dpi=300)
     plt.close()
 
 if __name__ == '__main__':
-    pca_data()
+    # applying_pca()
+    # constructing_pca_index()
+    # bayes_formula()
+    # bayes_real_data()
+    bayes_randomwalk()

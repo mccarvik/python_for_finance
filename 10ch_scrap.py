@@ -141,6 +141,7 @@ def stochastic_procs():
     plt.close()
 
     print_statistics(S[-1], ST2)
+    
     plt.plot(S[:, :10], lw=1.5)
     plt.xlabel('time')
     plt.ylabel('index level')
@@ -353,6 +354,10 @@ def var_reduction():
     sn_new = (sn - sn.mean()) / sn.std()
     print(sn_new.mean())
     print(sn_new.std())
+    print(gen_sn(50, 10000))
+    print(gen_sn(50, 10000, anti_paths=False))
+    print(gen_sn(50, 10000, anti_paths=False, mo_match=False))
+    print(gen_sn(50, 10000, mo_match=False))
 
 def gen_sn(M, I, anti_paths=True, mo_match=True):
     ''' Function to generate random numbers for simulation.
@@ -705,5 +710,5 @@ if __name__ == '__main__':
     # jump_diffusion()
     # var_reduction()
     # valuation()
-    VaR()
-    # credit_adjustments()
+    # VaR()
+    credit_adjustments()
