@@ -8,7 +8,9 @@ mpl.use('Agg')
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import traits.api as trapi
+import seaborn as sns; sns.set()
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'serif'
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch13/'
 
@@ -195,6 +197,7 @@ class cash_flow_series(object):
 
 class cfs_sensitivity(cash_flow_series):
     def npv_sensitivity(self, short_rates):
+        sr = short_rate('r', 0.05)
         npvs = []
         for rate in short_rates:
             sr.rate = rate
@@ -259,16 +262,15 @@ def short_rate_class():
     plt.savefig(PATH + 'cash_flow.png', dpi=300)
     plt.close()
 
-class short_rate_g(trapi.HasTraits):
-    name = trapi.Str
-    rate = trapi.Float
-    time_list = trapi.Array(dtype=np.float, shape=(5,))
-    def get_discount_factors(self):
-        return np.exp(-self.rate * self.time_list)
+# class short_rate_g(trapi.HasTraits):
+#     name = trapi.Str
+#     rate = trapi.Float
+#     time_list = trapi.Array(dtype=np.float, shape=(5,))
+#     def get_discount_factors(self):
+#         return np.exp(-self.rate * self.time_list)
 
 def short_rate_gui():
     sr = short_rate_g()
-    #remove sr.configure_traits()
     sr.name = 'sr_class'
     sr.rate = 0.05
     sr.time_list = [0.0, 0.5, 1.0, 1.5, 2.0]
@@ -279,5 +281,6 @@ def short_rate_gui():
 
 if __name__ == "__main__":
     # object_orientation()
-    # short_rate_class()
-    short_rate_gui()
+    short_rate_class()
+    # Not compatible for Python3
+    # short_rate_gui()

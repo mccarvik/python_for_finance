@@ -271,6 +271,7 @@ def three_d():
     plt.close()
     
 if __name__ ==  "__main__":
-    matplot_finance()
+    # matplot_finance()
+    exponential()
     
 
