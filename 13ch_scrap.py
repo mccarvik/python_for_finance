@@ -23,7 +23,7 @@ class sorted_list(object):
     def __iter__(self):
         self.position = -1
         return self
-    def next(self):
+    def __next__(self):
         if self.position == len(self.elements) - 1:
             raise StopIteration
         self.position += 1
@@ -108,11 +108,11 @@ def object_orientation():
     for name in name_list:
         print(name)
 
-    pdb.set_trace()
     sorted_name_list = sorted_list(name_list)
     for name in sorted_name_list:
         print(name)
 
+    pdb.set_trace()
     print(type(sorted(name_list)))
     for name in sorted(name_list):
         print(name)
@@ -280,7 +280,7 @@ def short_rate_gui():
 
 
 if __name__ == "__main__":
-    # object_orientation()
-    short_rate_class()
+    object_orientation()
+    # short_rate_class()
     # Not compatible for Python3
     # short_rate_gui()
