@@ -112,7 +112,6 @@ def object_orientation():
     for name in sorted_name_list:
         print(name)
 
-    pdb.set_trace()
     print(type(sorted(name_list)))
     for name in sorted(name_list):
         print(name)
@@ -232,6 +231,7 @@ def short_rate_class():
     plt.savefig(PATH + 'short_rate2.png', dpi=300)
     plt.close()
 
+    pdb.set_trace()
     sr.rate = 0.05
     cash_flows = np.array([-100, 50, 75])
     time_list = [0.0, 1.0, 2.0]
@@ -280,7 +280,7 @@ def short_rate_gui():
 
 
 if __name__ == "__main__":
-    object_orientation()
-    # short_rate_class()
+    # object_orientation()
+    short_rate_class()
     # Not compatible for Python3
     # short_rate_gui()
