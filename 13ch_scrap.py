@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'serif'
+import traits.api as trapi
+import traitsui.api as trui
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/ch13/'
 
@@ -196,10 +198,9 @@ class cash_flow_series(object):
 
 class cfs_sensitivity(cash_flow_series):
     def npv_sensitivity(self, short_rates):
-        sr = short_rate('r', 0.05)
         npvs = []
         for rate in short_rates:
-            sr.rate = rate
+            self.short_rate = short_rate('r', rate)
             npvs.append(self.net_present_value())
         return np.array(npvs)
 
@@ -231,7 +232,6 @@ def short_rate_class():
     plt.savefig(PATH + 'short_rate2.png', dpi=300)
     plt.close()
 
-    pdb.set_trace()
     sr.rate = 0.05
     cash_flows = np.array([-100, 50, 75])
     time_list = [0.0, 1.0, 2.0]
@@ -241,7 +241,7 @@ def short_rate_class():
     print(np.sum(disc_facts * cash_flows))
     sr.rate = 0.15
     print(np.sum(sr.get_discount_factors(time_list) * cash_flows))
-    
+
     sr.rate = 0.05
     cfs = cash_flow_series('cfs', time_list, cash_flows, sr)
     print(cfs.cash_flows)
@@ -249,6 +249,7 @@ def short_rate_class():
     print(cfs.present_value_list())
     print(cfs.net_present_value())
 
+    pdb.set_trace()
     cfs_sens = cfs_sensitivity('cfs', time_list, cash_flows, sr)
     short_rates = [0.01, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.2]
     npvs = cfs_sens.npv_sensitivity(short_rates)
@@ -262,21 +263,67 @@ def short_rate_class():
     plt.savefig(PATH + 'cash_flow.png', dpi=300)
     plt.close()
 
-# class short_rate_g(trapi.HasTraits):
-#     name = trapi.Str
-#     rate = trapi.Float
-#     time_list = trapi.Array(dtype=np.float, shape=(5,))
-#     def get_discount_factors(self):
-#         return np.exp(-self.rate * self.time_list)
+class short_rate_g(trapi.HasTraits):
+    name = trapi.Str
+    rate = trapi.Float
+    time_list = trapi.Array(dtype=np.float, shape=(1,5))
+    disc_list = trapi.Array(dtype=np.float, shape=(1,5))
+    update = trapi.Button
+    
+    def _update_fired(self):
+        self.disc_list = np.exp(-self.rate * self.time_list)
+        v = trui.View(trui.Group(trui.Item(name='name'),
+                    trui.Item(name='rate'),
+                    trui.Item(name='time_list', label = 'Insert Time List Here'),
+                    trui.Item(name='update', show_label=False),
+                    trui.Item(name='disc_list', label='Press Update for Factors'),
+                    show_border=True, label='Calculate Discount Factors'),
+                    buttons = [trui.OKButton, trui.CancelButton],
+                    resizable = True)
+    
+    def get_discount_factors(self):
+        return np.exp(-self.rate * self.time_list)
+        
+class cash_flow_series_g(trapi.HasTraits):
+    name = trapi.Str
+    short_rate = trapi.Range(0.0, 0.5, 0.05)
+    time_list = trapi.Array(dtype=np.float, shape=(1,6))
+    present_values = trapi.Array(dtype=np.float, shape=(1,6))
+    cash_flows = trapi.Array(dtype=np.float, shape=(1,6))
+    disc_values = trapi.Array(dtype=np.float, shape=(1,6))
+    net_present_value = trapi.Float
+    update = trapi.Button
+    
+    def _update_fired(self):
+        self.disc_values = np.exp(-self.rate * self.time_list)
+        self.present_values = self.disc_values * self.cash_flows
+        self.net_present_value = np.sum(self.present_values)
+        v = trui.View(trui.Group(trui.Item(name='name'),
+                    trui.Item(name='short_rate'),
+                    trui.Item(name='time_list', label = 'Time List'),
+                    trui.Item(name='cash_flows', label = 'Cash Flows'),
+                    trui.Item(name='update', show_label=False),
+                    trui.Item(name='disc_values', label='Discount Factors'),
+                    trui.Item(name='present_values', label='Present Values'),
+                    trui.Item(name='net_present_value', label='Net Present Value'),
+                    show_border=True, label='Calculate Present Values'),
+                    buttons = [trui.OKButton, trui.CancelButton],
+                    resizable = True)
+    
+    def get_discount_factors(self):
+        return np.exp(-self.rate * self.time_list)
+    
 
 def short_rate_gui():
     sr = short_rate_g()
+    sr.configure_traits()
     sr.name = 'sr_class'
     sr.rate = 0.05
     sr.time_list = [0.0, 0.5, 1.0, 1.5, 2.0]
     print(sr.rate)
     print(sr.time_list)
     print(sr.get_discount_factors())
+    sr._update_fired()
 
 
 if __name__ == "__main__":
