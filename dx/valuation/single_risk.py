@@ -4,19 +4,13 @@ from ..models import *
 
 models = {'gbm': geometric_brownian_motion,
           'jd': jump_diffusion,
+          'sv': stochastic_volatility,
+          'svjd': stoch_vol_jump_diffusion,
+          'sabr': sabr_stochastic_volatility,
           'srd': square_root_diffusion,
-         }
-          
-
-# models = {'gbm': geometric_brownian_motion,
-#           'jd': jump_diffusion,
-#           'sv': stochastic_volatility,
-#           'svjd': stoch_vol_jump_diffusion,
-#           'sabr': sabr_stochastic_volatility,
-#           'srd': square_root_diffusion,
-#           'mrd': mean_reverting_diffusion,
-#           'srjd': square_root_jump_diffusion,
-#           'srjd+': square_root_jump_diffusion_plus}
+          'mrd': mean_reverting_diffusion,
+          'srjd': square_root_jump_diffusion,
+          'srjd+': square_root_jump_diffusion_plus}
 
 
 class valuation_class_single(object):
