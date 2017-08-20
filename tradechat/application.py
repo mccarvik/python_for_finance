@@ -28,7 +28,6 @@ def init_db():
     with app.app_context():
         db = get_db()
         with app.open_resource('tables.sql', mode='r') as f:
-            # pdb.set_trace()
             db.cursor().executescript(f.read())
         db.commit()
 
@@ -86,7 +85,8 @@ def add_entry():
         abort(401)
     db = get_db()
     now = dt.datetime.now()
-    db.exectue('insert into comments (comment, user, time) values (?,?,?)',
+    pdb.set_trace()
+    db.execute('insert into comments (comment, user, time) values (?,?,?)',
             [request.form['text'], app.config['USERNAME'], str(now)[:-7]])
     db.commit()
     flash('Your comment was successfully added')
@@ -94,7 +94,7 @@ def add_entry():
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in, None')
+    session.pop('logged_in', None)
     flash('You were logged out')
     return redirect(url_for('show_entries'))
 
