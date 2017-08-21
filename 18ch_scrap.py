@@ -27,9 +27,9 @@ def derivatives_sim():
     am_put_pos = derivatives_position(
              name='am_put_pos',
              quantity=3,
-             underlying='gbm',
+             underlyings=['gbm'],
              mar_env=me_am_put,
-             otype='American',
+             otype='American single',
              payoff_func=payoff_func)
     am_put_pos.get_info()
     me_jd = market_environment('me_jd', me_gbm.pricing_date)
@@ -52,9 +52,9 @@ def derivatives_sim():
     eur_call_pos = derivatives_position(
              name='eur_call_pos',
              quantity=5,
-             underlying='jd',
+             underlyings=['jd'],
              mar_env=me_eur_call,
-             otype='European',
+             otype='European single',
              payoff_func=payoff_func)
     underlyings = {'gbm': me_gbm, 'jd' : me_jd}
     positions = {'am_put_pos' : am_put_pos, 'eur_call_pos' : eur_call_pos}
@@ -72,11 +72,12 @@ def derivatives_sim():
     # not yet known; take pricing_date temporarily
     val_env.add_curve('discount_curve', csr)
     # select single discount_curve for whole portfolio
+    pdb.set_trace()
     portfolio = derivatives_portfolio(
                 name='portfolio',
                 positions=positions,
                 val_env=val_env,
-                assets=underlyings,
+                risk_factors=underlyings,
                 fixed_seed=False)
     portfolio.get_statistics(fixed_seed=False)
     portfolio.get_statistics(fixed_seed=False)[['pos_value', 'pos_delta', 'pos_vega']].sum()
@@ -103,7 +104,7 @@ def derivatives_sim():
                 name='portfolio',
                 positions=positions,
                 val_env=val_env,
-                assets=underlyings,
+                risk_factors=underlyings,
                 correlations=correlations,
                 fixed_seed=True)
     print(port_corr.get_statistics())
@@ -155,3 +156,5 @@ def derivatives_sim():
                 present_value(full=True)[1]
     print((pv1 + pv2).std())
 
+if __name__ == '__main__': 
+    derivatives_sim()
