@@ -23,7 +23,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see http://www.gnu.org/licenses/.
 #
-import math
+import math, pdb
 import numpy as np
 import pandas as pd
 import datetime as dt
@@ -48,7 +48,6 @@ def get_year_deltas(time_list, day_count=365.):
     delta_list : array
         year fractions
     '''
-
     delta_list = []
     start = time_list[0]
     for time in time_list:
@@ -57,8 +56,7 @@ def get_year_deltas(time_list, day_count=365.):
     return np.array(delta_list)
 
 
-def sn_random_numbers(shape, antithetic=True, moment_matching=True,
-                      fixed_seed=False):
+def sn_random_numbers(shape, antithetic=True, moment_matching=True, fixed_seed=False):
     ''' Return an array of shape "shape" with (pseudo-) random numbers
     which are standard normally distributed.
     Parameters
@@ -178,7 +176,7 @@ class deterministic_short_rate(object):
         return np.array([time_list, yield_curve, yield_deriv]).T
 
     def get_forward_rates(self, time_list, paths=None, dtobjects=True):
-        yield_curve = self.get_interpolated_yields(time_list, dtobjects)
+        yield_curve = self.get_interpolated_yields(time_list, dtobjects=dtobjects)
         if dtobjects is True:
             tlist = get_year_deltas(time_list)
         else:
@@ -192,7 +190,8 @@ class deterministic_short_rate(object):
             dlist = get_year_deltas(time_list)
         else:
             dlist = time_list
-        time_list, forward_rate = self.get_forward_rates(time_list, dtobjects)
+        time_list, forward_rate = self.get_forward_rates(time_list, dtobjects=dtobjects)
+        pdb.set_trace()
         for no in range(len(dlist)):
             factor = 0.0
             for d in range(no, len(dlist) - 1):
