@@ -26,10 +26,10 @@ def risk_neutral_discounting():
     print("forward rates: " + str(csr.get_forward_rates(dates)[1]))
     
     # getting
-    yields = [0.25, 1.0, 1.5, 2.5]
+    yields = [0.0025, 0.01, 0.015, 0.025]
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
     dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
-    test_dts = [3, 7]
+    test_dts = [3, 7, 10]
     deltas = get_year_deltas(dates)
     print("Discount factors / forward rates for a deterministic rate")
     print("aka rate defined from a curve")
@@ -41,9 +41,9 @@ def risk_neutral_discounting():
     
     
 def creating_market_environment():
-    dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2016, 1, 1)]
-    deltas = [0.0, 0.5, 1.0]
-    csr = constant_short_rate('csr', 0.05)
+    yields = [0.0025, 0.01, 0.015, 0.025]
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
     
     me_1 = market_environment('me_1', dt.datetime(2015,1,1))
     me_1.add_list('symbols', ['AAPL', 'MSFT', 'FB'])
@@ -51,16 +51,29 @@ def creating_market_environment():
     
     me_2 = market_environment('me_2', dt.datetime(2015,1,1))
     me_2.add_constant('volatility', 0.2)
-    me_2.add_curve('short_rate', csr)
-    print(me_2.get_curve('short_rate'))
+    me_2.add_curve('10_yr', dsr)
+    print(me_2.get_curve('10_yr'))
     
+    pdb.set_trace()
     me_1.add_environment(me_2)
-    print(me_1.get_curve('short_rate'))
+    print(me_1.get_curve('10_yr'))
     print(me_1.constants)
     print(me_1.lists)
     print(me_1.curves)
-    print(me_1.get_curve('short_rate').short_rate)
+    print(me_1.get_curve('10_yr').yield_list[1])
+
+
+def standard_normal_random_numbers():
+    snrn = sn_random_numbers((2, 2, 2), antithetic=False, moment_matching=False, fixed_seed=True)
+    print(snrn)
+    snrn_mm = sn_random_numbers((2, 3, 2), antithetic=False, moment_matching=True, fixed_seed=True)
+    print(snrn_mm)
+    print(snrn_mm.mean())
+    print(snrn_mm.std())
 
 
 if __name__ == '__main__':
-    risk_neutral_discounting()
+    # risk_neutral_discounting()
+    # creating_market_environment()
+    # standard_normal_random_numbers()
+    pass

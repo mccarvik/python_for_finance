@@ -100,5 +100,5 @@ def square_root_diffusion_sim():
 
 if __name__ == '__main__':
     # standard_normal_random_numbers()
-    # geometric_brownian_motion_and_jump_diffusion()
-    square_root_diffusion_sim()
+    geometric_brownian_motion_and_jump_diffusion()
+    # square_root_diffusion_sim()

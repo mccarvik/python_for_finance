@@ -91,7 +91,6 @@ def sn_random_numbers(shape, antithetic=True, moment_matching=True, fixed_seed=F
 
 # Discounting classes
 
-
 class constant_short_rate(object):
     ''' Class for constant short rate discounting.
     Attributes
@@ -191,12 +190,10 @@ class deterministic_short_rate(object):
         else:
             dlist = time_list
         time_list, forward_rate = self.get_forward_rates(time_list, dtobjects=dtobjects)
-        pdb.set_trace()
         for no in range(len(dlist)):
             factor = 0.0
             for d in range(no, len(dlist) - 1):
-                factor += ((dlist[d + 1] - dlist[d]) *
-                           (0.5 * (forward_rate[d + 1] + forward_rate[d])))
+                factor += ((dlist[d + 1] - dlist[d]) * (0.5 * (forward_rate[d + 1] + forward_rate[d])))
             discount_factors.append(np.exp(-factor))
         return time_list, discount_factors
 
