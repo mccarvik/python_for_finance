@@ -24,8 +24,7 @@ class geometric_brownian_motion(simulation_class):
     def __init__(self, name, mar_env, corr=False):
         super(geometric_brownian_motion, self).__init__(name, mar_env, corr)
 
-    def update(self, pricing_date=None, initial_value=None,
-               volatility=None, final_date=None):
+    def update(self, pricing_date=None, initial_value=None, volatility=None, final_date=None):
         ''' Updates model parameters. '''
         if pricing_date is not None:
             self.pricing_date = pricing_date
@@ -41,6 +40,7 @@ class geometric_brownian_motion(simulation_class):
 
     def generate_paths(self, fixed_seed=False, day_count=365.):
         ''' Generates Monte Carlo paths for the model. '''
+        pdb.set_trace()
         if self.time_grid is None:
             self.generate_time_grid()
             # method from generic model simulation class

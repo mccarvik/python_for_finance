@@ -72,8 +72,29 @@ def standard_normal_random_numbers():
     print(snrn_mm.std())
 
 
+def geometric_brownian_motion_and_jump_diffusion():
+    yields = [0.0025, 0.01, 0.015, 0.025]
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
+    
+    me_gbm = market_environment('me_gbm', dt.datetime(2015, 1, 1))
+    me_gbm.add_constant('initial_value', 36.)
+    me_gbm.add_constant('volatility', 0.2)
+    me_gbm.add_constant('final_date', dt.datetime(2015, 12, 31))
+    me_gbm.add_constant('currency', 'EUR')
+    # monthly frequency (respcective month end)
+    me_gbm.add_constant('frequency', 'M')
+    me_gbm.add_constant('paths', 10000)
+    me_gbm.add_curve('discount_curve', dsr)
+    gbm = geometric_brownian_motion('gbm', me_gbm)
+    gbm.generate_time_grid()
+    # print(gbm.time_grid)
+    paths_1 = gbm.get_instrument_values()
+    print(paths_1)
+
+
 if __name__ == '__main__':
     # risk_neutral_discounting()
     # creating_market_environment()
     # standard_normal_random_numbers()
-    pass
+    geometric_brownian_motion_and_jump_diffusion()
