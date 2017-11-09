@@ -40,7 +40,6 @@ class geometric_brownian_motion(simulation_class):
 
     def generate_paths(self, fixed_seed=False, day_count=365.):
         ''' Generates Monte Carlo paths for the model. '''
-        pdb.set_trace()
         if self.time_grid is None:
             self.generate_time_grid()
             # method from generic model simulation class
@@ -76,8 +75,8 @@ class geometric_brownian_motion(simulation_class):
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
             # difference between two dates as year fraction
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
-            paths[t] = paths[t - 1] * np.exp((rt - 0.5 *
-                                              self.volatility ** 2) * dt +
-                                             self.volatility * np.sqrt(dt) * ran)
+            pdb.set_trace()
+            paths[t] = paths[t - 1] * np.exp((rt - 0.5 * self.volatility ** 2) * 
+                                        dt + self.volatility * np.sqrt(dt) * ran)
             # generate simulated values for the respective date
         self.instrument_values = paths

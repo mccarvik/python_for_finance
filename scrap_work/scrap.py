@@ -12,6 +12,7 @@ import datetime as dt
 
 from dx import *
 
+PATH = '/home/ubuntu/workspace/python_for_finance/png/scrap/'
 
 def risk_neutral_discounting():
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2016, 1, 1)]
@@ -84,13 +85,17 @@ def geometric_brownian_motion_and_jump_diffusion():
     me_gbm.add_constant('currency', 'EUR')
     # monthly frequency (respcective month end)
     me_gbm.add_constant('frequency', 'M')
-    me_gbm.add_constant('paths', 10000)
+    me_gbm.add_constant('paths', 100)
     me_gbm.add_curve('discount_curve', dsr)
+    
     gbm = geometric_brownian_motion('gbm', me_gbm)
     gbm.generate_time_grid()
     # print(gbm.time_grid)
     paths_1 = gbm.get_instrument_values()
-    print(paths_1)
+    pdf = pd.DataFrame(paths_1, index=gbm.time_grid)
+    pdf.ix[:, :10].plot(legend=False, figsize=(10, 6))
+    plt.savefig(PATH + 'gbm.png', dpi=300)
+    print(pdf)
 
 
 if __name__ == '__main__':
