@@ -73,7 +73,7 @@ def standard_normal_random_numbers():
     print(snrn_mm.std())
 
 
-def geometric_brownian_motion_and_jump_diffusion():
+def geometric_brownian_motion_run():
     yields = [0.0025, 0.01, 0.015, 0.025]
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
     dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
@@ -95,11 +95,65 @@ def geometric_brownian_motion_and_jump_diffusion():
     pdf = pd.DataFrame(paths_1, index=gbm.time_grid)
     pdf.ix[:, :10].plot(legend=False, figsize=(10, 6))
     plt.savefig(PATH + 'gbm.png', dpi=300)
-    print(pdf)
+    plt.close()
+    
+    pdb.set_trace()
+    gbm.update(volatility=0.5)
+    paths_2 = gbm.get_instrument_values()
+    plt.figure(figsize=(8, 4))
+    p1 = plt.plot(gbm.time_grid, paths_1[:, :10], 'b')
+    p2 = plt.plot(gbm.time_grid, paths_2[:, :10], 'r-.')
+    plt.grid(True)
+    l1 = plt.legend([p1[0], p2[0]],
+                ['low volatility', 'high volatility'], loc=2)
+    plt.gca().add_artist(l1)
+    plt.xticks(rotation=30)
+    plt.savefig(PATH + 'gbm_vols.png', dpi=300)
+    plt.close()
+
+
+def jump_diffusion_run():
+    yields = [0.0025, 0.01, 0.015, 0.025]
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
+    
+    me_jd = market_environment('me_jd', dt.datetime(2015, 1, 1))
+    # specific to simulation class
+    me_jd.add_constant('lambda', 0.3)
+    me_jd.add_constant('mu', -0.75)
+    me_jd.add_constant('delta', 0.1)
+    # from GBM environment
+    me_jd.add_constant('initial_value', 100.)
+    me_jd.add_constant('volatility', 0.2)
+    me_jd.add_constant('final_date', dt.datetime(2015, 12, 31))
+    me_jd.add_constant('currency', 'EUR')
+    # monthly frequency (respcective month end)
+    me_jd.add_constant('frequency', 'M')
+    me_jd.add_constant('paths', 100)
+    me_jd.add_curve('discount_curve', dsr)
+    
+    jd = jump_diffusion('jd', me_jd)
+    jd.generate_time_grid()
+    paths_3 = jd.get_instrument_values()
+    jd.update(lamb=0.9)
+    paths_4 = jd.get_instrument_values()
+    plt.figure(figsize=(8, 4))
+    p1 = plt.plot(jd.time_grid, paths_3[:, :10], 'b')
+    p2 = plt.plot(jd.time_grid, paths_4[:, :10], 'r-.')
+    plt.grid(True)
+    l1 = plt.legend([p1[0], p2[0]],
+                ['low intensity', 'high intensity'], loc=3)
+    plt.gca().add_artist(l1)
+    plt.xticks(rotation=30)
+    plt.savefig(PATH + 'jd.png', dpi=300)
+    plt.close()
+    
+    
 
 
 if __name__ == '__main__':
     # risk_neutral_discounting()
     # creating_market_environment()
     # standard_normal_random_numbers()
-    geometric_brownian_motion_and_jump_diffusion()
+    # geometric_brownian_motion_run()
+    jump_diffusion_run()
