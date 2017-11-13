@@ -80,9 +80,10 @@ class jump_diffusion(simulation_class):
         forward_rates = self.discount_curve.get_forward_rates(
             self.time_grid, self.paths, dtobjects=True)[1]
 
+        pdb.set_trace()
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
         for t in range(1, len(self.time_grid)):
-                        # select the right time slice from the relevant
+            # select the right time slice from the relevant
             # random number set
             if self.correlated is False:
                 ran = sn1[t]

@@ -1,4 +1,5 @@
 import sys, pdb
+sys.path.append("/home/ubuntu/workspace/python_for_finance")
 sys.path.append("/usr/local/lib/python2.7/dist-packages")
 sys.path.append("/usr/local/lib/python3.4/dist-packages")
 import matplotlib as mpl
@@ -99,6 +100,6 @@ def square_root_diffusion_sim():
     plt.close()
 
 if __name__ == '__main__':
-    # standard_normal_random_numbers()
-    geometric_brownian_motion_and_jump_diffusion()
+    standard_normal_random_numbers()
+    # geometric_brownian_motion_and_jump_diffusion()
     # square_root_diffusion_sim()

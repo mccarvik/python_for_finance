@@ -55,7 +55,6 @@ def creating_market_environment():
     me_2.add_curve('10_yr', dsr)
     print(me_2.get_curve('10_yr'))
     
-    pdb.set_trace()
     me_1.add_environment(me_2)
     print(me_1.get_curve('10_yr'))
     print(me_1.constants)
@@ -97,7 +96,6 @@ def geometric_brownian_motion_run():
     plt.savefig(PATH + 'gbm.png', dpi=300)
     plt.close()
     
-    pdb.set_trace()
     gbm.update(volatility=0.5)
     paths_2 = gbm.get_instrument_values()
     plt.figure(figsize=(8, 4))
@@ -119,9 +117,9 @@ def jump_diffusion_run():
     
     me_jd = market_environment('me_jd', dt.datetime(2015, 1, 1))
     # specific to simulation class
-    me_jd.add_constant('lambda', 0.3)
-    me_jd.add_constant('mu', -0.75)
-    me_jd.add_constant('delta', 0.1)
+    me_jd.add_constant('lambda', 0.3)       # probability for a jump p.a.
+    me_jd.add_constant('mu', -0.75)         # expected relative jump size
+    me_jd.add_constant('delta', 0.1)        # standard deviation of relative jump
     # from GBM environment
     me_jd.add_constant('initial_value', 100.)
     me_jd.add_constant('volatility', 0.2)
@@ -132,11 +130,12 @@ def jump_diffusion_run():
     me_jd.add_constant('paths', 100)
     me_jd.add_curve('discount_curve', dsr)
     
+    pdb.set_trace()
     jd = jump_diffusion('jd', me_jd)
     jd.generate_time_grid()
-    paths_3 = jd.get_instrument_values()
+    paths_3 = jd.get_instrument_values(fixed_seed=False)
     jd.update(lamb=0.9)
-    paths_4 = jd.get_instrument_values()
+    paths_4 = jd.get_instrument_values(fixed_seed=False)
     plt.figure(figsize=(8, 4))
     p1 = plt.plot(jd.time_grid, paths_3[:, :10], 'b')
     p2 = plt.plot(jd.time_grid, paths_4[:, :10], 'r-.')
