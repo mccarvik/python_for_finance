@@ -91,13 +91,20 @@ class jump_diffusion(simulation_class):
                 # only with correlation in portfolio context
                 ran = np.dot(self.cholesky_matrix, sn1[:, t, :])
                 ran = ran[self.rn_set]
-            dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
+            
             # difference between two dates as year fraction
-            poi = np.random.poisson(self.lamb * dt, I)
+            dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
+            
             # Poisson distributed pseudo-random numbers for jump component
+            # will determine whether a jump occurs or not given lambda
+            poi = np.random.poisson(self.lamb * dt, I)
+            
+            # Drift
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
+            
             paths[t] = paths[t - 1] * (
                 np.exp((rt - rj - 0.5 * self.volatility ** 2) * dt +
                        self.volatility * np.sqrt(dt) * ran) +
                 (np.exp(self.mu + self.delt * sn2[t]) - 1) * poi)
+        
         self.instrument_values = paths
