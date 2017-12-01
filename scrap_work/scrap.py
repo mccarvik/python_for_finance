@@ -14,6 +14,12 @@ from dx import *
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/scrap/'
 
+colormap='RdYlBu_r'
+lw=1.25
+figsize=(10, 6)
+legend=False
+no_paths=10
+
 def risk_neutral_discounting():
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2016, 1, 1)]
     
@@ -130,7 +136,6 @@ def jump_diffusion_run():
     me_jd.add_constant('paths', 100)
     me_jd.add_curve('discount_curve', dsr)
     
-    pdb.set_trace()
     jd = jump_diffusion('jd', me_jd)
     jd.generate_time_grid()
     paths_3 = jd.get_instrument_values(fixed_seed=False)
@@ -146,7 +151,43 @@ def jump_diffusion_run():
     plt.xticks(rotation=30)
     plt.savefig(PATH + 'jd.png', dpi=300)
     plt.close()
+
+
+def stoch_volatility():
+    yields = [0.0025, 0.01, 0.015, 0.025]
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
     
+    no_paths = 2
+    
+    me = market_environment('me', dt.datetime(2015, 1, 1))
+    me.add_constant('initial_value', 36.)
+    me.add_constant('volatility', 0.2)
+    me.add_constant('final_date', dt.datetime(2016, 12, 31))
+    me.add_constant('currency', 'EUR')
+    me.add_constant('frequency', 'M')       # monthly frequency; paramter accorind to pandas convention
+    me.add_constant('paths', no_paths)
+    me.add_curve('discount_curve', dsr)
+    me.add_constant('rho', -.5)             # correlation between risk factor process (eg index) and variance process 
+    me.add_constant('kappa', 2.5)           # mean reversion factor
+    me.add_constant('theta', 0.1)           # long-term variance level
+    me.add_constant('vol_vol', 0.1)         # volatility factor for variance process
+    
+    sv = stochastic_volatility('sv', me)
+    paths = sv.get_instrument_values(fixed_seed=False)
+    pdf = pd.DataFrame(paths, index=sv.time_grid)
+    pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    plt.savefig(PATH + 'sv_paths.png', dpi=300)
+    plt.close()
+    
+    vols = sv.get_volatility_values()
+    pdf = pd.DataFrame(vols, index=sv.time_grid)
+    pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    plt.savefig(PATH + 'sv_vol.png', dpi=300)
+    plt.close()
+
+def stoch_vol_jd():
+    pass
     
 
 
@@ -155,4 +196,6 @@ if __name__ == '__main__':
     # creating_market_environment()
     # standard_normal_random_numbers()
     # geometric_brownian_motion_run()
-    jump_diffusion_run()
+    # jump_diffusion_run()
+    stoch_volatility()
+    # stoch_vol_jd()

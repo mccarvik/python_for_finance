@@ -38,8 +38,8 @@ class stochastic_volatility(simulation_class):
         except:
             print('Error parsing market environment.')
 
-    def update(self, pricing_date=None, initial_value=None, volatility=None,
-               vol_vol=None, kappa=None, theta=None, final_date=None):
+    def update(self, pricing_date=None, initial_value=None, volatility=None, 
+    vol_vol=None, kappa=None, theta=None, final_date=None):
         if pricing_date is not None:
             self.pricing_date = pricing_date
             self.time_grid = None
@@ -60,7 +60,8 @@ class stochastic_volatility(simulation_class):
         self.instrument_values = None
         self.volatility_values = None
 
-    def generate_paths(self, fixed_seed=True, day_count=365.):
+
+    def generate_paths(self, fixed_seed=False, day_count=365.):
         if self.time_grid is None:
             self.generate_time_grid()
         M = len(self.time_grid)
@@ -76,10 +77,11 @@ class stochastic_volatility(simulation_class):
                                     fixed_seed=fixed_seed)
         else:
             sn1 = self.random_numbers
-
+        
         # Pseudo-random numbers for the stochastic volatility
         sn2 = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
 
+        
         forward_rates = self.discount_curve.get_forward_rates(
             self.time_grid, self.paths, dtobjects=True)[1]
 
@@ -93,17 +95,24 @@ class stochastic_volatility(simulation_class):
             rat = np.array([ran, sn2[t]])
             rat = np.dot(self.leverage, rat)
 
+            pdb.set_trace()
+            # Heston Model of Stochastic volatility
             va_[t] = (va_[t - 1] + self.kappa *
                       (self.theta - np.maximum(0, va_[t - 1])) * dt +
                       np.sqrt(np.maximum(0, va_[t - 1])) *
                       self.vol_vol * np.sqrt(dt) * rat[1])
             va[t] = np.maximum(0, va_[t])
 
+            pdb.set_trace()
+            # Assume an average of the staring and ending forward rates over the period
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
+            
+            # TODO
             paths[t] = paths[t - 1] * (
                 np.exp((rt - 0.5 * va[t]) * dt +
                        np.sqrt(va[t]) * np.sqrt(dt) * rat[0]))
-
+            
+            # TODO
             # moment matching stoch vol part
             paths[t] -= np.mean(paths[t - 1] * np.sqrt(va[t]) *
                                 math.sqrt(dt) * rat[0])
