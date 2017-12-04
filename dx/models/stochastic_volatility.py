@@ -76,6 +76,7 @@ class stochastic_volatility(simulation_class):
             sn1 = sn_random_numbers((1, M, I),
                                     fixed_seed=fixed_seed)
         else:
+            # Pseudo random numbers for the monte carlo
             sn1 = self.random_numbers
         
         # Pseudo-random numbers for the stochastic volatility
@@ -92,30 +93,28 @@ class stochastic_volatility(simulation_class):
             else:
                 ran = np.dot(self.cholesky_matrix, sn1[:, t, :])
                 ran = ran[self.rn_set]
+            
+            # rat = the pair of random numbers we need for each path
             rat = np.array([ran, sn2[t]])
             rat = np.dot(self.leverage, rat)
 
-            pdb.set_trace()
             # Heston Model of Stochastic volatility
-            va_[t] = (va_[t - 1] + self.kappa *
-                      (self.theta - np.maximum(0, va_[t - 1])) * dt +
-                      np.sqrt(np.maximum(0, va_[t - 1])) *
-                      self.vol_vol * np.sqrt(dt) * rat[1])
+            # instantaneous vol will move from intial vol (va_[0]**2) to long term variance (theta)
+            # at the rate of kappa as the path gets further
+            va_[t] = (va_[t - 1] + self.kappa * (self.theta - np.maximum(0, va_[t - 1])) * dt \
+                     + np.sqrt(np.maximum(0, va_[t - 1])) * self.vol_vol * np.sqrt(dt) * rat[1])
             va[t] = np.maximum(0, va_[t])
 
-            pdb.set_trace()
             # Assume an average of the staring and ending forward rates over the period
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
             
-            # TODO
-            paths[t] = paths[t - 1] * (
-                np.exp((rt - 0.5 * va[t]) * dt +
+            # Normal Geometric Brownian motion after stochastic volatility
+            paths[t] = paths[t - 1] * (np.exp((rt - 0.5 * va[t]) * dt +
                        np.sqrt(va[t]) * np.sqrt(dt) * rat[0]))
             
-            # TODO
             # moment matching stoch vol part
-            paths[t] -= np.mean(paths[t - 1] * np.sqrt(va[t]) *
-                                math.sqrt(dt) * rat[0])
+            # moment matching ensures std dev = 1 for normal distribution
+            paths[t] -= np.mean(paths[t - 1] * np.sqrt(va[t]) * math.sqrt(dt) * rat[0])
 
         self.instrument_values = paths
         self.volatility_values = np.sqrt(va)

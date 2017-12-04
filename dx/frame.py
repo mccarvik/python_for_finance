@@ -56,7 +56,7 @@ def get_year_deltas(time_list, day_count=365.):
     return np.array(delta_list)
 
 
-def sn_random_numbers(shape, antithetic=True, moment_matching=True, fixed_seed=False):
+def sn_random_numbers(shape, antithetic=False, moment_matching=True, fixed_seed=False):
     ''' Return an array of shape "shape" with (pseudo-) random numbers
     which are standard normally distributed.
     Parameters
@@ -76,12 +76,14 @@ def sn_random_numbers(shape, antithetic=True, moment_matching=True, fixed_seed=F
     if fixed_seed is True:
         np.random.seed(1000)
     if antithetic is True:
+        # antithetic ensures mean = 0 for normal distribution
         ran = np.random.standard_normal(
             (shape[0], shape[1], int(shape[2] / 2)))
         ran = np.concatenate((ran, -ran), axis=2)
     else:
         ran = np.random.standard_normal(shape)
     if moment_matching is True:
+        # moment matching ensures std dev = 1 for normal distribution
         ran = ran - np.mean(ran)
         ran = ran / np.std(ran)
     if shape[0] == 1:
