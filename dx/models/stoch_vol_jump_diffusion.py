@@ -84,18 +84,18 @@ class stoch_vol_jump_diffusion(simulation_class):
         paths[0] = self.initial_value
         va[0] = self.volatility ** 2
         va_[0] = self.volatility ** 2
+        
+        # Pseudo-random numbers for the monte-carlo simulation
         if self.correlated is False:
-            sn1 = sn_random_numbers((1, M, I),
-                                    fixed_seed=fixed_seed)
+            sn1 = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
         else:
             sn1 = self.random_numbers
 
         # Pseudo-random numbers for the jump component
-        sn2 = sn_random_numbers((1, M, I),
-                                fixed_seed=fixed_seed)
+        sn2 = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
+        
         # Pseudo-random numbers for the stochastic volatility
-        sn3 = sn_random_numbers((1, M, I),
-                                fixed_seed=fixed_seed)
+        sn3 = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
 
         forward_rates = self.discount_curve.get_forward_rates(
             self.time_grid, self.paths, dtobjects=True)[1]
@@ -112,23 +112,18 @@ class stoch_vol_jump_diffusion(simulation_class):
             rat = np.array([ran, sn3[t]])
             rat = np.dot(self.leverage, rat)
 
-            va_[t] = (va_[t - 1] + self.kappa *
-                      (self.theta - np.maximum(0, va_[t - 1])) * dt +
-                      np.sqrt(np.maximum(0, va_[t - 1])) *
-                      self.vol_vol * np.sqrt(dt) * rat[1])
+            va_[t] = (va_[t - 1] + self.kappa * (self.theta - np.maximum(0, va_[t - 1])) * dt +
+                      np.sqrt(np.maximum(0, va_[t - 1])) * self.vol_vol * np.sqrt(dt) * rat[1])
             va[t] = np.maximum(0, va_[t])
 
             poi = np.random.poisson(self.lamb * dt, I)
 
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
-            paths[t] = paths[t - 1] * (
-                np.exp((rt - rj - 0.5 * va[t]) * dt +
-                       np.sqrt(va[t]) * np.sqrt(dt) * rat[0]) +
-                (np.exp(self.mu + self.delt * sn2[t]) - 1) * poi)
+            paths[t] = paths[t - 1] * (np.exp((rt - rj - 0.5 * va[t]) * dt + 
+                       np.sqrt(va[t]) * np.sqrt(dt) * rat[0]) + (np.exp(self.mu + self.delt * sn2[t]) - 1) * poi)
 
             # moment matching stoch vol part
-            paths[t] -= np.mean(paths[t - 1] * np.sqrt(va[t]) *
-                                math.sqrt(dt) * rat[0])
+            paths[t] -= np.mean(paths[t - 1] * np.sqrt(va[t]) * math.sqrt(dt) * rat[0])
 
         self.instrument_values = paths
         self.volatility_values = np.sqrt(va)

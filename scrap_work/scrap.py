@@ -158,8 +158,9 @@ def stoch_volatility():
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
     dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
     
-    no_paths = 10
+    no_paths = 5
     
+    # Market Environment setup
     me = market_environment('me', dt.datetime(2015, 1, 1))
     me.add_constant('initial_value', 36.)
     me.add_constant('volatility', 0.2)
@@ -173,21 +174,37 @@ def stoch_volatility():
     me.add_constant('theta', 0.1)           # long-term variance level
     me.add_constant('vol_vol', 0.1)         # volatility factor for variance process
     
-    sv = stochastic_volatility('sv', me)
-    paths = sv.get_instrument_values(fixed_seed=False)
-    pdf = pd.DataFrame(paths, index=sv.time_grid)
+    # Monte carlo with stochastic volatility
+    # sv = stochastic_volatility('sv', me)
+    # paths = sv.get_instrument_values(fixed_seed=False)
+    # pdf = pd.DataFrame(paths, index=sv.time_grid)
+    # pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    # plt.savefig(PATH + 'sv_paths.png', dpi=300)
+    # plt.close()
+    
+    # vols = sv.get_volatility_values()
+    # pdf = pd.DataFrame(vols, index=sv.time_grid)
+    # pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    # plt.savefig(PATH + 'sv_vol.png', dpi=300)
+    # plt.close()
+    
+    me.add_constant('lambda', 0.3)       # probability for a jump
+    me.add_constant('mu', -0.75)         # expected relative jump size
+    me.add_constant('delta', 0.1)        # standard deviation of relative jump
+    
+    # Already have all the market parameters we need for stochastic vol with jump diffusion 
+    svjd = stoch_vol_jump_diffusion('svjd', me)
+    paths = svjd.get_instrument_values(fixed_seed=False)
+    pdf = pd.DataFrame(paths, index=svjd.time_grid)
     pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
-    plt.savefig(PATH + 'sv_paths.png', dpi=300)
+    plt.savefig(PATH + 'svjd_paths.png', dpi=300)
     plt.close()
     
-    vols = sv.get_volatility_values()
-    pdf = pd.DataFrame(vols, index=sv.time_grid)
+    vols = svjd.get_volatility_values()
+    pdf = pd.DataFrame(vols, index=svjd.time_grid)
     pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
-    plt.savefig(PATH + 'sv_vol.png', dpi=300)
+    plt.savefig(PATH + 'svjd_vol.png', dpi=300)
     plt.close()
-
-def stoch_vol_jd():
-    pass
     
 
 
