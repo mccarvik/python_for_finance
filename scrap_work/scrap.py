@@ -207,6 +207,41 @@ def stoch_volatility():
     plt.close()
     
 
+def sabr_stoch_vol():
+    yields = [0.0025, 0.01, 0.015, 0.025]
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
+    
+    no_paths = 5
+
+    # Market Environment setup
+    me = market_environment('me', dt.datetime(2015, 1, 1))
+    me.add_constant('initial_value', 0.5)
+    me.add_constant('alpha', 0.04)          # initial variance
+    me.add_constant('beta', 0.5)            # exponent
+    me.add_constant('rho', 0.1)             # correlation factor
+    me.add_constant('volatility', 0.2)
+    me.add_constant('vol_vol', 0.5)         # volatility of volatility/variance
+    
+    me.add_constant('final_date', dt.datetime(2016, 12, 31))
+    me.add_constant('currency', 'EUR')
+    me.add_constant('frequency', 'M')       # monthly frequency; paramter accorind to pandas convention
+    me.add_constant('paths', no_paths)
+    me.add_curve('discount_curve', dsr)
+    
+    sabr = sabr_stochastic_volatility('sabr', me)
+    paths = sabr.get_instrument_values(fixed_seed=False)
+    pdf = pd.DataFrame(paths, index=sabr.time_grid)
+    pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    plt.savefig(PATH + 'sabr_paths.png', dpi=300)
+    plt.close()
+    
+    vols = sabr.get_volatility_values()
+    pdf = pd.DataFrame(vols, index=sabr.time_grid)
+    pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    plt.savefig(PATH + 'sabr_vol.png', dpi=300)
+    plt.close()
+    
 
 if __name__ == '__main__':
     # risk_neutral_discounting()
@@ -214,5 +249,5 @@ if __name__ == '__main__':
     # standard_normal_random_numbers()
     # geometric_brownian_motion_run()
     # jump_diffusion_run()
-    stoch_volatility()
-    # stoch_vol_jd()
+    # stoch_volatility()
+    sabr_stoch_vol()

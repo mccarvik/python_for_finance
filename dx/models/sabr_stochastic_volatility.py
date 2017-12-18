@@ -155,6 +155,7 @@ class sabr_stochastic_volatility(simulation_class):
         # pseudo-random numbers for the stochastic volatility
         sn2 = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
 
+        pdb.set_trace()
         for t in range(1, len(self.time_grid)):
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
             square_root_dt = np.sqrt(dt)
