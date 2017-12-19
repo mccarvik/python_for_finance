@@ -212,7 +212,7 @@ def sabr_stoch_vol():
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
     dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
     
-    no_paths = 5
+    no_paths = 1
 
     # Market Environment setup
     me = market_environment('me', dt.datetime(2015, 1, 1))

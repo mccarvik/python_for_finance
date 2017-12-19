@@ -157,6 +157,7 @@ class sabr_stochastic_volatility(simulation_class):
 
         pdb.set_trace()
         for t in range(1, len(self.time_grid)):
+            # get fraction of year for each step
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
             square_root_dt = np.sqrt(dt)
             if self.correlated is False:
@@ -167,6 +168,7 @@ class sabr_stochastic_volatility(simulation_class):
             rat = np.array([ran, sn2[t]])
             rat = np.dot(self.leverage, rat)
 
+            # Hagan model for sabr
             va_[t] = va_[t - 1] * (1 + self.vol_vol * square_root_dt * rat[1])
             va[t] = np.maximum(0, va_[t])
 
