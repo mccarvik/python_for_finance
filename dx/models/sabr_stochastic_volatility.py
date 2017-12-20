@@ -147,6 +147,7 @@ class sabr_stochastic_volatility(simulation_class):
         paths[0] = self.initial_value
         va[0] = self.alpha
         va_[0] = self.alpha
+        # pseudo-random numbers for the monte carlo
         if self.correlated is False:
             sn1 = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
         else:
@@ -169,7 +170,11 @@ class sabr_stochastic_volatility(simulation_class):
             rat = np.dot(self.leverage, rat)
 
             # Hagan model for sabr
+            # next var = prev var * (1 + vol of vol * a weiner process * sqrt(dt))
+            # weiner process = stochastic variable      sqrt(dt) = scale annual vol to time step
+            # creates the next step variance randomly based on prev variance
             va_[t] = va_[t - 1] * (1 + self.vol_vol * square_root_dt * rat[1])
+            # vol can;t be negative
             va[t] = np.maximum(0, va_[t])
 
             F_b = np.abs(paths[t - 1]) ** self.beta

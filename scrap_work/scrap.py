@@ -217,7 +217,7 @@ def sabr_stoch_vol():
     # Market Environment setup
     me = market_environment('me', dt.datetime(2015, 1, 1))
     me.add_constant('initial_value', 0.5)
-    me.add_constant('alpha', 0.04)          # initial variance
+    me.add_constant('alpha', 0.04)          # initial variance, vairance = vol^2
     me.add_constant('beta', 0.5)            # exponent
     me.add_constant('rho', 0.1)             # correlation factor
     me.add_constant('volatility', 0.2)
