@@ -170,14 +170,17 @@ class sabr_stochastic_volatility(simulation_class):
             rat = np.dot(self.leverage, rat)
 
             # Hagan model for sabr
-            # next var = prev var * (1 + vol of vol * a weiner process * sqrt(dt))
+            # next var = prev var * (1 + vol of vol * weiner process * sqrt(dt))
             # weiner process = stochastic variable      sqrt(dt) = scale annual vol to time step
             # creates the next step variance randomly based on prev variance
             va_[t] = va_[t - 1] * (1 + self.vol_vol * square_root_dt * rat[1])
             # vol can;t be negative
             va[t] = np.maximum(0, va_[t])
-
+            
+            # takes the previous path and raises it to beta
+            # TODO: formula uses some given fraction of the previous value as a seed for the next change --> why?
             F_b = np.abs(paths[t - 1]) ** self.beta
+            # Then move from previous value by new value * st_dev (aka vol) * stochastic variable * sqrt(dt)
             p = paths[t - 1] + va_[t] * F_b * square_root_dt * rat[0]
             if (self.beta > 0 and self.beta < 1):
                 paths[t] = np.maximum(0, p)

@@ -212,20 +212,20 @@ def sabr_stoch_vol():
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
     dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
     
-    no_paths = 1
+    no_paths = 5
 
     # Market Environment setup
     me = market_environment('me', dt.datetime(2015, 1, 1))
-    me.add_constant('initial_value', 0.5)
+    me.add_constant('initial_value', 50)
     me.add_constant('alpha', 0.04)          # initial variance, vairance = vol^2
-    me.add_constant('beta', 0.5)            # exponent
+    me.add_constant('beta', 0.5)            # exponent, 0 <= beta <= 1
     me.add_constant('rho', 0.1)             # correlation factor
     me.add_constant('volatility', 0.2)
     me.add_constant('vol_vol', 0.5)         # volatility of volatility/variance
     
-    me.add_constant('final_date', dt.datetime(2016, 12, 31))
+    me.add_constant('final_date', dt.datetime(2020, 12, 31))
     me.add_constant('currency', 'EUR')
-    me.add_constant('frequency', 'M')       # monthly frequency; paramter accorind to pandas convention
+    me.add_constant('frequency', 'M')       # M = monthly frequency; paramter accorind to pandas convention
     me.add_constant('paths', no_paths)
     me.add_curve('discount_curve', dsr)
     

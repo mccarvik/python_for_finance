@@ -109,8 +109,7 @@ class stochastic_volatility(simulation_class):
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
             
             # Normal Geometric Brownian motion after stochastic volatility
-            paths[t] = paths[t - 1] * (np.exp((rt - 0.5 * va[t]) * dt +
-                       np.sqrt(va[t]) * np.sqrt(dt) * rat[0]))
+            paths[t] = paths[t - 1] * (np.exp((rt - 0.5 * va[t]) * dt + np.sqrt(va[t]) * np.sqrt(dt) * rat[0]))
             
             # moment matching stoch vol part
             # moment matching ensures std dev = 1 for normal distribution
