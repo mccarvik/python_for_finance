@@ -40,7 +40,8 @@ class mean_reverting_diffusion(square_root_diffusion):
                                      fixed_seed=fixed_seed)
         else:
             rand = self.random_numbers
-
+            
+        pdb.set_trace()
         for t in range(1, len(self.time_grid)):
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
             if self.correlated is False:
@@ -50,13 +51,14 @@ class mean_reverting_diffusion(square_root_diffusion):
                 ran = ran[self.rn_set]
 
             # full truncation Euler discretization
+            # Truncation defines if paths have a floor of 0 or not
+            # Next value = prev value + vol * sotchastic variable + (kappa * (theta - prev val)
+            # theta - prev val --> how far we are from long term value (theta)      kappa --> how quickly we revert to mean
             if self.truncation is True:
-                paths_[t] = (paths_[t - 1] + self.kappa *
-                             (self.theta - np.maximum(0, paths_[t - 1])) * dt +
-                             self.volatility * np.sqrt(dt) * ran)
+                paths_[t] = (paths_[t - 1] + self.kappa * (self.theta - np.maximum(0, paths_[t - 1])) * dt + 
+                            self.volatility * np.sqrt(dt) * ran)
                 paths[t] = np.maximum(0, paths_[t])
             else:
-                paths[t] = (paths[t - 1] + self.kappa *
-                            (self.theta - paths[t - 1]) * dt +
+                paths[t] = (paths[t - 1] + self.kappa * (self.theta - paths[t - 1]) * dt + 
                             self.volatility * np.sqrt(dt) * ran)
         self.instrument_values = paths

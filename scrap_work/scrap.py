@@ -253,14 +253,14 @@ def mean_revert_diff():
 
     # Market Environment setup
     me = market_environment('me', dt.datetime(2015, 1, 1))
-    me.add_constant('initial_value', 50)
+    me.add_constant('initial_value', 0.05)
     me.add_constant('kappa', 2.5)          # initial variance, vairance = vol^2
     me.add_constant('theta', 0.01)            # exponent, 0 <= beta <= 1
     me.add_constant('volatility', 0.05)
     
     me.add_constant('final_date', dt.datetime(2020, 12, 31))
     me.add_constant('currency', 'EUR')
-    me.add_constant('frequency', 'M')       # M = monthly frequency; paramter accorind to pandas convention
+    me.add_constant('frequency', 'A')       # M = monthly frequency; paramter accorind to pandas convention
     me.add_constant('paths', no_paths)
     me.add_curve('discount_curve', dsr)
     
@@ -268,15 +268,8 @@ def mean_revert_diff():
     paths = mrd.get_instrument_values(fixed_seed=False)
     pdf = pd.DataFrame(paths, index=mrd.time_grid)
     pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
-    plt.savefig(PATH + 'mean_revert_diff_paths.png', dpi=300)
+    plt.savefig(PATH + 'mean_revert_diff.png', dpi=300)
     plt.close()
-    
-    vols = mrd.get_volatility_values()
-    pdf = pd.DataFrame(vols, index=sabr.time_grid)
-    pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
-    plt.savefig(PATH + 'mean_revert_vol.png', dpi=300)
-    plt.close()
-    
 
 if __name__ == '__main__':
     # risk_neutral_discounting()
@@ -285,4 +278,5 @@ if __name__ == '__main__':
     # geometric_brownian_motion_run()
     # jump_diffusion_run()
     # stoch_volatility()
-    sabr_stoch_vol()
+    # sabr_stoch_vol()
+    mean_revert_diff()
