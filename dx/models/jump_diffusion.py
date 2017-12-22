@@ -81,6 +81,7 @@ class jump_diffusion(simulation_class):
             self.time_grid, self.paths, dtobjects=True)[1]
 
         pdb.set_trace()
+        # TODO: What does rj do?
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
         for t in range(1, len(self.time_grid)):
             # select the right time slice from the relevant
@@ -102,9 +103,6 @@ class jump_diffusion(simulation_class):
             # Drift
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
             
-            paths[t] = paths[t - 1] * (
-                np.exp((rt - rj - 0.5 * self.volatility ** 2) * dt +
-                       self.volatility * np.sqrt(dt) * ran) +
-                (np.exp(self.mu + self.delt * sn2[t]) - 1) * poi)
-        
+            paths[t] = paths[t - 1] * (np.exp((rt - rj - 0.5 * self.volatility ** 2) * dt + 
+                        self.volatility * np.sqrt(dt) * ran) + (np.exp(self.mu + self.delt * sn2[t]) - 1) * poi)
         self.instrument_values = paths

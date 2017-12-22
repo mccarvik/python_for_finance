@@ -271,6 +271,68 @@ def mean_revert_diff():
     plt.savefig(PATH + 'mean_revert_diff.png', dpi=300)
     plt.close()
 
+def sqrt_diffusion():
+    yields = [0.0025, 0.01, 0.015, 0.025]
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
+    
+    # no_paths = 5
+    no_paths = 1
+    
+    # Market Environment setup
+    me = market_environment('me', dt.datetime(2015, 1, 1))
+    me.add_constant('initial_value', 0.05)
+    me.add_constant('volatility', 0.05)
+    me.add_constant('final_date', dt.datetime(2020, 12, 31))
+    me.add_constant('currency', 'EUR')
+    me.add_constant('frequency', 'A')       # M = monthly frequency; paramter accorind to pandas convention
+    me.add_constant('paths', no_paths)
+    me.add_curve('discount_curve', dsr)
+    
+    # Model specific variables
+    me.add_constant('kappa', 0.5)          # initial variance, vairance = vol^2
+    me.add_constant('theta', 0.1)            # exponent, 0 <= beta <= 1
+    
+    srd = square_root_diffusion('srd', me)
+    paths = srd.get_instrument_values(fixed_seed=False)
+    pdf = pd.DataFrame(paths, index=srd.time_grid)
+    pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    plt.savefig(PATH + 'sqrt_diffusion.png', dpi=300)
+    plt.close()
+
+def sqrt_jump_diffusion():
+    yields = [0.0025, 0.01, 0.015, 0.025]
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
+    
+    # no_paths = 5
+    no_paths = 1
+    
+    # Market Environment setup
+    me = market_environment('me', dt.datetime(2015, 1, 1))
+    me.add_constant('initial_value', 0.05)
+    me.add_constant('volatility', 0.05)
+    me.add_constant('final_date', dt.datetime(2020, 12, 31))
+    me.add_constant('currency', 'EUR')
+    me.add_constant('frequency', 'A')       # M = monthly frequency; paramter accorind to pandas convention
+    me.add_constant('paths', no_paths)
+    me.add_curve('discount_curve', dsr)
+    
+    # Model specific variables
+    me.add_constant('kappa', 0.5)          # initial variance, vairance = vol^2
+    me.add_constant('theta', 0.1)            # exponent, 0 <= beta <= 1
+    me.add_constant('lambda', 0.3)       # probability for a jump p.a.
+    me.add_constant('mu', -0.75)         # expected relative jump size
+    me.add_constant('delta', 0.1)        # standard deviation of relative jump
+    
+    srd = square_root_jump_diffusion('srd', me)
+    paths = srd.get_instrument_values(fixed_seed=False)
+    pdf = pd.DataFrame(paths, index=srd.time_grid)
+    pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
+    plt.savefig(PATH + 'sqrt_jump_diffusion.png', dpi=300)
+    plt.close()
+    
+
 if __name__ == '__main__':
     # risk_neutral_discounting()
     # creating_market_environment()
@@ -279,4 +341,6 @@ if __name__ == '__main__':
     # jump_diffusion_run()
     # stoch_volatility()
     # sabr_stoch_vol()
-    mean_revert_diff()
+    # mean_revert_diff()
+    # sqrt_diffusion()
+    sqrt_jump_diffusion()

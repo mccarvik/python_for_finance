@@ -61,7 +61,8 @@ class square_root_diffusion(simulation_class):
                                      fixed_seed=fixed_seed)
         else:
             rand = self.random_numbers
-
+        
+        pdb.set_trace()
         for t in range(1, len(self.time_grid)):
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
             if self.correlated is False:
@@ -71,10 +72,11 @@ class square_root_diffusion(simulation_class):
                 ran = ran[self.rn_set]
 
             # full truncation Euler discretization
-            paths_[t] = (paths_[t - 1] + self.kappa *
-                         (self.theta - np.maximum(0, paths_[t - 1])) * dt +
-                         np.sqrt(np.maximum(0, paths_[t - 1])) *
-                         self.volatility * np.sqrt(dt) * ran)
+            # Cox-Ingersoll-Ross model
+            # Exactly the same as the mean reversion calculation except the weiner process product is multiplied
+            # by the sqrt of the previous steps value...TODO: why is that helpful?
+            paths_[t] = (paths_[t - 1] + self.kappa * (self.theta - np.maximum(0, paths_[t - 1])) * dt +
+                         np.sqrt(np.maximum(0, paths_[t - 1])) * self.volatility * np.sqrt(dt) * ran)
             paths[t] = np.maximum(0, paths_[t])
         self.instrument_values = paths
 

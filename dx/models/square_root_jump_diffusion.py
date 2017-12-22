@@ -69,14 +69,15 @@ class square_root_jump_diffusion(simulation_class):
         paths[0] = self.initial_value
         paths_[0] = self.initial_value
         if self.correlated is False:
-            rand = sn_random_numbers((1, M, I),
-                                     fixed_seed=fixed_seed)
+            rand = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
         else:
             rand = self.random_numbers
-        snr = sn_random_numbers((1, M, I),
-                                fixed_seed=fixed_seed)
+        snr = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
+        
+        # TODO what does rj do
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
 
+        pdb.set_trace()
         for t in range(1, len(self.time_grid)):
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
             if self.correlated is False:
@@ -85,13 +86,15 @@ class square_root_jump_diffusion(simulation_class):
                 ran = np.dot(self.cholesky_matrix, rand[:, t, :])
                 ran = ran[self.rn_set]
             poi = np.random.poisson(self.lamb * dt, I)
+            
             # full truncation Euler discretization
-            paths_[t, :] = (paths_[t - 1, :] + self.kappa *
-                            (self.theta - np.maximum(0, paths_[t - 1, :])) * dt +
-                            np.sqrt(np.maximum(0, paths_[t - 1, :])) *
-                            self.volatility * np.sqrt(dt) * ran +
-                            ((np.exp(self.mu + self.delt * snr[t]) - 1) * poi) *
-                            np.maximum(0, paths_[t - 1, :]) - rj * dt)
+            # Same mean reversion as sqrt calc      --> kappa * (theta - prev value)
+            #                   Same drift          --> sqrt(prev val) * vol * stoch variable
+            # Same jump diffusion as other jd models --> (mu + delta * stoch var)
+            # Can have positive jumps
+            paths_[t, :] = (paths_[t - 1, :] + self.kappa * (self.theta - np.maximum(0, paths_[t - 1, :])) * dt +
+                            np.sqrt(np.maximum(0, paths_[t - 1, :])) * self.volatility * np.sqrt(dt) * ran +
+                            ((np.exp(self.mu + self.delt * snr[t]) - 1) * poi) * np.maximum(0, paths_[t - 1, :]) - rj * dt)
             paths[t, :] = np.maximum(0, paths_[t, :])
         self.instrument_values = paths
 
@@ -184,9 +187,12 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
             rand = self.random_numbers
         snr = sn_random_numbers((1, M, I),
                                 fixed_seed=fixed_seed)
+                                
         # forward_rates = self.discount_curve.get_forward_rates(
         #    self.time_grid, dtobjects=True)
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
+        
+        pdb.set_trace()
         for t in range(1, len(self.time_grid)):
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
             if self.correlated is False:
@@ -195,13 +201,12 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
                 ran = np.dot(self.cholesky_matrix, rand[:, t, :])
                 ran = ran[self.rn_set]
             poi = np.random.poisson(self.lamb * dt, I)
+            
+            
             # full truncation Euler discretization
-            paths_[t] = (paths_[t - 1] + self.kappa *
-                         (self.theta - np.maximum(0, paths_[t - 1])) * dt +
-                         np.sqrt(np.maximum(0, paths_[t - 1])) *
-                         self.volatility * np.sqrt(dt) * ran +
-                         ((np.exp(self.mu + self.delt * snr[t]) - 1) * poi) *
-                         np.maximum(0, paths_[t - 1]) - rj * dt)
+            paths_[t] = (paths_[t - 1] + self.kappa * (self.theta - np.maximum(0, paths_[t - 1])) * dt + 
+                        np.sqrt(np.maximum(0, paths_[t - 1])) * self.volatility * np.sqrt(dt) * ran + 
+                        ((np.exp(self.mu + self.delt * snr[t]) - 1) * poi) * np.maximum(0, paths_[t - 1]) - rj * dt)
             paths[t] = np.maximum(0, paths_[t]) + self.shift_values[t, 1]
         self.instrument_values = paths
 
