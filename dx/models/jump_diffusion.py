@@ -80,9 +80,11 @@ class jump_diffusion(simulation_class):
         forward_rates = self.discount_curve.get_forward_rates(
             self.time_grid, self.paths, dtobjects=True)[1]
 
-        pdb.set_trace()
-        # TODO: What does rj do?
+        
+        # rj --> drift correction for the riskless rate so jumps maintain risk neutrality
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
+        pdb.set_trace()
+        
         for t in range(1, len(self.time_grid)):
             # select the right time slice from the relevant
             # random number set
@@ -100,9 +102,11 @@ class jump_diffusion(simulation_class):
             # will determine whether a jump occurs or not given lambda
             poi = np.random.poisson(self.lamb * dt, I)
             
-            # Drift
+            # Interpolated rate for this step
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
             
+            # next = prev * (e^(r - rj - 0.5 * sigma^2 * dt + sigma * sqrt(dt) * rand) + possible jump)
+            # (e^(mu + delta*rand) - 1) * poi --> will add jump compoenent if there is a jump, poi will be 0 if not
             paths[t] = paths[t - 1] * (np.exp((rt - rj - 0.5 * self.volatility ** 2) * dt + 
                         self.volatility * np.sqrt(dt) * ran) + (np.exp(self.mu + self.delt * sn2[t]) - 1) * poi)
         self.instrument_values = paths

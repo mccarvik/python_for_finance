@@ -74,7 +74,7 @@ class square_root_jump_diffusion(simulation_class):
             rand = self.random_numbers
         snr = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
         
-        # TODO what does rj do
+        # rj --> drift correction for the riskless rate so jumps maintain risk neutrality
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
 
         pdb.set_trace()
@@ -88,10 +88,11 @@ class square_root_jump_diffusion(simulation_class):
             poi = np.random.poisson(self.lamb * dt, I)
             
             # full truncation Euler discretization
-            # Same mean reversion as sqrt calc      --> kappa * (theta - prev value)
-            #                   Same drift          --> sqrt(prev val) * vol * stoch variable
+            # Same mean reversion as sqrt calc diff  --> kappa * (theta - prev value)
+            #                           Same drift   --> sqrt(prev val) * vol * stoch variable
             # Same jump diffusion as other jd models --> (mu + delta * stoch var)
-            # Can have positive jumps
+            # rj * dt is the drift correction
+            # Can have positive jumps, ex: volatility
             paths_[t, :] = (paths_[t - 1, :] + self.kappa * (self.theta - np.maximum(0, paths_[t - 1, :])) * dt +
                             np.sqrt(np.maximum(0, paths_[t - 1, :])) * self.volatility * np.sqrt(dt) * ran +
                             ((np.exp(self.mu + self.delt * snr[t]) - 1) * poi) * np.maximum(0, paths_[t - 1, :]) - rj * dt)
@@ -190,6 +191,7 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
                                 
         # forward_rates = self.discount_curve.get_forward_rates(
         #    self.time_grid, dtobjects=True)
+        
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
         
         pdb.set_trace()
@@ -204,6 +206,7 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
             
             
             # full truncation Euler discretization
+            # Brigo-Mercurio model incorporating term structure
             paths_[t] = (paths_[t - 1] + self.kappa * (self.theta - np.maximum(0, paths_[t - 1])) * dt + 
                         np.sqrt(np.maximum(0, paths_[t - 1])) * self.volatility * np.sqrt(dt) * ran + 
                         ((np.exp(self.mu + self.delt * snr[t]) - 1) * poi) * np.maximum(0, paths_[t - 1]) - rj * dt)

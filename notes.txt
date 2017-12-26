@@ -1,1 +1,2 @@
 github library of examples: https://github.com/yhilpisch/dx
+Some reading lists: https://www.quantstart.com/articles/Quant-Reading-List-Derivative-Pricing/ 
