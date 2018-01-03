@@ -33,9 +33,7 @@ class square_root_jump_diffusion(simulation_class):
         except:
             print('Error parsing market environment.')
 
-    def update(self, pricing_date=None, initial_value=None, volatility=None,
-               kappa=None, theta=None, lamb=None, mu=None, delt=None,
-               final_date=None):
+    def update(self, pricing_date=None, initial_value=None, volatility=None, kappa=None, theta=None, lamb=None, mu=None, delt=None, final_date=None):
         if pricing_date is not None:
             self.pricing_date = pricing_date
             self.time_grid = None
@@ -151,25 +149,24 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
         return MSE
 
     def generate_shift_base(self, p0):
+        # TODO: No idea whats going on here
         # calibration
         opt = sco.fmin(self.srd_forward_error, p0)
         # shift_calculation
-        f_model = srd_forwards(self.initial_value, opt,
-                               self.term_structure[:, 0])
+        f_model = srd_forwards(self.initial_value, opt, self.term_structure[:, 0])
         shifts = self.term_structure[:, 1] - f_model
         self.shift_base = np.array((self.term_structure[:, 0], shifts)).T
 
     def update_shift_values(self, k=1):
+        # TODO: No idea whats going on here
         if self.shift_base is not None:
             t = get_year_deltas(self.shift_base[:, 0])
             tck = sci.splrep(t, self.shift_base[:, 1], k=k)
             self.generate_time_grid()
             st = get_year_deltas(self.time_grid)
-            self.shift_values = np.array(list(zip(self.time_grid,
-                                    sci.splev(st, tck, der=0))))
+            self.shift_values = np.array(list(zip(self.time_grid, sci.splev(st, tck, der=0))))
         else:
-            self.shift_values = np.array(list(zip(self.time_grid,
-                                    np.zeros(len(self.time_grid)))))
+            self.shift_values = np.array(list(zip(self.time_grid, np.zeros(len(self.time_grid)))))
 
     def generate_paths(self, fixed_seed=True, day_count=365.):
         if self.time_grid is None:
@@ -192,6 +189,7 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
         # forward_rates = self.discount_curve.get_forward_rates(
         #    self.time_grid, dtobjects=True)
         
+        # rj --> drift correction for the riskless rate so jumps maintain risk neutrality
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
         
         pdb.set_trace()
@@ -204,9 +202,9 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
                 ran = ran[self.rn_set]
             poi = np.random.poisson(self.lamb * dt, I)
             
-            
             # full truncation Euler discretization
             # Brigo-Mercurio model incorporating term structure
+            # After adjustments made for term structure, this calc is identical to sqrt_jump_diff above
             paths_[t] = (paths_[t - 1] + self.kappa * (self.theta - np.maximum(0, paths_[t - 1])) * dt + 
                         np.sqrt(np.maximum(0, paths_[t - 1])) * self.volatility * np.sqrt(dt) * ran + 
                         ((np.exp(self.mu + self.delt * snr[t]) - 1) * poi) * np.maximum(0, paths_[t - 1]) - rj * dt)
@@ -214,6 +212,7 @@ class square_root_jump_diffusion_plus(square_root_jump_diffusion):
         self.instrument_values = paths
 
     def update_forward_rates(self, time_grid=None):
+        #TODO: No idea whats going on here
         if time_grid is None:
             self.generate_time_grid()
             time_grid = self.time_grid

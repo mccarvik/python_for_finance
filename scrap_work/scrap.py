@@ -312,7 +312,7 @@ def sqrt_jump_diffusion():
     
     # Market Environment setup
     me = market_environment('me', dt.datetime(2015, 1, 1))
-    me.add_constant('initial_value', 0.05)
+    me.add_constant('initial_value', 25)
     me.add_constant('volatility', 0.05)
     me.add_constant('final_date', dt.datetime(2020, 12, 31))
     me.add_constant('currency', 'EUR')
@@ -322,7 +322,7 @@ def sqrt_jump_diffusion():
     
     # Model specific variables
     me.add_constant('kappa', 0.5)          # initial variance, vairance = vol^2
-    me.add_constant('theta', 0.1)            # exponent, 0 <= beta <= 1
+    me.add_constant('theta', 20)            # exponent, 0 <= beta <= 1
     me.add_constant('lambda', 0.3)       # probability for a jump p.a.
     me.add_constant('mu', -0.75)         # expected relative jump size
     me.add_constant('delta', 0.1)        # standard deviation of relative jump
@@ -340,12 +340,12 @@ def sqrt_jump_diffusion_plus():
     dates = [dt.datetime(2015, 1, 1), dt.datetime(2016, 1, 1), dt.datetime(2020, 1, 1), dt.datetime(2025, 1, 1)]
     dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
     
-    # no_paths = 5
-    no_paths = 1
+    no_paths = 10
+    # no_paths = 1
     
     # Market Environment setup
     me = market_environment('me', dt.datetime(2015, 1, 1))
-    me.add_constant('initial_value', 0.05)
+    me.add_constant('initial_value', 25)
     me.add_constant('volatility', 0.05)
     me.add_constant('final_date', dt.datetime(2020, 12, 31))
     me.add_constant('currency', 'EUR')
@@ -355,28 +355,44 @@ def sqrt_jump_diffusion_plus():
     
     # Model specific variables
     me.add_constant('kappa', 0.5)          # initial variance, vairance = vol^2
-    me.add_constant('theta', 0.1)            # exponent, 0 <= beta <= 1
+    me.add_constant('theta', 20)            # exponent, 0 <= beta <= 1
     me.add_constant('lambda', 0.3)       # probability for a jump p.a.
     me.add_constant('mu', -0.75)         # expected relative jump size
     me.add_constant('delta', 0.1)        # standard deviation of relative jump
     
     # Add volatility term structure
     term_structure = np.array([(dt.datetime(2015, 1, 1), 25.),
-                  (dt.datetime(2015, 3, 31), 24.),
-                  (dt.datetime(2015, 6, 30), 27.),
-                  (dt.datetime(2015, 9, 30), 28.),
-                  (dt.datetime(2015, 12, 31), 30.)])
+                  (dt.datetime(2016, 3, 31), 24.),
+                  (dt.datetime(2017, 6, 30), 27.),
+                  (dt.datetime(2018, 9, 30), 28.),
+                  (dt.datetime(2020, 12, 31), 30.)])
     me.add_curve('term_structure', term_structure)
     
     # TODO: need to step thru this
     srd = square_root_jump_diffusion_plus('srd', me)
-    srjdp.generate_shift_base((2.0, 20., 0.1))
+    
+    # calibrates the square-root diffusion to the given term structure
+    srd.generate_shift_base((2.0, 20., 0.1))
+    # i.e. the difference between the model and market implied foward rates
+    print("Shift Base:")
+    print(srd.shift_base)
+    
+    # calculates deterministic shift values for the relevant time grid by interpolation of the shift_base values
+    print("Shift Values:")
+    srd.update_shift_values()
+    print(srd.shift_values)
+    
+    # model forward rates resulting from parameters and adjustments
+    print("Updated Fwd Rates:")
+    srd.update_forward_rates()
+    print(srd.forward_rates)
     
     paths = srd.get_instrument_values(fixed_seed=False)
     pdf = pd.DataFrame(paths, index=srd.time_grid)
     pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
     plt.savefig(PATH + 'sqrt_jump_diffusion_plus.png', dpi=300)
     plt.close()
+
 
 if __name__ == '__main__':
     # risk_neutral_discounting()
