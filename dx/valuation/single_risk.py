@@ -48,6 +48,7 @@ class valuation_class_single(object):
     '''
 
     def __init__(self, name, underlying, mar_env, payoff_func=''):
+        pdb.set_trace()
         try:
             self.name = name
             self.pricing_date = mar_env.pricing_date
