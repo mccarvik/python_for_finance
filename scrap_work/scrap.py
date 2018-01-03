@@ -360,7 +360,18 @@ def sqrt_jump_diffusion_plus():
     me.add_constant('mu', -0.75)         # expected relative jump size
     me.add_constant('delta', 0.1)        # standard deviation of relative jump
     
-    srd = square_root_jump_diffusion('srd', me)
+    # Add volatility term structure
+    term_structure = np.array([(dt.datetime(2015, 1, 1), 25.),
+                  (dt.datetime(2015, 3, 31), 24.),
+                  (dt.datetime(2015, 6, 30), 27.),
+                  (dt.datetime(2015, 9, 30), 28.),
+                  (dt.datetime(2015, 12, 31), 30.)])
+    me.add_curve('term_structure', term_structure)
+    
+    # TODO: need to step thru this
+    srd = square_root_jump_diffusion_plus('srd', me)
+    srjdp.generate_shift_base((2.0, 20., 0.1))
+    
     paths = srd.get_instrument_values(fixed_seed=False)
     pdf = pd.DataFrame(paths, index=srd.time_grid)
     pdf[pdf.columns[:no_paths]].plot(colormap=colormap, lw=lw, figsize=figsize, legend=legend)
