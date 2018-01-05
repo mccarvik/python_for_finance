@@ -21,7 +21,7 @@ np.random.seed(1000)
 from pymc3.distributions.timeseries import GaussianRandomWalk
 import scipy.optimize as sco
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch11/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch11/'
 
 def pca_data():
     symbols = ['IBM', 'AAPL', 'MSFT', 'XOM', 'MCD', 'KO', 'SPY']

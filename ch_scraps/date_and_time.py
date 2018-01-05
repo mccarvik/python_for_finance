@@ -14,7 +14,7 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import pytz
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/dnt/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/dnt/'
 
 def python_func():
     print(dt.datetime.now())

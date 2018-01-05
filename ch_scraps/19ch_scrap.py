@@ -15,7 +15,7 @@ from dx import *
 
 import scipy.optimize as spo
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/dx/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/dx/'
 
 i = 0
 

@@ -14,7 +14,7 @@ mpl.rcParams['font.family'] = 'serif'
 import traits.api as trapi
 import traitsui.api as trui
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch13/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch13/'
 
 def multiplication(self):
         return self.a * self.b

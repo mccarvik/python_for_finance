@@ -20,7 +20,7 @@ import sympy as sy
 import seaborn as sns; sns.set()
 mpl.rcParams['font.family'] = 'serif'
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch9/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch9/'
 
 def approx():
     x = np.linspace(-2 * np.pi, 2 * np.pi, 50)

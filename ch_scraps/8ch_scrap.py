@@ -12,7 +12,7 @@ import numpy as np
 import multiprocessing as mp
 from distutils.core import setup
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch8/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch8/'
 
 I = 100
 J = 100

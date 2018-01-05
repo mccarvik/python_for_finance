@@ -12,7 +12,7 @@ from urllib.request import urlretrieve
 from sklearn import linear_model
 
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch6/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch6/'
 
 def intro():
     df = pd.DataFrame([10, 20, 30, 40], columns=['numbers'], index=['a', 'b', 'c', 'd'])

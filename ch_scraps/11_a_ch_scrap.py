@@ -17,7 +17,7 @@ import pandas as pd
 from pandas_datareader import data as web
 from utils import timeme
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch11/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch11/'
 
 def gen_paths(S0, r, sigma, T, M, I):
     ''' Generate Monte Carlo paths for geometric Brownian motion.

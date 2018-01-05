@@ -39,7 +39,7 @@ def plot_option_stats(name, s_list, pv, de, ve):
     plt.close()
 
 
-def plot_option_stats_full(s_list, pv, de, ve, th, rh, ga):
+def plot_option_stats_full(s_list, pv, de, ve, th, rh, ga, path=PATH, name="temp"):
     ''' Plot option prices, deltas and vegas for a set of
     different initial values of the underlying.
     Parameters
@@ -87,6 +87,8 @@ def plot_option_stats_full(s_list, pv, de, ve, th, rh, ga):
     plt.plot(s_list, ga, 'b')
     plt.xlabel('Strike')
     plt.grid(True); plt.legend(loc=0)
+    plt.savefig(path + name + '.png', dpi=300)
+    plt.close()
 
 
 def plot_greeks_3d(inputs, labels):

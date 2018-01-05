@@ -11,7 +11,7 @@ import datetime as dt
 
 from dx import *
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/dx/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/dx/'
 
 def derivatives_sim():
     me_gbm = market_environment('me_gbm', dt.datetime(2015, 1, 1))

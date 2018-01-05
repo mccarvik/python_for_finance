@@ -48,7 +48,6 @@ class valuation_class_single(object):
     '''
 
     def __init__(self, name, underlying, mar_env, payoff_func=''):
-        pdb.set_trace()
         try:
             self.name = name
             self.pricing_date = mar_env.pricing_date
@@ -66,8 +65,7 @@ class valuation_class_single(object):
             self.payoff_func = payoff_func
             self.underlying = underlying
             # provide pricing_date and maturity to underlying
-            self.underlying.special_dates.extend([self.pricing_date,
-                                                  self.maturity])
+            self.underlying.special_dates.extend([self.pricing_date, self.maturity])
         except:
             print('Error parsing market environment.')
 

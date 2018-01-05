@@ -15,7 +15,7 @@ from pandas_datareader.data import DataReader
 import datetime as dt
 from jinja2 import Template
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch14/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch14/'
 
 def web_basics_ftplib():
     ftp = ftplib.FTP('quant-platform.com')

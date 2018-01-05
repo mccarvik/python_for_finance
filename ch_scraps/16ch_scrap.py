@@ -12,7 +12,7 @@ import datetime as dt
 
 from dx import *
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/dx/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/dx/'
 
 def standard_normal_random_numbers():
     snrn = sn_random_numbers((2, 2, 2), antithetic=False, moment_matching=False, fixed_seed=True)

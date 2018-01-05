@@ -8,7 +8,7 @@ from matplotlib.patches import Polygon
 import matplotlib.finance as mpf
 from mpl_toolkits.mplot3d import Axes3D
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch5/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch5/'
 
 def one_dims():
     np.random.seed(1000)

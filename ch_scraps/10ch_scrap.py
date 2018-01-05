@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import scipy.stats as scs
 from utils import timeme
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/ch10/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch10/'
 
 def randon_nums():
     print(npr.rand(10))

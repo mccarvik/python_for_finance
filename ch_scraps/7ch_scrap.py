@@ -13,7 +13,7 @@ import pandas.io.sql as pds
 from random import gauss
 
 path = '/home/ubuntu/workspace/python_for_finance/data'
-PNG_PATH = '/home/ubuntu/workspace/python_for_finance/png/ch7/'
+PNG_PATH = '/home/ubuntu/workspace/python_for_finance/png/book_examples/ch7/'
 
 def pkl():
     a = [gauss(1.5, 2) for i in range(10000)]
