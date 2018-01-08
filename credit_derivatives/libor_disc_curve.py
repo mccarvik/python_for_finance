@@ -41,11 +41,13 @@ def fra_payoff(orig_rate, fwd_dt, mat_dt):
     return num / den
 
 
+# calculates the initial rate of an FRA
 def fra_rate_calc(settle_dt, fwd_dt, mat_dt):
     num = 1 + get_year_deltas([settle_dt, mat_dt])[-1] * dsr.get_interpolated_yields([settle_dt, mat_dt])[-1][1]
     den = 1 + get_year_deltas([settle_dt, fwd_dt])[-1] * dsr.get_interpolated_yields([settle_dt, fwd_dt])[-1][1]
     return ((num / den) - 1) * (1 / get_year_deltas([fwd_dt, mat_dt])[-1])
     
+
 
 if __name__ == '__main__':
     # print(money_market_deposit(dt.datetime(2015, 1, 1), dt.datetime(2015, 5, 1)))
