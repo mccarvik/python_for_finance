@@ -35,7 +35,7 @@ def convert_from_continuous(r, prds):
     return prds * (np.exp(r/prds) - 1)
     
     
-def calc_continuous_rate(price, par, settle_dt, mat_dt):
+def calc_continuous_zero_rate(price, par, settle_dt, mat_dt):
     return (-1) * (np.log(price/par)/ get_year_deltas([settle_dt, mat_dt])[-1])
 
 
@@ -110,14 +110,14 @@ def calc_par_yield(par, settle_dt, mat_dt, freq):
     return newton_raphson(par_yld_func, guess)
     
 
-# Calculates the treasury rate using bootstrapping
-def calc_tsy_rate(price, par, cpn, prds, settle_dt, mat_dt, rate_mat_pairs):
+# Calculates the zero rate using bootstrapping
+def calc_zero_rate(price, par, cpn, prds, settle_dt, mat_dt, rate_mat_pairs):
     cpn = cpn / prds * par
     print([get_year_deltas([settle_dt, dt])[-1] for r, dt in rate_mat_pairs])
     prev_sum = sum([cpn * np.exp(-r * get_year_deltas([settle_dt, dt])[-1]) for r, dt in rate_mat_pairs])
     price = price - prev_sum
     par = par + cpn
-    return calc_continuous_rate(price, par, settle_dt, mat_dt)
+    return calc_continuous_zero_rate(price, par, settle_dt, mat_dt)
     
     
 
@@ -129,6 +129,6 @@ if __name__ == '__main__':
     # print(calc_yld_to_date(98.39, 100, dt.datetime(2015,1,1), dt.datetime(2016,12,31), 0.06, cont_disc=True))
     # print(calc_par_yield(100, dt.datetime(2016,1,1), dt.datetime(2017,12,31), 0.5))
     
-    # print(calc_continuous_rate(97.5, 100, dt.datetime(2017,1,1), dt.datetime(2017,4,1)))
+    # print(calc_continuous_zero_rate(97.5, 100, dt.datetime(2017,1,1), dt.datetime(2017,4,1)))
     rate_mats = [(0.10469, dt.datetime(2015,7,1)), (0.10536, dt.datetime(2016,1,1)), (0.10681, dt.datetime(2016,7,1))]
-    print(calc_tsy_rate(101.6, 100, 0.12, 2, dt.datetime(2015,1,1), dt.datetime(2017,1,1), rate_mats))
+    print(calc_zero_rate(101.6, 100, 0.12, 2, dt.datetime(2015,1,1), dt.datetime(2017,1,1), rate_mats))
