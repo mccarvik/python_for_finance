@@ -25,7 +25,7 @@ yields = [0.0025, 0.01, 0.015]
 dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2015, 12, 31)]
 dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
 
-no_paths = 10
+no_paths = 1000
     
 # Market Environment setup
 me = market_environment('me', dt.datetime(2015, 1, 1))
@@ -33,7 +33,7 @@ me.add_constant('initial_value', 36)
 me.add_constant('volatility', 0.2)
 me.add_constant('final_date', dt.datetime(2015, 12, 31))
 me.add_constant('currency', 'EUR')
-me.add_constant('frequency', 'A')       # M = monthly, W = weekly, A = Annual
+me.add_constant('frequency', 'W')       # M = monthly, W = weekly, A = Annual
 me.add_constant('paths', no_paths)
 
 # Constant Curve vs. Normal Upward sloping Curve

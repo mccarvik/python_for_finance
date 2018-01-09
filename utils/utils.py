@@ -51,3 +51,42 @@ def createCashFlows(start_dt, freq, mat_dt, cpn, par, par_cf=True):
     if par_cf:
         cfs.append((mat_dt, par))
     return cfs
+    
+
+def bootstrap(first_zero_rate, first_mat, bs_rate_mats):
+    """ Will bootstrap the forward rates together to calculate the par rates. Using
+    the previously calculated rate to discount for the next rate
+    
+    Parameters
+    ==========
+    first_zero_rate : float
+        The first zero rate on the curve
+    
+    first_mat : date
+        The maturity date of the first rate on the curve
+    
+    bs_rate_mats : list of tuples
+        The rest of the rate, maturity pairs on the curve in the format (fwd_rate, maturity)
+
+    Return
+    ======
+    list of tuples representing the par curve
+    """
+    pdb.set_trace()
+    new_bs_rate_mats = []
+    next_bs_zero_rate = ((bs_rate_mats[0][0] * bs_rate_mats[0][1]) + (first_zero_rate * first_mat)) / (bs_rate_mats[0][1] + first_mat)
+    new_bs_rate_mats.append(tuple([bs_rate_mats[0][1] + first_mat, next_bs_zero_rate]))
+    for i in range(len(bs_rate_mats)):
+        if i == 0:
+            continue
+        
+        next_bs_zero_rate = ((bs_rate_mats[i][0] * bs_rate_mats[i][1]) + \
+            (new_bs_rate_mats[-1][1] * new_bs_rate_mats[-1][0])) / \
+            (bs_rate_mats[i][1] + new_bs_rate_mats[-1][0])
+        new_bs_rate_mats.append(tuple([bs_rate_mats[i][1] + new_bs_rate_mats[-1][0], next_bs_zero_rate]))
+    return new_bs_rate_mats
+    
+    
+    
+if __name__ == '__main__':
+    print(bootstrap(0.048, 400, [(0.053, 91), (0.055, 98)]))
