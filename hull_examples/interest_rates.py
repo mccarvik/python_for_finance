@@ -15,8 +15,8 @@ import datetime as dt
 
 # yields = [0.0025, 0.01, 0.015, 0.025]
 # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2015, 12, 31), dt.datetime(2018, 12, 31)]
-yields = [0.025, 0.05, 0.058, 0.064, 0.068]
-dates = [dt.datetime(2016,1,1), dt.datetime(2016,6,30), dt.datetime(2017,1,1), dt.datetime(2017,6,30), dt.datetime(2018,1,1)]
+yields = [0.01, 0.03, 0.04, 0.046, 0.05, 0.053]
+dates = [dt.datetime(2015,1,1), dt.datetime(2016,1,1), dt.datetime(2017,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1), dt.datetime(2020,1,1)]
 dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
 
 
@@ -120,6 +120,23 @@ def calc_zero_rate(price, par, cpn, prds, settle_dt, mat_dt, rate_mat_pairs):
     return calc_continuous_zero_rate(price, par, settle_dt, mat_dt)
     
     
+# Get fwd rate from two dates and a spot curve
+def calc_fwd_rate(settle_dt, fwd_dt, mat_dt):
+    ylds = dsr.get_interpolated_yields([settle_dt, fwd_dt, mat_dt])
+    r2 = ylds[-1][1]
+    r1 = ylds[-2][1]
+    dts = get_year_deltas([settle_dt, fwd_dt, mat_dt])
+    dt2 = dts[-1]
+    dt1 = dts[-2]
+    return (r2*dt2 - r1*dt1) / (dt2 - dt1)
+
+
+# def fra_valuation_cont_dsic(orig_rate, settle_dt, fwd_dt, mat_dt):
+#     num = dsr.get_interpolated_yields([settle_dt, fwd_dt, mat_dt])
+#     yld = dsr.get_interpolated_yields([settle_dt, fwd_dt, mat_dt])
+    
+    
+    
 
 if __name__ == '__main__':
     # print(compounding_conversion(.10, 2, 2))
@@ -130,5 +147,8 @@ if __name__ == '__main__':
     # print(calc_par_yield(100, dt.datetime(2016,1,1), dt.datetime(2017,12,31), 0.5))
     
     # print(calc_continuous_zero_rate(97.5, 100, dt.datetime(2017,1,1), dt.datetime(2017,4,1)))
-    rate_mats = [(0.10469, dt.datetime(2015,7,1)), (0.10536, dt.datetime(2016,1,1)), (0.10681, dt.datetime(2016,7,1))]
-    print(calc_zero_rate(101.6, 100, 0.12, 2, dt.datetime(2015,1,1), dt.datetime(2017,1,1), rate_mats))
+    # rate_mats = [(0.10469, dt.datetime(2015,7,1)), (0.10536, dt.datetime(2016,1,1)), (0.10681, dt.datetime(2016,7,1))]
+    # print(calc_zero_rate(101.6, 100, 0.12, 2, dt.datetime(2015,1,1), dt.datetime(2017,1,1), rate_mats))
+    
+    print(calc_fwd_rate(dt.datetime(2015,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1)))
+    print(fra_valuation_cont_dsic(dt.datetime(2015,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1)))
