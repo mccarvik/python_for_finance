@@ -33,9 +33,9 @@ def discount_factor(settle_dt, mat_dt):
     
 
 # calculates the payoff of an FRA at maturity
-def fra_payoff(orig_rate, fwd_dt, mat_dt):
-    delta_t = get_year_deltas([fwd_dt, mat_dt])
-    yld = dsr.get_interpolated_yields([fwd_dt, mat_dt])[-1][1]
+def fra_payoff(orig_rate, settle_dt, mat_dt):
+    delta_t = get_year_deltas([settle_dt, mat_dt])
+    yld = dsr.get_interpolated_yields([settle_dt, mat_dt])[-1][1]
     num = delta_t[-1] * (yld - orig_rate)
     den = 1 + (delta_t[-1] * yld)
     return num / den

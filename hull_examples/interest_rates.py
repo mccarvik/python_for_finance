@@ -15,8 +15,8 @@ import datetime as dt
 
 # yields = [0.0025, 0.01, 0.015, 0.025]
 # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2015, 12, 31), dt.datetime(2018, 12, 31)]
-yields = [0.01, 0.03, 0.04, 0.046, 0.05, 0.053]
-dates = [dt.datetime(2015,1,1), dt.datetime(2016,1,1), dt.datetime(2017,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1), dt.datetime(2020,1,1)]
+yields = [0.01, 0.0366, 0.04]
+dates = [dt.datetime(2015,1,1), dt.datetime(2016,7,1), dt.datetime(2017,1,1)]
 dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
 
 
@@ -131,10 +131,14 @@ def calc_fwd_rate(settle_dt, fwd_dt, mat_dt):
     return (r2*dt2 - r1*dt1) / (dt2 - dt1)
 
 
-# def fra_valuation_cont_dsic(orig_rate, settle_dt, fwd_dt, mat_dt):
-#     num = dsr.get_interpolated_yields([settle_dt, fwd_dt, mat_dt])
-#     yld = dsr.get_interpolated_yields([settle_dt, fwd_dt, mat_dt])
-    
+# Will calculate the FRA payoff with continuous compounding given the original calc and yield curve
+def fra_valuation_cont_disc(orig_rate, settle_dt, fwd_dt, mat_dt):
+    L = orig_rate - calc_fwd_rate(settle_dt, fwd_dt, mat_dt)
+    R = dsr.get_interpolated_yields([settle_dt, mat_dt])[-1][1]
+    delta_t1 = get_year_deltas([fwd_dt, mat_dt])[-1]
+    delta_t2 = get_year_deltas([settle_dt, mat_dt])[-1]
+    pdb.set_trace()
+    return L * delta_t1 * np.exp((-1)*R*delta_t2)
     
     
 
@@ -150,5 +154,5 @@ if __name__ == '__main__':
     # rate_mats = [(0.10469, dt.datetime(2015,7,1)), (0.10536, dt.datetime(2016,1,1)), (0.10681, dt.datetime(2016,7,1))]
     # print(calc_zero_rate(101.6, 100, 0.12, 2, dt.datetime(2015,1,1), dt.datetime(2017,1,1), rate_mats))
     
-    print(calc_fwd_rate(dt.datetime(2015,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1)))
-    print(fra_valuation_cont_dsic(dt.datetime(2015,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1)))
+    # print(calc_fwd_rate(dt.datetime(2015,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1)))
+    print(fra_valuation_cont_disc(0.058, dt.datetime(2015,1,1), dt.datetime(2016,7,1), dt.datetime(2017,1,1)))
