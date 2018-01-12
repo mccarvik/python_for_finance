@@ -151,7 +151,7 @@ def macaulay_duration(settle_dt, mat_dt, cpn, price, par, prds):
         tot += t * ((c * np.exp((-1) * yld * t)) / price)
     return tot
 
-def modified_duration(settle_dt, mat_dt, cpn, price, par, prds):
+# def modified_duration(settle_dt, mat_dt, cpn, price, par, prds):
 
 
 if __name__ == '__main__':
