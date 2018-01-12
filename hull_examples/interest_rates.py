@@ -140,7 +140,19 @@ def fra_valuation_cont_disc(orig_rate, settle_dt, fwd_dt, mat_dt):
     pdb.set_trace()
     return L * delta_t1 * np.exp((-1)*R*delta_t2)
     
-    
+# returns the average period to receive each dollar
+def macaulay_duration(settle_dt, mat_dt, cpn, price, par, prds):
+    yld = calc_yld_to_date(price, par, settle_dt, mat_dt, cpn, (1/prds))
+    cfs = createCashFlows(settle_dt, (1/prds), mat_dt, cpn, par)
+    tot = 0
+    pdb.set_trace()
+    for d, c in cfs:
+        t = get_year_deltas([settle_dt, d])[-1]
+        tot += t * ((c * np.exp((-1) * yld * t)) / price)
+    return tot
+
+def modified_duration(settle_dt, mat_dt, cpn, price, par, prds):
+
 
 if __name__ == '__main__':
     # print(compounding_conversion(.10, 2, 2))
@@ -155,4 +167,5 @@ if __name__ == '__main__':
     # print(calc_zero_rate(101.6, 100, 0.12, 2, dt.datetime(2015,1,1), dt.datetime(2017,1,1), rate_mats))
     
     # print(calc_fwd_rate(dt.datetime(2015,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1)))
-    print(fra_valuation_cont_disc(0.058, dt.datetime(2015,1,1), dt.datetime(2016,7,1), dt.datetime(2017,1,1)))
+    # print(fra_valuation_cont_disc(0.058, dt.datetime(2015,1,1), dt.datetime(2016,7,1), dt.datetime(2017,1,1)))
+    print(duration(dt.datetime(2015,1,1), dt.datetime(2018,1,1), .10, 94.213, 100, 2))
