@@ -145,13 +145,29 @@ def macaulay_duration(settle_dt, mat_dt, cpn, price, par, prds):
     yld = calc_yld_to_date(price, par, settle_dt, mat_dt, cpn, (1/prds))
     cfs = createCashFlows(settle_dt, (1/prds), mat_dt, cpn, par)
     tot = 0
-    pdb.set_trace()
     for d, c in cfs:
         t = get_year_deltas([settle_dt, d])[-1]
         tot += t * ((c * np.exp((-1) * yld * t)) / price)
     return tot
 
-# def modified_duration(settle_dt, mat_dt, cpn, price, par, prds):
+
+# returns the modified duration --> macauley duration adjusted for non-continuous compounding
+# Can be though of % chg in price / % chg in yield --> i.e. if yld chagnes 1%, price will chg the modified duration %
+def modified_duration(settle_dt, mat_dt, cpn, price, par, prds):
+    yld = calc_yld_to_date(price, par, settle_dt, mat_dt, cpn, (1/prds))
+    mac_dur = macaulay_duration(settle_dt, mat_dt, cpn, price, par, prds)
+    return (mac_dur / (1 + yld / prds))
+
+
+# Can be though of % chg in price / (% chg in yield)**2, i.e. the change in addition to the change from duration
+def convexity(settle_dt, mat_dt, cpn, price, par, prds):
+    yld = calc_yld_to_date(price, par, settle_dt, mat_dt, cpn, (1/prds))
+    cfs = createCashFlows(settle_dt, (1/prds), mat_dt, cpn, par)
+    tot = 0
+    for d, c in cfs:
+        t = get_year_deltas([settle_dt, d])[-1]
+        tot += c * t**2 * np.exp((-1) * yld * t)
+    return tot / price
 
 
 if __name__ == '__main__':
@@ -168,4 +184,7 @@ if __name__ == '__main__':
     
     # print(calc_fwd_rate(dt.datetime(2015,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1)))
     # print(fra_valuation_cont_disc(0.058, dt.datetime(2015,1,1), dt.datetime(2016,7,1), dt.datetime(2017,1,1)))
-    print(duration(dt.datetime(2015,1,1), dt.datetime(2018,1,1), .10, 94.213, 100, 2))
+    
+    print(macaulay_duration(dt.datetime(2015,1,1), dt.datetime(2018,1,1), .10, 94.213, 100, 2))
+    print(modified_duration(dt.datetime(2015,1,1), dt.datetime(2018,1,1), .10, 94.213, 100, 2))
+    print(convexity(dt.datetime(2015,1,1), dt.datetime(2018,1,1), .10, 94.213, 100, 2))
