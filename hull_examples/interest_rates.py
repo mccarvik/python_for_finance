@@ -121,7 +121,9 @@ def calc_zero_rate(price, par, cpn, prds, settle_dt, mat_dt, rate_mat_pairs):
     
     
 # Get fwd rate from two dates and a spot curve
-def calc_fwd_rate(settle_dt, fwd_dt, mat_dt):
+def calc_fwd_rate(settle_dt, fwd_dt, mat_dt, curve=False):
+    if curve:
+        dsr = curve
     ylds = dsr.get_interpolated_yields([settle_dt, fwd_dt, mat_dt])
     r2 = ylds[-1][1]
     r1 = ylds[-2][1]
@@ -139,7 +141,8 @@ def fra_valuation_cont_disc(orig_rate, settle_dt, fwd_dt, mat_dt):
     delta_t2 = get_year_deltas([settle_dt, mat_dt])[-1]
     pdb.set_trace()
     return L * delta_t1 * np.exp((-1)*R*delta_t2)
-    
+
+
 # returns the average period to receive each dollar
 def macaulay_duration(settle_dt, mat_dt, cpn, price, par, prds):
     yld = calc_yld_to_date(price, par, settle_dt, mat_dt, cpn, (1/prds))

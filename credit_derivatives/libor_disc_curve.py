@@ -15,8 +15,8 @@ from dx import *
 
 # yields = [0.0025, 0.01, 0.015, 0.025]
 # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2015, 12, 31), dt.datetime(2018, 12, 31)]
-yields = [0.01, 0.034, 0.071, 00.037, 0.074]
-dates = [dt.datetime(2015,1,1), dt.datetime(2015,4,1), dt.datetime(2015,7,1), dt.datetime(2015,10,1), dt.datetime(2016,1,1)]
+yields = [0.01, 0.028, 0.032, 0.034]
+dates = [dt.datetime(2015,1,1), dt.datetime(2015,4,1), dt.datetime(2015,10,1), dt.datetime(2016,4,1)]
 dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
 
 # returns the value of a money market deposit
@@ -67,6 +67,7 @@ def swap_rate_calc(settle_dt, mat_dt, fixed_prds, float_prds):
 
 # return value from perspective of receiver (receives fixed)
 def swap_valuation_calc(fix_rate, orig_first_flt_rate, start_dt, settle_dt, mat_dt, fixed_prds, float_prds):
+    # The fix_rate and flt_rate is for the period (3M, 6M, etc), not annualized
     # PV_fixed
     fix_cfs = createCashFlows(start_dt, 1 / fixed_prds, mat_dt, 0, 1, par_cf=False)
     fix_cfs = [discount_factor(settle_dt, d) for d, c in fix_cfs]
@@ -87,6 +88,7 @@ if __name__ == '__main__':
     # print(fra_rate_calc(dt.datetime(2016,1,1), dt.datetime(2016,4,1), dt.datetime(2016,10,1)))
     # print(ir_futures_calc(dt.datetime(2016,1,1), dt.datetime(2017,1,1), dt.datetime(2018,1,1)))
     
-    print(swap_rate_calc(dt.datetime(2015,1,1), dt.datetime(2016,1,1), 4, 4))
-    print(swap_valuation_calc(0.0392, 0.036, dt.datetime(2015,1,1), dt.datetime(2015,4,1), dt.datetime(2016,1,1), 2, 2))
+    # print(swap_rate_calc(dt.datetime(2015,1,1), dt.datetime(2016,1,1), 4, 4))
+    # print(swap_valuation_calc(0.0392, 0.036, dt.datetime(2015,1,1), dt.datetime(2015,4,1), dt.datetime(2016,1,1), 2, 2))
     
+    print(swap_valuation_calc(0.015, 0.029, dt.datetime(2014,10,1), dt.datetime(2015,1,1), dt.datetime(2016,4,1), 2, 2))
