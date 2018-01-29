@@ -14,37 +14,42 @@ import numpy as np
 import datetime as dt
 
 
-def euro_call_bounds(stock_px, strike, settle_dt, mat_dt, r):
+def euro_call_bounds(stock_px, strike, settle_dt, mat_dt, r, divs=0):
+    delta_t = get_year_deltas([settle_dt, mat_dt])[-1]
+    mx = stock_px
+    mn = max(stock_px - divs - strike * np.exp((-1) * r * delta_t), 0)
+    return (mx, mn)
+
+
+def euro_put_bounds(stock_px, strike, settle_dt, mat_dt, r, divs=0):
+    delta_t = get_year_deltas([settle_dt, mat_dt])[-1]
+    mx = strike * np.exp((-1) * r * delta_t)
+    mn = max(divs + strike * np.exp((-1) * r * delta_t) - stock_px, 0)
+    return (mx, mn)
+    
+
+def amer_call_bounds(stock_px, strike, settle_dt, mat_dt, r, divs=0):
     delta_t = get_year_deltas([settle_dt, mat_dt])[-1]
     mx = stock_px
     mn = max(stock_px - strike * np.exp((-1) * r * delta_t), 0)
     return (mx, mn)
+    
 
-
-def euro_put_bounds(stock_px, strike, settle_dt, mat_dt, r):
-    delta_t = get_year_deltas([settle_dt, mat_dt])[-1]
-    mx = strike * np.exp((-1) * r * delta_t)
+def amer_put_bounds(stock_px, strike, settle_dt, mat_dt, r, divs=0):
+    mx = strike
     mn = max(strike * np.exp((-1) * r * delta_t) - stock_px, 0)
     return (mx, mn)
-    
 
-def amer_call_bounds(stock_px, strike, settle_dt, mat_dt, r):
+
+def put_call_parity(opt_px, under_px, strike, r, settle_dt, mat_dt, p_c='c', divs=0):
     delta_t = get_year_deltas([settle_dt, mat_dt])[-1]
-    mx = max(stock_px - (strike / (1+r)**delta_t, 0))
-    mn = 0
-    return (mx, mn)
-    
-
-def amer_put_bounds(stock_px, strike, settle_dt, mat_dt, r):
-    mx = max(strike - stock_px, 0)
-    mn = 0
-    return (mx, mn)
-
-
-def put_call_parity():
-    pass
+    if p_c == 'c':
+        return opt_px + under_px - divs - (strike * np.exp((-1) * r * delta_t))
+    else:
+        return opt_px + (strike * np.exp((-1) * r * delta_t)) + divs - under_px
 
 
 if __name__ == '__main__':
-    print(euro_call_bounds(20, 18, dt.datetime(2015,1,1), dt.datetime(2016,1,1), 0.1))
-    print(euro_put_bounds(37, 40, dt.datetime(2015,1,1), dt.datetime(2015,7,1), 0.05))
+    # print(euro_call_bounds(20, 18, dt.datetime(2015,1,1), dt.datetime(2016,1,1), 0.1))
+    # print(euro_put_bounds(37, 40, dt.datetime(2015,1,1), dt.datetime(2015,7,1), 0.05))
+    print(put_call_parity(2.25, 31, 30, 0.10, dt.datetime(2015,1,1), dt.datetime(2015,4,1), 'c'))
