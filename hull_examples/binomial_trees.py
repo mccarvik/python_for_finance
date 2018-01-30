@@ -13,7 +13,7 @@ import numpy as np
 import datetime as dt
 
 
-def price_binary_tree(underlying, vol, strike, r, settle_dt, mat_dt, otype='C', N=2000, typ='euro'):
+def price_binary_tree(underlying, vol, strike, r, settle_dt, mat_dt, otype='C', N=2000, typ='euro', div_or_fccy_r=0, fut=False):
     # N = number of steps of tree
     S0 = underlying
     sigma = vol
@@ -27,9 +27,6 @@ def price_binary_tree(underlying, vol, strike, r, settle_dt, mat_dt, otype='C', 
     # u, d = the up, down % move per step
     u = np.exp(sigma * np.sqrt(deltaT))
     d = 1.0 / u
-    u = 1.2
-    d= 0.8
-    deltaT = 1
  
    
     # Initialise our f_{i,j} tree with zeros
@@ -41,7 +38,14 @@ def price_binary_tree(underlying, vol, strike, r, settle_dt, mat_dt, otype='C', 
     #rates are fixed so the probability of up and down are fixed.
     #this is used to make sure the drift is the risk free rate
     # p = probability of an up move
-    a = np.exp(r * deltaT)
+    # a = expected return
+    if fut:
+        # expected return on futures is 0% return
+        a = 1
+    else:
+        # expected return mitigated some by the div yield of underlying stock or foreign risk free rate if option on ccy
+        a = np.exp((r - div_or_fccy_r) * deltaT)
+        
     p = (a - d) / (u - d)
     oneMinusP = 1.0 - p
     
