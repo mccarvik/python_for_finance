@@ -53,8 +53,7 @@ class geometric_brownian_motion(simulation_class):
         paths[0] = self.initial_value
         if self.correlated is False:
             # if not correlated generate random numbers
-            rand = sn_random_numbers((1, M, I),
-                                     fixed_seed=fixed_seed)
+            rand = sn_random_numbers((1, M, I), fixed_seed=fixed_seed)
         else:
             # if correlated use random number object as provided
             # in market environment
@@ -64,6 +63,7 @@ class geometric_brownian_motion(simulation_class):
         forward_rates = self.discount_curve.get_forward_rates(
             self.time_grid, self.paths, dtobjects=True)[1]
 
+        pdb.set_trace()
         for t in range(1, len(self.time_grid)):
             # select the right time slice from the relevant
             # random number set
@@ -73,9 +73,15 @@ class geometric_brownian_motion(simulation_class):
                 ran = np.dot(self.cholesky_matrix, rand[:, t, :])
                 ran = ran[self.rn_set]
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
+            
+            # rt = the drift factor
             # difference between two dates as year fraction
             rt = (forward_rates[t - 1] + forward_rates[t]) / 2
-            paths[t] = paths[t - 1] * np.exp((rt - 0.5 * self.volatility ** 2) * 
-                                        dt + self.volatility * np.sqrt(dt) * ran)
+            
+            # No rate volatility - true Brownian motion
+            # paths[t] = paths[t - 1] + rt * dt + self.volatility * np.sqrt(dt) * ran
+            
+            # With rate volatility
+            paths[t] = paths[t - 1] * np.exp((rt - 0.5 * self.volatility ** 2) * dt + self.volatility * np.sqrt(dt) * ran)
             # generate simulated values for the respective date
         self.instrument_values = paths

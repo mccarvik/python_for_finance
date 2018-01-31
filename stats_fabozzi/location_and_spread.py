@@ -15,14 +15,17 @@ import datetime as dt
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/stats_fabozzi/'
 
-def mode(data):
-    None
-
 def mean(data):
     tot = 0
     for i in data:
         tot += i
     return tot / len(data)
+
+def weighted_mean(data, wgts):
+    tot = 0
+    for i, w in zip(data, wgts):
+        tot += i * w
+    return tot / sum(wgts)
 
 def median(data):
     srt = sorted(data)
@@ -42,9 +45,24 @@ def median_class(class_of_incident, bottom_cum_freq, top_cum_freq):
     linear_interpt = (0.5 -  bottom_cum_freq) / (top_cum_freq -  bottom_cum_freq) 
     return linear_interpt * rng + start
     
+def mode(data):
+    tots = {}
+    mx = {'' : 0}
+    for i in data:
+        if i in list(tots.keys()):
+            tots[i] += 1
+        else:
+            tots[i] = 1
+        if tots[i] > mx[list(mx.keys())[0]]:
+            mx = {i : tots[i]}
+    return mx
+    
 
 if __name__ == '__main__':
     data = pd.read_csv('dow.csv', header=None)
-    print(mean(data[1]))
-    print(median(data[1]))
-    print(median_class([8,15], 0.349, 0.630))
+    # print(mean(data[1]))
+    # print(median(data[1]))
+    # print(median_class([8,15], 0.349, 0.630))
+    # print(mode([1,2,3,3,4,5,1,2,2,1,1]))
+    wgts = np.linspace(0, 1, 30)
+    print(weighted_mean(data[1], wgts))
