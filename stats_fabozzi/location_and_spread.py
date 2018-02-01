@@ -57,6 +57,11 @@ def mode(data):
             mx = {i : tots[i]}
     return mx
     
+def quantiles(data, quantile):
+    # Will return whatever percentil is input in the data
+    # Ex: 75 will return the data point with 75% below it and 25% above it
+    return np.percentile(data, quantile)
+
 
 if __name__ == '__main__':
     data = pd.read_csv('dow.csv', header=None)
@@ -64,5 +69,6 @@ if __name__ == '__main__':
     # print(median(data[1]))
     # print(median_class([8,15], 0.349, 0.630))
     # print(mode([1,2,3,3,4,5,1,2,2,1,1]))
-    wgts = np.linspace(0, 1, 30)
-    print(weighted_mean(data[1], wgts))
+    # wgts = np.linspace(0, 1, 30)
+    # print(weighted_mean(data[1], wgts))
+    print(quantiles(data[1], 75))

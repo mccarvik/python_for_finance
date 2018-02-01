@@ -27,6 +27,9 @@ def simulate_wiener_process():
     # Markov Property - stochastic process where only the current variable is relevant for the future
     # Wiener Process - Markov as each value is independent of the next + chg over short period of time = sqrt(t)
     # i.e. the random process has a mean change of 0 and a variance of 1 (over some time interval, and vol = sqrt(T))
+    # Wiener process pretty much the same thing as Brownian Motion
+    # Ito Process - same as Wiener process except the drift rate and the variance rate (csr and vol below) are functions    
+    #               dependent on time t and last value x instead of constants
     #################################################
     
     # using this constant rate as a drift factor for the geometric brownan motion
