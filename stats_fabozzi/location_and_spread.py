@@ -62,6 +62,14 @@ def quantiles(data, quantile):
     # Ex: 75 will return the data point with 75% below it and 25% above it
     return np.percentile(data, quantile)
 
+# Returns min, max, dist between min and max
+def sample_range(data):
+    return (data.min(), data.max(), data.max() - data.min())
+    
+# Returns bottom percentile, top percentile, and dist between, default to 25% and 75%
+def interquartile_range(data, bottom=25, top=75):
+    return (np.percentile(data, bottom), np.percentile(data, top), np.percentile(data, top) - np.percentile(data, bottom))
+
 
 if __name__ == '__main__':
     data = pd.read_csv('dow.csv', header=None)
@@ -71,4 +79,7 @@ if __name__ == '__main__':
     # print(mode([1,2,3,3,4,5,1,2,2,1,1]))
     # wgts = np.linspace(0, 1, 30)
     # print(weighted_mean(data[1], wgts))
-    print(quantiles(data[1], 75))
+    # print(quantiles(data[1], 75))
+    print(sample_range(data[1]))
+    print(interquartile_range(data[1]))
+    
