@@ -70,6 +70,57 @@ def sample_range(data):
 def interquartile_range(data, bottom=25, top=75):
     return (np.percentile(data, bottom), np.percentile(data, top), np.percentile(data, top) - np.percentile(data, bottom))
 
+# Returns average absolute deviation from mean or median
+def absolute_deviation(data, med=True):
+    tot = 0
+    middle = None
+    if med:
+        middle = median(data)
+    else:
+        middle = mean(data)
+    
+    for i in data:
+        tot += abs(i - middle)
+    return tot / len(data)
+    
+def variance(data):
+    m = mean(data)
+    tot = 0
+    for i in data:
+        tot += (m-i)**2
+    return tot / len(data)
+
+# approximate average deviation from the mean
+def standard_dev(data):
+    return variance(data)**(0.5)
+
+
+# Pearson Skewness
+def skewness(data):
+    # mean > median --> skewed right, positive skew
+    # median > mean --> skewed left, negative skew
+    return ((mean(data) - median(data)) / standard_dev(data))
+
+# Another type of skewness involving third power of mean and standard deviation
+def skewness_third(data):
+    tot = 0
+    m = mean(data)
+    stdev = standard_dev(data)
+    for i in data:
+        tot += (i - m)**3
+    return (tot / (len(data) * stdev**3))
+
+# needed to compare st_dev between different samples
+def coeff_variation(data):
+    return standard_dev(data) / mean(data)
+    
+def standardize_data(data):
+    ret = []
+    m = mean(data)
+    st_dev = standard_dev(data)
+    for i in data:
+        ret.append((i - m) / st_dev)
+    return ret
 
 if __name__ == '__main__':
     data = pd.read_csv('dow.csv', header=None)
@@ -80,6 +131,14 @@ if __name__ == '__main__':
     # wgts = np.linspace(0, 1, 30)
     # print(weighted_mean(data[1], wgts))
     # print(quantiles(data[1], 75))
-    print(sample_range(data[1]))
-    print(interquartile_range(data[1]))
+    # print(sample_range(data[1]))
+    # print(interquartile_range(data[1]))
+    # print(absolute_deviation(data[1]))
+    # print(absolute_deviation(data[1], med=False))
+    # print(variance(data[1]))
+    # print(standard_dev(data[1]))
     
+    # print(skewness(data[1]))
+    # print(skewness_third(data[1]))
+    print(coeff_variation(data[1]))
+    print(standardize_data(data[1]))
