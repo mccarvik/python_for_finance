@@ -23,6 +23,8 @@ dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
 def lognormal_mean(underlying_px, exp_ret, vol, T):
     # assume percentage changes in stock price in a very short period of time are normally distributed
     # This means the stock price at the end of time T will be lognormally distributed
+    # This function returns the mean and std_dev of the natural log of ending stock price (ln St) which is normally distributed
+    #       - i.e. if ln St is normally distributed, St is lognormally distributed
     return (np.log(underlying_px) + (exp_ret - vol**2/2) * T, vol**2 * T)
 
 def lognormal_exp_ret_var(S0, exp_ret, vol, T):
