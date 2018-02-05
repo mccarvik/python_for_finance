@@ -65,5 +65,39 @@ def simulate_wiener_process():
     plt.close()
 
 
+def itos_lemma():
+    #######################################
+    # Example
+    # Forward contract price should be Se^(rT)
+    # assuming that S moves with wiener process with drift u and variance o^2,
+    # F should move with a wiener process with drift (u - r) and variance o^2
+    # 
+    # So assuming stocks are lognormally dstributed (ln S) and followed a wiener process,
+    # from ito's lemma, derivatives should follow a wiener process with drift = (u - o^2/2) and variance=o^2
+    
+    # set the drift and standard_dev (sqrt(variance)) based on Ito's lemma
+    # A variable has a lognormal distribution if the natural log of the variable is normally dostributed
+    # NOTE: using the rate as the drift factor as a convenience with the  way dx is setup
+    u = 1.3
+    o = 0.2
+    csr = constant_short_rate('csr', (u - (o**2 / 2)))
+    me_wp = market_environment('me_wp', dt.datetime(2015, 1, 1))
+    me_wp.add_constant('initial_value', 1)
+    me_wp.add_constant('volatility', o)
+    me_wp.add_constant('final_date', dt.datetime(2015, 12, 31))
+    me_wp.add_constant('frequency', 'D')
+    me_wp.add_constant('currency', 'EUR')
+    me_wp.add_constant('paths', 1)
+    me_wp.add_curve('discount_curve', csr)
+    
+    gbm = geometric_brownian_motion('gbm', me_wp)
+    gbm.generate_time_grid()
+    paths_1 = gbm.get_instrument_values(fixed_seed=False)
+    pdf = pd.DataFrame(paths_1, index=gbm.time_grid)
+    pdf.ix[:, :10].plot(legend=False, figsize=(10, 6))
+    plt.savefig(PATH + 'itos_lemma.png', dpi=300)
+    plt.close()
+
 if __name__ == '__main__':
-    simulate_wiener_process()
+    # simulate_wiener_process()
+    itos_lemma()
