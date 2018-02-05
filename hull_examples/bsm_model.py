@@ -26,6 +26,7 @@ def lognormal_mean(underlying_px, exp_ret, vol, T):
     return (np.log(underlying_px) + (exp_ret - vol**2/2) * T, vol**2 * T)
 
 def lognormal_exp_ret_var(S0, exp_ret, vol, T):
+    # lognormal expected return and standard dev
     # E(St) = S0e^(uT)
     # var(St) = S0^2*e^(2uT)*(e^(o^2*T)-1)
     ret = S0 * np.exp(exp_ret * T)
