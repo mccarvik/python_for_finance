@@ -30,6 +30,16 @@ def pie_chart(data):
     plt.close()
 
 
+def bar_chart(data):
+    fig, ax = plt.subplots()
+    pdb.set_trace()
+    ax.bar(range(len(data)), data[1], 0.35, color='r')
+    ax.set_xticklabels(data[0])
+    plt.savefig(PATH + 'bar_chart.png', dpi=300)
+    plt.close()
+
+
 if __name__ == '__main__':
     data = pd.read_csv('dow.csv', header=None)
     # pie_chart(data)
+    bar_chart(data)
