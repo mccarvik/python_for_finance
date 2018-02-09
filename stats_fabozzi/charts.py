@@ -39,7 +39,46 @@ def bar_chart(data):
     plt.close()
 
 
+def histogram(data, ogive=True):
+    fig, ax = plt.subplots()
+    counts, bins, patches = plt.hist(data, 8)
+    centers =[]
+    if ogive:
+        for b in range(len(bins)):
+            if b==0:
+                continue
+            try:
+                centers.append((bins[b] + bins[b+1])/2)
+            except:
+                centers.append(bins[b])
+        ax.plot(centers, counts.cumsum(), 'ro-')
+    
+    plt.ylabel('Count')
+    plt.grid(True)
+    plt.savefig(PATH + 'histogram.png', dpi=300)
+    plt.close()
+
+
+def box_plot(data):
+    # change outlier point symbols
+    plt.figure()
+    plt.boxplot(data, 0, 'gD')
+    plt.savefig(PATH + 'boxplot.png', dpi=300)
+    plt.close()
+
+
+def qq_plot(data_1, data_2):
+    # compares two sets of data against eachother and sees how the relationship behaves
+    pdb.set_trace()
+    plt.scatter(data_1, data_2, c="g")
+    plt.savefig(PATH + 'qqplot.png', dpi=300)
+    plt.close()
+
 if __name__ == '__main__':
-    data = pd.read_csv('dow.csv', header=None)
+    data = pd.read_csv('aapl.csv')
     # pie_chart(data)
-    bar_chart(data)
+    # bar_chart(data)
+    # histogram(data[1])
+    # box_plot(data[1])
+    pdb.set_trace()
+    qq_plot(data['Close'][:100], data['Close'][-100:])

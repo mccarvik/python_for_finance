@@ -12,6 +12,7 @@ from utils.utils import *
 import numpy as np
 import pandas as pd
 import datetime as dt
+import scipy.stats as ss
 
 # yields = [0.0025, 0.01, 0.015, 0.025]
 # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2015, 12, 31), dt.datetime(2018, 12, 31)]
@@ -78,10 +79,33 @@ def estimating_vol(data, t):
     return (s, o, std_err)
 
 
+def bsm_calc(S0, K, r, T, vol, div, otype="C"):
+    # N = cumulative probability distribution of a variable with a standrard normal distribution, .i.e probability that a variable will be less than 'x'
+    if otype == "C":
+        Nd1 = ss.norm.cdf(d1(S0, K, r, T, vol, div))
+        Nd2 = ss.norm.cdf(d2(S0, K, r, T, vol, div))
+        return (S0 * Nd1) - (K * np.exp(-r * T) * Nd2)
+    else:
+        Nd1 = ss.norm.cdf(-d1(S0, K, r, T, vol, div))
+        Nd2 = ss.norm.cdf(-d2(S0, K, r, T, vol, div))
+        return (K * np.exp(-r * T) * Nd2) - (S0 * Nd1)
+
+
+def d1(S0, K, r, T, vol, div):
+    # N(d1) interpretation => the expected stock price at time T in a risk neutral world where S < K counts as 0
+    num = (np.log(S0/K) + ((r - div + 0.5 * vol**2) * T)) 
+    den = (vol * np.sqrt(T))
+    return num / den
+
+def d2(S0, K, r, T, vol, div):
+    # N(d2) interpretation => probability a call option will be exercised in a risk neutral world
+    return d1(S0, K, r, T, vol, div) - (vol * np.sqrt(T))
+
 if __name__ == '__main__':
     # print(lognormal_mean(40, 0.16, 0.2, 0.5))
     # print(lognormal_exp_ret_var(20, 0.2, 0.4, 1))
     # print(distribution_rate_of_ret(0.17, 0.20, 3))
-    data = get_daily_return(pd.read_csv('aapl.csv')['Close'])
-    print(estimating_vol(data, t=1/252))
+    # data = get_daily_return(pd.read_csv('aapl.csv')['Close'])
+    # print(estimating_vol(data, t=1/252))
+    print(bsm_calc(42, 40, 0.1, 0.5, 0.2, 0.0, "P"))
     
