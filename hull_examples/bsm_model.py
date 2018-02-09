@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import scipy.stats as ss
+from math import sqrt, pi, log, e
 
 # yields = [0.0025, 0.01, 0.015, 0.025]
 # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2015, 12, 31), dt.datetime(2018, 12, 31)]
@@ -101,6 +102,53 @@ def d2(S0, K, r, T, vol, div):
     # N(d2) interpretation => probability a call option will be exercised in a risk neutral world
     return d1(S0, K, r, T, vol, div) - (vol * np.sqrt(T))
 
+
+def vol_bsm_calc(S0, K, r, T, div, prem, otype="C", imp_vol_guess=0.2, it=100):
+    ''' Calculates implied volatility when given the price of a European call option in BS
+    
+    Parameters
+    ==========
+    imp_vol_guess : float
+        estimate of implied volatility
+    it : int 
+        number of iterations of process
+        
+    Returns
+    =======
+    imp_vol_guess : float
+        estimated value for implied vol
+    '''
+    for i in range(it):
+        # reusing code from the price calc to use our vol guess
+        vol = imp_vol_guess
+        imp_vol_guess -= ((bsm_calc(S0, K, r, T, vol, div, otype) - prem) / calcVega(S0, K, r, T, div, vol_guess=imp_vol_guess))
+    return imp_vol_guess
+
+
+def calcVega(S0, K, r, T, div, vol_guess=None):
+    ''' Calculates the change in premium for the option per change in volatility (partial derivative)
+    
+    Parameters
+    =========
+    vol_guess : float
+        guess at the implied vol needed when calcing the vol from price
+    
+    Return
+    ======
+    float
+        change in premium per change in volatility
+    '''
+    
+    if vol_guess:
+        vol = vol_guess 
+    dfq = e ** (div * T)
+    return S0 * np.sqrt(T) * dfq * prob_dens_func(d2(S0, K, r, T, vol, div))
+
+
+def prob_dens_func(x):
+    return (1 / np.sqrt(pi*2)) * e ** (((-1) * x**2)/2)
+
+
 if __name__ == '__main__':
     # print(lognormal_mean(40, 0.16, 0.2, 0.5))
     # print(lognormal_exp_ret_var(20, 0.2, 0.4, 1))
@@ -108,4 +156,5 @@ if __name__ == '__main__':
     # data = get_daily_return(pd.read_csv('aapl.csv')['Close'])
     # print(estimating_vol(data, t=1/252))
     print(bsm_calc(42, 40, 0.1, 0.5, 0.2, 0.0, "P"))
+    print(vol_bsm_calc(21, 20, 0.1, 0.25, 0, 1.875, "C"))
     
