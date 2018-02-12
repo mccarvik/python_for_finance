@@ -82,14 +82,15 @@ def estimating_vol(data, t):
 
 def bsm_calc(S0, K, r, T, vol, div, otype="C"):
     # N = cumulative probability distribution of a variable with a standrard normal distribution, .i.e probability that a variable will be less than 'x'
+    # div = continuous dividend yield, can also use for foreign currency risk free rate for ccy options
     if otype == "C":
         Nd1 = ss.norm.cdf(d1(S0, K, r, T, vol, div))
         Nd2 = ss.norm.cdf(d2(S0, K, r, T, vol, div))
-        return (S0 * Nd1) - (K * np.exp(-r * T) * Nd2)
+        return (S0 * np.exp(-div * T) * Nd1) - (K * np.exp(-r * T) * Nd2)
     else:
         Nd1 = ss.norm.cdf(-d1(S0, K, r, T, vol, div))
         Nd2 = ss.norm.cdf(-d2(S0, K, r, T, vol, div))
-        return (K * np.exp(-r * T) * Nd2) - (S0 * Nd1)
+        return (K * np.exp(-r * T) * Nd2) - (S0 * np.exp(-div * T) * Nd1)
 
 
 def d1(S0, K, r, T, vol, div):
