@@ -15,9 +15,23 @@ import datetime as dt
 
 PATH = '/home/ubuntu/workspace/python_for_finance/png/stats_fabozzi/multivar/'
 
-
+def setup_data(data1, data2):
+    data = pd.merge(data1, data2, how='inner', on='date')
+    data['appl_dret'] = data['aapl'].pct_change(1).round(3)
+    data['spy_dret'] = data['spy'].pct_change(1).round(3)
+    data['spy_pos'] = data.apply(lambda x: 0 if x['spy_dret'] < 0 else 1, axis=1)
+    data['spy_neg'] = data.apply(lambda x: 1 if x['spy_dret'] < 0 else 0, axis=1)
+    data_rets = data.groupby('appl_dret')[['spy_pos', 'spy_neg']].sum()
+    pdb.set_trace()
+    return data_rets
 
 
 
 if __name__ == '__main__':
-    data = pd.read_csv('aapl.csv')
+    data1 = pd.read_csv('aapl.csv')
+    data1.columns = ['date','aapl']
+    data2 = pd.read_csv('spy.csv')
+    data2.columns = ['date','spy']
+    data = setup_data(data1, data2)
+    
+    
