@@ -21,10 +21,7 @@ def setup_data(data1, data2):
     data['spy_dret'] = data['spy'].pct_change(1).round(3)
     data['spy_pos'] = data.apply(lambda x: 0 if x['spy_dret'] < 0 else 1, axis=1)
     data['spy_neg'] = data.apply(lambda x: 1 if x['spy_dret'] < 0 else 0, axis=1)
-    data_rets = data.groupby('appl_dret')[['spy_pos', 'spy_neg']].sum()
-    pdb.set_trace()
-    return data_rets
-
+    return data
 
 
 if __name__ == '__main__':
@@ -34,4 +31,10 @@ if __name__ == '__main__':
     data2.columns = ['date','spy']
     data = setup_data(data1, data2)
     
+    # need this for return bucketing
+    data_rets = data.groupby('appl_dret')[['spy_pos', 'spy_neg']].sum()
+    
+    # Compare reutrns when negative or positive
+    print(data[data.spy_neg==1]['appl_dret'].mean())
+    print(data[data.spy_pos==1]['appl_dret'].mean())
     
