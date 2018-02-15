@@ -22,15 +22,33 @@ yields = [0.01, 0.0366, 0.04]
 dates = [dt.datetime(2015,1,1), dt.datetime(2016,7,1), dt.datetime(2017,1,1)]
 dsr = deterministic_short_rate('dsr', list(zip(dates, yields)))
 
+# Use this to simplify equation reading for getting normal distribution cumulative distribution functions
+N = ss.norm.cdf
 
 def delta(S0, K, r, T, vol, div, otype='C'):
     # delta is equal to N(d1), represents how much the option price moves per move in underlying
     if otype == 'C':
-        return ss.norm.cdf(d1(S0, K, r, T, vol, div))
+        return N(d1(S0, K, r, T, vol, div))
     else:
-        return ss.norm.cdf(d1(S0, K, r, T, vol, div)) - 1
+        return N(d1(S0, K, r, T, vol, div)) - 1
+        
+def theta(S0, K, r, T, vol, div, otype='C'):
+    # rate of change of the value of the portfolio with respect to the passage of time
+    num = -S0 * N_(d1(S0, K, r, T, vol, div)) * vol
+    den = 2 * sqrt(T)
+    if otype == 'C':
+        addition = r * K * np.exp(-r*T) * N(d2(S0, K, r, T, vol, div))
+        return (num / den) - addition
+    else:
+        addition = r * K * np.exp(-r*T) * N(-d2(S0, K, r, T, vol, div))
+        return (num / den) + addition
+
+def N_(x):
+    return (1 / sqrt(2 * pi)) * np.exp(-x**2 / 2)
 
 if __name__ == '__main__':
-    print(delta(42, 40, 0.1, 0.5, 0.2, 0.0, "C"))
-    print(delta(42, 40, 0.1, 0.5, 0.2, 0.0, "P"))
+    # print(delta(42, 40, 0.1, 0.5, 0.2, 0.0, "C"))
+    # print(delta(42, 40, 0.1, 0.5, 0.2, 0.0, "P"))
+    print(theta(49, 50, 0.05, 0.3846, 0.2, 0.0, "C"))
+    print(theta(49, 50, 0.05, 0.3846, 0.2, 0.0, "P"))
     
