@@ -52,10 +52,16 @@ def gamma(S0, K, r, T, vol, div):
     return N_(d1(S0, K, r, T, vol, div)) / (S0 * vol * sqrt(T))
 
 
+def vega(S0, K, r, T, vol, div):
+    # rate of change of the value of the portfolio with respect to a 0.01 (1% i.e. 20->21% or 0.02-->0.021) change in volatility 
+    return S0 * sqrt(T) * N_(d1(S0, K, r, T, vol, div))
+
+
 if __name__ == '__main__':
     # print(delta(42, 40, 0.1, 0.5, 0.2, 0.0, "C"))
     # print(delta(42, 40, 0.1, 0.5, 0.2, 0.0, "P"))
     # print(theta(49, 50, 0.05, 0.3846, 0.2, 0.0, "C"))
     # print(theta(49, 50, 0.05, 0.3846, 0.2, 0.0, "P"))
-    print(gamma(49, 50, 0.05, 0.3846, 0.2, 0.0))
+    # print(gamma(49, 50, 0.05, 0.3846, 0.2, 0.0))
+    print(vega(49, 50, 0.05, 0.3846, 0.2, 0.0))
     
