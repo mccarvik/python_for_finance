@@ -69,8 +69,7 @@ class valuation_class_single(object):
         except:
             print('Error parsing market environment.')
 
-    def update(self, initial_value=None, volatility=None,
-               strike=None, maturity=None):
+    def update(self, initial_value=None, volatility=None, strike=None, maturity=None):
         ''' Updates single parameters of the derivative. '''
         if initial_value is not None:
             self.underlying.update(initial_value=initial_value)

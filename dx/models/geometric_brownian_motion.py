@@ -63,7 +63,6 @@ class geometric_brownian_motion(simulation_class):
         forward_rates = self.discount_curve.get_forward_rates(
             self.time_grid, self.paths, dtobjects=True)[1]
 
-        pdb.set_trace()
         for t in range(1, len(self.time_grid)):
             # select the right time slice from the relevant
             # random number set
