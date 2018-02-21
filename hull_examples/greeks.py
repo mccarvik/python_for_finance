@@ -53,8 +53,16 @@ def gamma(S0, K, r, T, vol, div):
 
 
 def vega(S0, K, r, T, vol, div):
-    # rate of change of the value of the portfolio with respect to a 0.01 (1% i.e. 20->21% or 0.02-->0.021) change in volatility 
+    # rate of change of the value of the portfolio with respect to a 0.01 (1% i.e. 20->21% or 0.2-->0.21) change in volatility 
     return S0 * sqrt(T) * N_(d1(S0, K, r, T, vol, div))
+
+
+def rho(S0, K, r, T, vol, div, otype='C'):
+    # rate of change of the value of the portfolio with respect to a 0.01 (1% i.e. 5->6% or 0.05-->0.06) change in interest rates
+    if otype == 'C':
+        return K * T * np.exp((-r)*T) * N(d2(S0, K, r, T, vol, div))
+    else:
+        return -K * T * np.exp((-r)*T) * N(-d2(S0, K, r, T, vol, div))
 
 
 if __name__ == '__main__':
@@ -63,5 +71,6 @@ if __name__ == '__main__':
     # print(theta(49, 50, 0.05, 0.3846, 0.2, 0.0, "C"))
     # print(theta(49, 50, 0.05, 0.3846, 0.2, 0.0, "P"))
     # print(gamma(49, 50, 0.05, 0.3846, 0.2, 0.0))
-    print(vega(49, 50, 0.05, 0.3846, 0.2, 0.0))
+    # print(vega(49, 50, 0.05, 0.3846, 0.2, 0.0))
+    print(rho(49, 50, 0.05, 0.3846, 0.2, 0.0))
     
