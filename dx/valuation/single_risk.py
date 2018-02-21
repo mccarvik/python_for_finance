@@ -306,13 +306,10 @@ class valuation_mcs_american_single(valuation_class_single):
         bf : int
             number of basis functions for regression
         '''
-        instrument_values, inner_values, time_index_start, time_index_end = \
-            self.generate_payoff(fixed_seed=fixed_seed)
-        time_list = \
-            self.underlying.time_grid[time_index_start:time_index_end + 1]
+        instrument_values, inner_values, time_index_start, time_index_end = self.generate_payoff(fixed_seed=fixed_seed)
+        time_list = self.underlying.time_grid[time_index_start:time_index_end + 1]
 
-        discount_factors = self.discount_curve.get_discount_factors(
-            time_list, self.paths, dtobjects=True)[1]
+        discount_factors = self.discount_curve.get_discount_factors(time_list, self.paths, dtobjects=True)[1]
 
         V = inner_values[-1]
         for t in range(len(time_list) - 2, 0, -1):

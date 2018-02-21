@@ -44,6 +44,7 @@ gbm = geometric_brownian_motion('gbm', me)
 euro_call_payoff = 'np.maximum(maturity_value - strike, 0)'
 # payoff = 'np.maximum(np.minimum(maturity_value) * 2 - 50, 0)'
 
+
 def mcs_european_single():
     me.add_constant('maturity', dt.datetime(2015, 12, 31))
     me.add_constant('strike', 40.)
@@ -123,5 +124,31 @@ def mcs_european_single():
     plot_option_stats_full(p_list, pv, de, ve, th, rh, ga, PATH, "underlying")
 
 
+def mcs_american_single():
+    me.add_constant('maturity', dt.datetime(2015, 12, 31))
+    me.add_constant('strike', 40.)
+    put_ame = valuation_mcs_american_single(
+                name='put_eur',
+                underlying=gbm,
+                mar_env=me,
+                payoff_func='np.maximum(strike - instrument_values, 0)')
+    print(put_ame.present_value())
+    print(put_ame.delta())
+    print(put_ame.vega())
+    
+    k_list = np.arange(26., 46.1, 2.)
+    pv = []; de = []; ve = []; th = []; rh = []; ga = []
+    for k in k_list:
+        put_ame.update(strike=k)
+        pv.append(put_ame.present_value())
+        de.append(put_ame.delta(.5))
+        ve.append(put_ame.vega(0.2))
+        th.append(put_ame.theta())
+        rh.append(put_ame.rho())
+        ga.append(put_ame.gamma())
+    
+    plot_option_stats_full(k_list, pv, de, ve, th, rh, ga, PATH, "amer_put_strikes")
+
 if __name__ == '__main__':
-    mcs_european_single()
+    # mcs_european_single()
+    mcs_american_single()
