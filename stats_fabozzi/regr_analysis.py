@@ -55,8 +55,25 @@ def SSE(dep_var, indep_var):
 def r_squared(dep_var, indep_var):
     # Coefficient of Determination
     # value from 0 to 1, higher value = better fit
+    # Also equal to the correlation coefficient (r) squared
     return SSR(dep_var, indep_var) / SST(dep_var)
     # return 1 - SSE(dep_var, indep_var) / SST(dep_var)
+
+
+def transform_y(dep_var, indep_var):
+    # Use this if relationship between indep and dep variable isnt linear
+    # This example: y = a * e^(Bx)
+    # Take log of both sides, becomes --> ln y = ln a + bx
+    # Get alpha and beta
+    b = beta(dep_var, indep_var)
+    a = alpha(dep_var, indep_var)
+    # transform data back, alpha from ln a to a
+    a = np.exp(a)
+    # Note: different equation for y_pred than a + b*x
+    y_pred = [a * np.exp(b * x)  for x in indep_var]
+    # to show actual estimates:
+    # print(np.log(y_pred))
+    return y_pred
 
 
 if __name__ == '__main__':
@@ -67,8 +84,10 @@ if __name__ == '__main__':
     # print(beta(data1['aapl'], data2['spy']))
     # print(alpha(data1['aapl'], data2['spy']))
     
-    print(SST(data1['aapl']))
-    print(SSR(data1['aapl'], data2['spy']))
-    print(SSE(data1['aapl'], data2['spy']))
-    print(r_squared(data1['aapl'], data2['spy']))
+    # print(SST(data1['aapl']))
+    # print(SSR(data1['aapl'], data2['spy']))
+    # print(SSE(data1['aapl'], data2['spy']))
+    # print(r_squared(data1['aapl'], data2['spy']))
+    
+    print(transform_y(data1['aapl'], data2['spy']))
     
