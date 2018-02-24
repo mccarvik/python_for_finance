@@ -31,5 +31,36 @@ def VaR(conf_int, vol, notl, T):
     return stdevs_away * n_day_vol * notl
 
 
+def VaR_port(conf_int, T, corr_mat, opts):
+    # calculate VaR for a portfolio of options, a lot of assumptions for these equations but good exercise
+    # vol or o --> o^2 = sum(ai^2 * oi^2) for all i + 2 * corrij * ai * aj * oi * oj for all ij combinations, a = amount invested
+    pdb.set_trace()
+    # assume a daily vol
+    front = sum([(o.px * o.delta * o.vol)**2 for o in opts])
+    back = 0
+    for i in range(len(opts)):
+        for j in range(len(opts)):
+            if j >= i:
+                continue
+            back += opts[i].px * opts[i].delta * opts[j].px * opts[j].delta * opts[i].vol * opts[j].vol * corr_mat[i][j]
+    back = 2 * back
+    vol = sqrt(front + back)
+    return ss.norm.ppf(conf_int) * sqrt(T) * vol
+
+
+class option_sim():
+    def __init__(self, px, delta_pos, vol):
+        # delta_pos = delta of the whole position (for the example we werent given the number of contracts)
+        self.px = px
+        self.delta = delta_pos
+        # daily vol
+        self.vol = vol
+        
+
+
 if __name__ == '__main__':
-    print(VaR(0.99, 0.3175, 10000000, 10))
+    # print(VaR(0.99, 0.3175, 10000000, 10))
+    msft = option_sim(120, 1000, 0.02)
+    att = option_sim(30, 20000, 0.01)
+    corr_matrix = [['', 0.3], [0.3, '']]
+    print(VaR_port(.95, 5, corr_matrix, [msft, att]))

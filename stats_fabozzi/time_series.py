@@ -39,7 +39,32 @@ def decomp_of_ts(data):
         day_rets[d] = [d for d in day_rets[d] if not np.isnan(d)]
         rets.append(sum(day_rets[d]) / len(day_rets[d]) * 100)
     return rets
-    
+
+
+def random_walk(t=100, init_val=100, mv=1):
+    for i in range(t):
+        init_val+= (2 * np.random.rand() - 1) * mv
+        print(init_val)
+    return init_val
+
+
+def error_correction(t=100, init_val=100, mv=1):
+    # very similar to mean reverting where anytime the equilibirum is off it tries to get back
+    F = init_val
+    St1 = init_val
+    err = (2 * np.random.rand() - 1) * mv
+    # alpha > 0 and beta > 0
+    alpha = 0.1
+    beta = 0.1
+    for i in range(t):
+        err = (2 * np.random.rand() - 1) * mv
+        St2 = St1 - alpha * (St1 - F) + err
+        err = (2 * np.random.rand() - 1) * mv
+        F += beta * (St1 - F) + err
+        St1 = St2
+        print(St1)
+    return St1
+
 
 if __name__ == '__main__':
     data1 = pd.read_csv('aapl.csv')
@@ -47,4 +72,6 @@ if __name__ == '__main__':
     data2 = pd.read_csv('spy.csv')
     data2.columns = ['date','spy']
     data = setup_data(data1, data2)
-    print(decomp_of_ts(data))
+    # print(decomp_of_ts(data))
+    # print(random_walk())
+    print(error_correction())
