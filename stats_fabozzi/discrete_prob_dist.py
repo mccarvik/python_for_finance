@@ -21,9 +21,16 @@ class distribution():
 
 def mean(dist):
     tot_val = 0
-    for w, v in zip(dist.vals, dist.weights):
+    for v, w in zip(dist.vals, dist.weights):
         tot_val += w * v
     return tot_val
+
+
+def stdev(dist):
+    m = mean(dist)
+    pdb.set_trace()
+    var = sum([(v - m)**2 * w for v, w in zip(dist.vals, dist.weights)])
+    return np.sqrt(var)
     
 
 def dice_dist():
@@ -32,8 +39,18 @@ def dice_dist():
         dist.vals.append(i)
         dist.weights.append(1/6)
     return dist
+    
 
+def bernouli_dist(p, v):
+    dist = distribution([], [])
+    dist.vals.append(v[0])
+    dist.weights.append(p)
+    dist.vals.append(v[1])
+    dist.weights.append(1-p)
+    return dist
 
 
 if __name__ == '__main__':
-    print(mean(dice_dist()))
+    # print(mean(dice_dist()))
+    print(mean(bernouli_dist(0.6, [22, 18])))
+    print(stdev(bernouli_dist(0.6, [22, 18])))
