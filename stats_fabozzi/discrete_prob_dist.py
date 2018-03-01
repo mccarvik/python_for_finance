@@ -30,7 +30,6 @@ def mean(dist):
 
 def stdev(dist):
     m = mean(dist)
-    pdb.set_trace()
     var = sum([(v - m)**2 * w for v, w in zip(dist.vals, dist.weights)])
     return np.sqrt(var)
     
@@ -63,12 +62,28 @@ def binomial_dist(n, p):
         w = binom_coeff(n, i) * p**i * (1-p)**(n-i)
         dist.weights.append(w)
     return dist
-    
+
+
+def hypergeometric_dist(N, K, n):
+    dist = distribution([], [])
+    for k in range(n+1):
+        Kk = binom_coeff(K, k)
+        Nn = binom_coeff(N, n)
+        NKnk = binom_coeff(N-K, n-k)
+        dist.vals.append(k)
+        dist.weights.append((Kk * NKnk) / Nn)
+    return dist
+
 
 if __name__ == '__main__':
     # print(mean(dice_dist()))
     # print(mean(bernouli_dist(0.6, [22, 18])))
     # print(stdev(bernouli_dist(0.6, [22, 18])))
     
-    print(mean(binomial_dist(10, 0.5)))
-    print(stdev(binomial_dist(10, 0.5)))
+    # print(mean(binomial_dist(10, 0.5)))
+    # print(stdev(binomial_dist(10, 0.5)))
+    
+    print(mean(hypergeometric_dist(10, 4, 5)))
+    print(stdev(hypergeometric_dist(10, 4, 5)))
+    
+    
