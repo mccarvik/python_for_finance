@@ -79,10 +79,9 @@ def hypergeometric_dist(N, K, n):
 
 def multinomial_dist(N, ps):
     dist = distribution([], [])
-    ns = [int(N * p) for p in ps]
-    mc = multinomial_coeff(ns)
-    Xs = [[3,4,3]]
+    Xs = multinomial_combos(N, ps)
     for x in Xs:
+        mc = multinomial_coeff(x)
         dist.vals.append(x)
         p_prod = reduce(mul, [p**i for p,i in zip(ps, x)], 1)
         dist.weights.append(p_prod * mc)
@@ -92,8 +91,18 @@ def multinomial_dist(N, ps):
     return dist
 
 
-def multinomial_combos(N, ps):
-    g = len(ps)
+def multinomial_combos(N, ps, id=0, combo=[]):
+    if id+1 == len(ps):
+        return N
+    
+    for i in range(N+1):
+        ret = multinomial_combos(N-i, ps, id+1, combo)
+        if type(ret) != list:
+            combo.append([i, ret])
+        else:
+            combo = combo + [[i] + s for s in ret]
+            combo = [c for c in combo if len(c) == len(ps)]
+    return combo
 
 
 def multinomial_coeff(ns):
@@ -117,6 +126,7 @@ if __name__ == '__main__':
     # print(mean(hypergeometric_dist(10, 4, 5)))
     # print(stdev(hypergeometric_dist(10, 4, 5)))
     
+
     dist = multinomial_dist(10, [0.3, 0.3, 0.4])
     print(dist.mean(0))
     print(dist.stdev(0))
