@@ -6,6 +6,8 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import scipy.special as ss
+from operator import mul
+from functools import reduce
 
 # from dx import *
 # from utils.utils import *
@@ -75,6 +77,35 @@ def hypergeometric_dist(N, K, n):
     return dist
 
 
+def multinomial_dist(N, ps):
+    dist = distribution([], [])
+    ns = [int(N * p) for p in ps]
+    mc = multinomial_coeff(ns)
+    Xs = [[3,4,3]]
+    for x in Xs:
+        dist.vals.append(x)
+        p_prod = reduce(mul, [p**i for p,i in zip(ps, x)], 1)
+        dist.weights.append(p_prod * mc)
+    
+    dist.mean = lambda x: ps[x] * N
+    dist.stdev = lambda x: np.sqrt(ps[x] * (1 - ps[x]) * N)
+    return dist
+
+
+def multinomial_combos(N, ps):
+    g = len(ps)
+
+
+def multinomial_coeff(ns):
+    res, i = 1, 1
+    for a in ns:
+        for j in range(1, a+1):
+            res *= i
+            res //= j
+            i += 1
+    return res
+    
+
 if __name__ == '__main__':
     # print(mean(dice_dist()))
     # print(mean(bernouli_dist(0.6, [22, 18])))
@@ -83,7 +114,14 @@ if __name__ == '__main__':
     # print(mean(binomial_dist(10, 0.5)))
     # print(stdev(binomial_dist(10, 0.5)))
     
-    print(mean(hypergeometric_dist(10, 4, 5)))
-    print(stdev(hypergeometric_dist(10, 4, 5)))
+    # print(mean(hypergeometric_dist(10, 4, 5)))
+    # print(stdev(hypergeometric_dist(10, 4, 5)))
+    
+    dist = multinomial_dist(10, [0.3, 0.3, 0.4])
+    print(dist.mean(0))
+    print(dist.stdev(0))
+    
+    
+    
     
     
