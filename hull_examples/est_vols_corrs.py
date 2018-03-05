@@ -56,7 +56,7 @@ def est_var_daily_ret_weights(data, wgts=[0.5, 0.3, 0.15, 0.05], long_run=0):
 
 
 def ewma_model(data, lam=0.9):
-    # exponentially weighted moving average model
+    # Exponentially Weighted Moving Average model
     # Need an entry vol
     daily_chg = data.pct_change(1)
     init_vol = 0.01
@@ -72,6 +72,23 @@ def ewma_model(data, lam=0.9):
     return vols
     
 
+def garch_model(data, lam=0.01, alpha=0.13, beta=0.86, long_run=0.0002):
+    # Same as EWMA except with some weight given to the long run average
+    # lambda + alpha + beta = 1
+    daily_chg = data.pct_change(1)
+    init_vol = 0.01
+    vols = []
+    for i in range(len(daily_chg)):
+        if i == 0 or i == 1:
+            continue
+        if i == 2:
+            # var = lam * long_run + alpha * init_vol**2 + beta * (0.016)**2
+            var = lam * long_run + alpha * init_vol**2 + beta * daily_chg[i-1]**2
+        else:
+            var = lam * long_run + alpha *  vols[i-3]**2 + beta * daily_chg[i-1]**2
+        vols.append(np.sqrt(var))
+    return vols
+
 
 if __name__ == '__main__':
     data1 = pd.read_csv('aapl.csv')
@@ -80,7 +97,8 @@ if __name__ == '__main__':
     # print(est_var_daily_ret(data1['aapl']))
     # print(est_var_daily_ret_weights(data1['aapl']))
     # print(est_var_daily_ret_weights(data1['aapl'], [0.5, 0.3, 0.05], [1.1, 0.15]))
-    print(ewma_model(data1['aapl']))
+    # print(ewma_model(data1['aapl']))
+    print(garch_model(data1['aapl']))
     
     
     

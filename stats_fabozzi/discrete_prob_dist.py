@@ -115,6 +115,16 @@ def multinomial_coeff(ns):
     return res
     
 
+def poisson_dist(N, lam, t):
+    dist = distribution([], [])
+    for k in range(N+1):
+        dist.vals.append(k)
+        wgt = ((lam * t)**k / np.math.factorial(k)) * np.exp(-lam * t)
+        dist.weights.append(wgt)
+    return dist
+        
+    
+
 if __name__ == '__main__':
     # print(mean(dice_dist()))
     # print(mean(bernouli_dist(0.6, [22, 18])))
@@ -126,10 +136,13 @@ if __name__ == '__main__':
     # print(mean(hypergeometric_dist(10, 4, 5)))
     # print(stdev(hypergeometric_dist(10, 4, 5)))
     
-
-    dist = multinomial_dist(10, [0.3, 0.3, 0.4])
-    print(dist.mean(0))
-    print(dist.stdev(0))
+    # dist = multinomial_dist(10, [0.3, 0.3, 0.4])
+    # print(dist.mean(0))
+    # print(dist.stdev(0))
+    
+    print(mean(poisson_dist(100, 2, 4)))
+    print(stdev(poisson_dist(100, 2, 4)))
+    
     
     
     
