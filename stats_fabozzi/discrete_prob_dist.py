@@ -122,7 +122,15 @@ def poisson_dist(N, lam, t):
         wgt = ((lam * t)**k / np.math.factorial(k)) * np.exp(-lam * t)
         dist.weights.append(wgt)
     return dist
-        
+
+
+def disc_uni_dist(N):
+    dist = distribution([], [])
+    for k in range(1,N+1):
+        dist.vals.append(k)
+        dist.weights.append(1/N)
+    pdb.set_trace()
+    return dist
     
 
 if __name__ == '__main__':
@@ -140,8 +148,13 @@ if __name__ == '__main__':
     # print(dist.mean(0))
     # print(dist.stdev(0))
     
-    print(mean(poisson_dist(100, 2, 4)))
-    print(stdev(poisson_dist(100, 2, 4)))
+    # print(mean(poisson_dist(100, 2, 4)))
+    # print(stdev(poisson_dist(100, 2, 4)))
+    
+    print(mean(disc_uni_dist(10)))
+    print(stdev(disc_uni_dist(10)))
+    
+    
     
     
     
