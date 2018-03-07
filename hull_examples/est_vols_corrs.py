@@ -90,6 +90,11 @@ def garch_model(data, lam=0.01, alpha=0.13, beta=0.86, long_run=0.0002):
     return vols
 
 
+def est_future_garch(long_run, alpha, beta, var, t):
+    # forecasts the volatility on n + t using info available at n-1
+    return long_run + (alpha + beta)**t * (var - long_run)
+    
+
 if __name__ == '__main__':
     data1 = pd.read_csv('aapl.csv')
     data1.columns = ['date','aapl']
@@ -98,7 +103,8 @@ if __name__ == '__main__':
     # print(est_var_daily_ret_weights(data1['aapl']))
     # print(est_var_daily_ret_weights(data1['aapl'], [0.5, 0.3, 0.05], [1.1, 0.15]))
     # print(ewma_model(data1['aapl']))
-    print(garch_model(data1['aapl']))
+    # print(garch_model(data1['aapl']))
+    print(est_future_garch(0.0002075, 0.13, 0.86, 0.0003, 10))
     
     
     
