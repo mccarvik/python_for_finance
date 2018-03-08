@@ -5,6 +5,7 @@ sys.path.append("/usr/local/lib/python3.4/dist-packages")
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import scipy.integrate as integrate
 from math import sqrt, pi, log, e
 
 # from dx import *
@@ -38,6 +39,11 @@ def normal_dist(mean, stdev):
     s = lambda: stdev
     func = lambda x: (1 / (sqrt(2 * pi) * np.sqrt(stdev))) * np.exp(-1 * (x-mean)**2 / (2 * stdev))
     dist = distribution(func, m, s)
+    
+    def zscore(hi, low):
+        return integrate.quad(func, hi, low)[0]
+    
+    dist.z_score = zscore
     plot_density_function(dist, 'normal_dist', [-4,4,100])
     return dist
     
@@ -45,4 +51,7 @@ def normal_dist(mean, stdev):
 
 
 if __name__ == '__main__':
-    normal_dist(0, 1)
+    norm = normal_dist(0, 1)
+    print(norm.mean())
+    print(norm.stdev())
+    print(norm.z_score(-3, 3))
