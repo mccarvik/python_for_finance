@@ -95,6 +95,14 @@ def est_future_garch(long_run, alpha, beta, var, t):
     return long_run + (alpha + beta)**t * (var - long_run)
     
 
+def vol_term_structure(long_run, alpha, beta, cur_var, T):
+    # Calculates the estimated 1-year vol at time T, given the current variance
+    # Can be used to estimate vol term structure
+    # T measured in days
+    a = np.log( 1 / (alpha + beta))
+    est_var = 252 * (long_run + ((1 - np.exp(-a * T)) / (a * T)) * (cur_var - long_run))
+    return est_var**0.5
+
 if __name__ == '__main__':
     data1 = pd.read_csv('aapl.csv')
     data1.columns = ['date','aapl']
@@ -104,7 +112,10 @@ if __name__ == '__main__':
     # print(est_var_daily_ret_weights(data1['aapl'], [0.5, 0.3, 0.05], [1.1, 0.15]))
     # print(ewma_model(data1['aapl']))
     # print(garch_model(data1['aapl']))
-    print(est_future_garch(0.0002075, 0.13, 0.86, 0.0003, 10))
+    # print(est_future_garch(0.0002075, 0.13, 0.86, 0.0003, 10))
+    
+    for t in [10, 30, 50, 100, 500]:
+        print(vol_term_structure(0.0002075, 0.1335, 0.86, 0.0003, t))
     
     
     

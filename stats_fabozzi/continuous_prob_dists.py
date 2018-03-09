@@ -39,7 +39,7 @@ def normal_dist(mean, stdev):
     s = lambda: stdev
     func = lambda x: (1 / (sqrt(2 * pi) * np.sqrt(stdev))) * np.exp(-1 * (x-mean)**2 / (2 * stdev))
     dist = distribution(func, m, s)
-    
+    s
     def zscore(hi, low):
         return integrate.quad(func, hi, low)[0]
     
@@ -48,10 +48,37 @@ def normal_dist(mean, stdev):
     return dist
     
 
+def chi_squared_dist(df=1):
+    # The χ2n distribution is defined as the distribution that results from summing the squares of df independent random variables N(0,1)
+    m = lambda: df
+    s = lambda: np.sqrt(2*df)
+    
+    def gamma(x):
+        # This only works for integers
+        # return np.math.factorial(x-1)
+        func = lambda t: np.exp(-t) * t**(x-1)
+        return integrate.quad(func, 0, float('inf'))[0]
+    
+    def dens_func(x, df=df):
+        if x < 0:
+            return 0
+        else:
+            return ((1 / (2**(df/2) * gamma(df/2))) * np.exp(-x/2) * x**(df/2 - 1))
+
+    dist = distribution(dens_func, m, s)
+    
+    plot_density_function(dist, 'chi_squared_dist', [0,15,100])
+    return dist
+    
+
 
 
 if __name__ == '__main__':
-    norm = normal_dist(0, 1)
-    print(norm.mean())
-    print(norm.stdev())
-    print(norm.z_score(-3, 3))
+    # norm = normal_dist(0, 1)
+    # print(norm.mean())
+    # print(norm.stdev())
+    # print(norm.z_score(-1, 1))
+    
+    x_sqr = chi_squared_dist(5)
+    print(x_sqr.mean())
+    print(x_sqr.stdev())
