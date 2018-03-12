@@ -34,17 +34,31 @@ def plot_density_function(dist, title, pts=[0,1,100]):
     plt.close()
 
 
+def plot_cumulative_dist_func(dist, title, pts=[0,1,100]):
+    xs = np.linspace(pts[0], pts[1], pts[2])
+    ys = [dist.cum_dist(pts[0], x) for x in xs]
+    plt.figure(figsize=(10, 6))
+    plt.grid(True)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.plot(xs, ys)
+    plt.savefig('png/' + title+ '.png', dpi=300)
+    plt.close()
+
+
 def normal_dist(mean, stdev):
     m = lambda: mean
     s = lambda: stdev
     func = lambda x: (1 / (sqrt(2 * pi) * np.sqrt(stdev))) * np.exp(-1 * (x-mean)**2 / (2 * stdev))
     dist = distribution(func, m, s)
-    s
-    def zscore(hi, low):
-        return integrate.quad(func, hi, low)[0]
+    
+    def zscore(low, hi):
+        return integrate.quad(func, low, hi)[0]
     
     dist.z_score = zscore
+    dist.cum_dist = zscore
     plot_density_function(dist, 'normal_dist', [-4,4,100])
+    plot_cumulative_dist_func(dist, 'normal_cum_dist', [-4,4,100])
     return dist
     
 
@@ -67,7 +81,12 @@ def chi_squared_dist(df=1):
 
     dist = distribution(dens_func, m, s)
     
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
     plot_density_function(dist, 'chi_squared_dist', [0,15,100])
+    plot_cumulative_dist_func(dist, "chi_squared_cum_dist", [0,15,100])
     return dist
     
 
