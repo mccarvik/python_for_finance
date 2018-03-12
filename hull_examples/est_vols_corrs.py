@@ -102,6 +102,21 @@ def vol_term_structure(long_run, alpha, beta, cur_var, T):
     a = np.log( 1 / (alpha + beta))
     est_var = 252 * (long_run + ((1 - np.exp(-a * T)) / (a * T)) * (cur_var - long_run))
     return est_var**0.5
+    
+
+def vol_change_impact(long_run, alpha, beta, cur_var, T, vol_chg):
+    # Calculates the change to o(T) when o(0) changes
+    # T measured in days
+    # vol_chg measured in %, i.e. 0.01 = 100 bp move
+    # interpretation: an instantaneous change of vol will result in the below chg in vol of term = t days 
+    pdb.set_trace()
+    a = np.log( 1 / (alpha + beta))
+    oT = vol_term_structure(long_run, alpha, beta, cur_var, T)
+    o0 = np.sqrt(252) * np.sqrt(cur_var)
+    return ((1 - np.exp(-1*a*T)) / (a * T)) * (o0 / oT) * vol_chg * 100
+    
+    
+
 
 if __name__ == '__main__':
     data1 = pd.read_csv('aapl.csv')
@@ -116,6 +131,7 @@ if __name__ == '__main__':
     
     for t in [10, 30, 50, 100, 500]:
         print(vol_term_structure(0.0002075, 0.1335, 0.86, 0.0003, t))
+        print(vol_change_impact(0.0002075, 0.1335, 0.86, 0.0003, t, 0.01))
     
     
     

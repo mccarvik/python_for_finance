@@ -45,6 +45,8 @@ def dice_dist():
     
 
 def bernouli_dist(p, v):
+    # Random variable with 2 possible outcomes
+    # EX: red or black
     dist = distribution([], [])
     dist.vals.append(v[0])
     dist.weights.append(p)
@@ -58,6 +60,8 @@ def binom_coeff(n, k):
 
 
 def binomial_dist(n, p):
+    # Random variable with 2 outcomes, the number of times it will have a given result in n trials
+    # EX: 9 red, 6 black, odds of 2 black out of 3 pulls
     dist = distribution([], [])
     for i in range(n+1):
         dist.vals.append(i)
@@ -67,6 +71,8 @@ def binomial_dist(n, p):
 
 
 def hypergeometric_dist(N, K, n):
+    # Same as binomial distribution ovly we dont replace after each pull
+    # EX: 9 red, 6 black, odds of 2 black out of 3 pulls without replacing each pull
     dist = distribution([], [])
     for k in range(n+1):
         Kk = binom_coeff(K, k)
@@ -78,6 +84,8 @@ def hypergeometric_dist(N, K, n):
 
 
 def multinomial_dist(N, ps):
+    # Random variable with more than 2 outcomes, the number of times it will have a given result in N trials
+    # EX: 9 red, 6 black, 4 greem, odds of 2 black out of 3 pulls
     dist = distribution([], [])
     Xs = multinomial_combos(N, ps)
     for x in Xs:
@@ -116,6 +124,8 @@ def multinomial_coeff(ns):
     
 
 def poisson_dist(N, lam, t):
+    # The chance of N events occuring for a given outcome with expected value lambda over a time period t
+    # EX: the expected number of corporate defaults out of 100 companis in a year, when the average is 2 in a quarter
     dist = distribution([], [])
     for k in range(N+1):
         dist.vals.append(k)
@@ -125,6 +135,8 @@ def poisson_dist(N, lam, t):
 
 
 def disc_uni_dist(N):
+    # each outcome n has the same probability of every other outcome
+    # EX: rolling a dice
     dist = distribution([], [])
     for k in range(1,N+1):
         dist.vals.append(k)

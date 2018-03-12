@@ -47,6 +47,7 @@ def plot_cumulative_dist_func(dist, title, pts=[0,1,100]):
 
 
 def normal_dist(mean, stdev):
+    # Gaussian distribution
     m = lambda: mean
     s = lambda: stdev
     func = lambda x: (1 / (sqrt(2 * pi) * np.sqrt(stdev))) * np.exp(-1 * (x-mean)**2 / (2 * stdev))
@@ -88,7 +89,35 @@ def chi_squared_dist(df=1):
     plot_density_function(dist, 'chi_squared_dist', [0,15,100])
     plot_cumulative_dist_func(dist, "chi_squared_cum_dist", [0,15,100])
     return dist
+
+
+def students_t(df=3):
+    # arises when estimating the mean of a normally distributed population in situations where the sample size is small 
+    # and population standard deviation is unknown
+    m = lambda: 0
+    s = lambda: np.sqrt(df / (df-2))
     
+    def gamma(x):
+        # This only works for integers
+        # return np.math.factorial(x-1)
+        func = lambda t: np.exp(-t) * t**(x-1)
+        return integrate.quad(func, 0, float('inf'))[0]
+    
+    def dens_func(x, df=df):
+        front = 1 / (np.sqrt(df*pi))
+        mid = gamma((df+1)/2) / gamma(df/2)
+        back = (1 + (x**2 / df))**(-1 * ((df+1) / 2))
+        return front * mid * back
+
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    plot_density_function(dist, 'students_t_dist', [-4,4,100])
+    plot_cumulative_dist_func(dist, "students_t_cum_dist", [-4,4,100])
+    return dist    
 
 
 
@@ -98,6 +127,10 @@ if __name__ == '__main__':
     # print(norm.stdev())
     # print(norm.z_score(-1, 1))
     
-    x_sqr = chi_squared_dist(5)
-    print(x_sqr.mean())
-    print(x_sqr.stdev())
+    # x_sqr = chi_squared_dist(5)
+    # print(x_sqr.mean())
+    # print(x_sqr.stdev())
+    
+    students_t = students_t(3)
+    print(students_t.mean())
+    print(students_t.stdev())
