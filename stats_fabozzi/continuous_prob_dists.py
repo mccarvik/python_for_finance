@@ -91,7 +91,7 @@ def chi_squared_dist(df=1):
     return dist
 
 
-def students_t(df=3):
+def students_t_dist(df=3):
     # arises when estimating the mean of a normally distributed population in situations where the sample size is small 
     # and population standard deviation is unknown
     m = lambda: 0
@@ -117,7 +117,63 @@ def students_t(df=3):
     dist.cum_dist = cum_dist
     plot_density_function(dist, 'students_t_dist', [-4,4,100])
     plot_cumulative_dist_func(dist, "students_t_cum_dist", [-4,4,100])
-    return dist    
+    return dist
+
+
+def f_dist(n1, n2):
+    # main use of F-distribution is to test whether two independent samples have been drawn for the normal populations with the same variance
+    # or if two independent estimates of the population variance are homogeneous or not, since it is often desirable to compare two variances rather than two averages
+    m = lambda: n2 / (n2 - 2)
+    s = lambda: (2 * n2**2 * (n1 + n2 -2)) / (n1 * (n2 -2)**2 * (n2 - 4))
+    
+    def gamma(x):
+        # This only works for integers
+        # return np.math.factorial(x-1)
+        func = lambda t: np.exp(-t) * t**(x-1)
+        return integrate.quad(func, 0, float('inf'))[0]
+    
+    def beta(x, y):
+        return (gamma(x) * gamma(y)) / gamma(x+y)
+    
+    def dens_func(x):
+        c = (n1 / n2)**(n1/2) * (1 / beta(n1/2, n2/2))
+        if x < 0:
+            return 0
+        else:
+            return c * x**(n1/2 - 1) * (1 + (n1/n2) * x)**(-1 * (n1 + n2) / 2)
+
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    plot_density_function(dist, 'f_dist', [0,5,100])
+    plot_cumulative_dist_func(dist, "f_cum_dist", [0,5,100])
+    return dist
+    
+
+def exponential_dist(lam):
+    # describes the time between events in a Poisson point process
+    # i.e., a process in which events occur continuously and independently at a constant average rate rather than two averages
+    m = lambda: 1 / lam
+    s = lambda: 1 / lam**2
+    
+    def dens_func(x):
+        if x < 0:
+            return 0
+        else:
+            return lam * np.exp(-1 * lam * x)
+
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    plot_density_function(dist, 'exp_dist', [0,5,100])
+    plot_cumulative_dist_func(dist, "exp_cum_dist", [0,5,100])
+    return dist
 
 
 
@@ -131,6 +187,15 @@ if __name__ == '__main__':
     # print(x_sqr.mean())
     # print(x_sqr.stdev())
     
-    students_t = students_t(3)
-    print(students_t.mean())
-    print(students_t.stdev())
+    # students_t = students_t_dist(3)
+    # print(students_t.mean())
+    # print(students_t.stdev())
+    
+    # f_d = f_dist(4, 10)
+    # print(f_d.mean())
+    # print(f_d.stdev())
+    
+    exp = exponential_dist(2)
+    print(exp.mean())
+    print(exp.stdev())
+    
