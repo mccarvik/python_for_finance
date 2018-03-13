@@ -116,6 +116,33 @@ def vol_change_impact(long_run, alpha, beta, cur_var, T, vol_chg):
     return ((1 - np.exp(-1*a*T)) / (a * T)) * (o0 / oT) * vol_chg * 100
     
     
+def setup_data(data1, data2):
+    data = pd.merge(data1, data2, how='inner', on='date')
+    data['appl_dret'] = data['aapl'].pct_change(1).round(3)
+    data['spy_dret'] = data['spy'].pct_change(1).round(3)  
+    return data
+    
+
+def cov_estimate(data):
+    # tot = 0
+    # for ix, row in data.iterrows():
+    #     tot += row['appl_dret'] * row['spy_dret']
+    # return tot / len(data)
+    
+    # Can also use an EWMA model for updating covariances
+    lam = 0.95
+    corr = 0.6
+    x_est_vol = 0.01
+    y_est_vol = 0.02
+    cov = corr * x_est_vol * y_est_vol
+    x_chg = 0.005
+    y_chg = 0.025
+    # cov = lam * last_cov + (1 - lam) * x_chg * y_chg
+    cov_upd = lam * cov + (1-lam) * x_chg * y_chg
+    var_x_upd = lam * x_est_vol**2 + (1-lam) * x_chg**2
+    var_y_upd = lam * y_est_vol**2 + (1-lam) * y_chg**2
+    corr_upd = cov_upd / (np.sqrt(var_x_upd) * np.sqrt(var_y_upd))
+    return corr_upd
 
 
 if __name__ == '__main__':
@@ -129,9 +156,13 @@ if __name__ == '__main__':
     # print(garch_model(data1['aapl']))
     # print(est_future_garch(0.0002075, 0.13, 0.86, 0.0003, 10))
     
-    for t in [10, 30, 50, 100, 500]:
-        print(vol_term_structure(0.0002075, 0.1335, 0.86, 0.0003, t))
-        print(vol_change_impact(0.0002075, 0.1335, 0.86, 0.0003, t, 0.01))
-    
+    #  for t in [10, 30, 50, 100, 500]:
+    #     print(vol_term_structure(0.0002075, 0.1335, 0.86, 0.0003, t))
+    #     print(vol_change_impact(0.0002075, 0.1335, 0.86, 0.0003, t, 0.01))
+        
+    data2 = pd.read_csv('spy.csv')
+    data2.columns = ['date','spy']
+    data = setup_data(data1, data2)
+    print(cov_estimate(data))
     
     
