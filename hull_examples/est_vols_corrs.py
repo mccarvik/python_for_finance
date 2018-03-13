@@ -124,6 +124,7 @@ def setup_data(data1, data2):
     
 
 def cov_estimate(data):
+    # data = data.fillna(0)
     # tot = 0
     # for ix, row in data.iterrows():
     #     tot += row['appl_dret'] * row['spy_dret']
