@@ -30,7 +30,12 @@ def plot_density_function(dist, title, pts=[0,1,100]):
     plt.xlabel('x')
     plt.ylabel('y')
     plt.plot(xs, ys)
-    plt.savefig('png/' + title+ '.png', dpi=300)
+    mn = min(ys)
+    mn = mn * 0.95 if mn > 0 else mn * 1.05
+    mx = max(ys)
+    mx = mx * 1.05 if mx > 0 else mx * 0.95
+    plt.ylim(mn, mx)
+    plt.savefig('png/cont_dists/' + title+ '.png', dpi=300)
     plt.close()
 
 
@@ -42,7 +47,12 @@ def plot_cumulative_dist_func(dist, title, pts=[0,1,100]):
     plt.xlabel('x')
     plt.ylabel('y')
     plt.plot(xs, ys)
-    plt.savefig('png/' + title+ '.png', dpi=300)
+    mn = min(ys)
+    mn = mn * 0.95 if mn > 0 else mn * 1.05
+    mx = max(ys)
+    mx = mx * 1.05 if mx > 0 else mx * 0.95
+    plt.ylim(mn, mx)
+    plt.savefig('png/cont_dists/' + title+ '.png', dpi=300)
     plt.close()
 
 
@@ -176,6 +186,27 @@ def exponential_dist(lam):
     return dist
 
 
+def rect_dist(a, b):
+    m = lambda: (a + b) / 2
+    s = lambda: (b - a)**2 / 12
+    
+    def dens_func(x):
+        if a <= x and x <= b:
+            return 1 / (b - a)
+        else:
+            return 0
+        
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    plot_density_function(dist, 'rect_dist', [0,4,100])
+    plot_cumulative_dist_func(dist, "rect_cum_dist", [0,4,100])
+    return dist
+
+
 
 if __name__ == '__main__':
     # norm = normal_dist(0, 1)
@@ -195,7 +226,11 @@ if __name__ == '__main__':
     # print(f_d.mean())
     # print(f_d.stdev())
     
-    exp = exponential_dist(2)
-    print(exp.mean())
-    print(exp.stdev())
+    # exp = exponential_dist(2)
+    # print(exp.mean())
+    # print(exp.stdev())
+    
+    rect = rect_dist(1,3)
+    print(rect.mean())
+    print(rect.stdev())
     
