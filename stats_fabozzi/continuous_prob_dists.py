@@ -22,37 +22,47 @@ class distribution():
         self.mean = mean
         self.stdev = stdev
         
-def plot_density_function(dist, title, pts=[0,1,100]):
+def plot_density_function(dists, title, pts=[0,1,100]):
     xs = np.linspace(pts[0], pts[1], pts[2])
-    ys = [dist.func(x) for x in xs]
     plt.figure(figsize=(10, 6))
     plt.grid(True)
     plt.xlabel('x')
     plt.ylabel('y')
-    plt.plot(xs, ys)
-    mn = min(ys)
+    mn = float("inf")
+    mx = float("-inf")
+    for dist in dists:
+        ys = [dist.func(x) for x in xs]
+        plt.plot(xs, ys, label=dist.name)
+        mn = min(mn, min(ys))
+        mx = max(mx, max(ys))
+    
     mn = mn * 0.95 if mn > 0 else mn * 1.05
-    mx = max(ys)
     mx = mx * 1.05 if mx > 0 else mx * 0.95
     plt.ylim(mn, mx)
-    plt.savefig('png/cont_dists/' + title+ '.png', dpi=300)
+    plt.legend(loc='upper left')
+    plt.savefig('png/cont_dists/' + title + '.png', dpi=300)
     plt.close()
 
 
-def plot_cumulative_dist_func(dist, title, pts=[0,1,100]):
+def plot_cumulative_dist_func(dists, title, pts=[0,1,100]):
     xs = np.linspace(pts[0], pts[1], pts[2])
-    ys = [dist.cum_dist(pts[0], x) for x in xs]
     plt.figure(figsize=(10, 6))
     plt.grid(True)
     plt.xlabel('x')
     plt.ylabel('y')
-    plt.plot(xs, ys)
-    mn = min(ys)
+    mn = float("inf")
+    mx = float("-inf")
+    for dist in dists:
+        ys = [dist.cum_dist(pts[0], x) for x in xs]
+        plt.plot(xs, ys, label=dist.name)
+        mn = min(mn, min(ys))
+        mx = max(mx, max(ys))
+    
     mn = mn * 0.95 if mn > 0 else mn * 1.05
-    mx = max(ys)
     mx = mx * 1.05 if mx > 0 else mx * 0.95
     plt.ylim(mn, mx)
-    plt.savefig('png/cont_dists/' + title+ '.png', dpi=300)
+    plt.legend(loc='upper left')
+    plt.savefig('png/cont_dists/' + title + '.png', dpi=300)
     plt.close()
 
 
@@ -68,8 +78,9 @@ def normal_dist(mean, stdev):
     
     dist.z_score = zscore
     dist.cum_dist = zscore
-    plot_density_function(dist, 'normal_dist', [-4,4,100])
-    plot_cumulative_dist_func(dist, 'normal_cum_dist', [-4,4,100])
+    dist.name = "m=" + str(mean) + " s=" + str(stdev)
+    # plot_density_function([dist], 'normal_dist', [-4,4,100])
+    # plot_cumulative_dist_func([dist], 'normal_cum_dist', [-4,4,100])
     return dist
     
 
@@ -210,6 +221,9 @@ def rect_dist(a, b):
 
 if __name__ == '__main__':
     # norm = normal_dist(0, 1)
+    # norm2 = normal_dist(0, 2)
+    # plot_density_function([norm, norm2], 'normal_dist', [-4,4,100])
+    # plot_cumulative_dist_func([norm, norm2], 'normal_cum_dist', [-4,4,100])
     # print(norm.mean())
     # print(norm.stdev())
     # print(norm.z_score(-1, 1))
