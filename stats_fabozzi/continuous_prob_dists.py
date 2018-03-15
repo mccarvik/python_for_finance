@@ -219,6 +219,8 @@ def rect_dist(a, b):
 
 
 def gamma_dist(c=1, lam=1):
+    # can be thought of as a waiting time between Poisson distributed events
+    # The waiting time until the cth Poisson event with a rate of change λ is
     m = lambda: c / lam
     s = lambda: c / lam**2
     
@@ -246,12 +248,11 @@ def gamma_dist(c=1, lam=1):
     return dist
 
 
-
 if __name__ == '__main__':
-    norm = normal_dist(0, 1)
-    norm2 = normal_dist(0, 2)
-    plot_density_function([norm, norm2], 'normal_dist', [-4,4,100])
-    plot_cumulative_dist_func([norm, norm2], 'normal_cum_dist', [-4,4,100])
+    # norm = normal_dist(0, 1)
+    # norm2 = normal_dist(0, 2)
+    # plot_density_function([norm, norm2], 'normal_dist', [-4,4,100])
+    # plot_cumulative_dist_func([norm, norm2], 'normal_cum_dist', [-4,4,100])
     # print(norm.mean())
     # print(norm.stdev())
     # print(norm.z_score(-1, 1))
