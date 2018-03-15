@@ -61,7 +61,7 @@ def plot_cumulative_dist_func(dists, title, pts=[0,1,100]):
     mn = mn * 0.95 if mn > 0 else mn * 1.05
     mx = mx * 1.05 if mx > 0 else mx * 0.95
     plt.ylim(mn, mx)
-    plt.legend(loc='upper left')
+    plt.legend(loc='bottom right')
     plt.savefig('png/cont_dists/' + title + '.png', dpi=300)
     plt.close()
 
@@ -213,17 +213,45 @@ def rect_dist(a, b):
         return integrate.quad(dens_func, low, hi)[0]
     
     dist.cum_dist = cum_dist
-    plot_density_function(dist, 'rect_dist', [0,4,100])
-    plot_cumulative_dist_func(dist, "rect_cum_dist", [0,4,100])
+    # plot_density_function(dist, 'rect_dist', [0,4,100])
+    # plot_cumulative_dist_func(dist, "rect_cum_dist", [0,4,100])
+    return dist
+
+
+def gamma_dist(c=1, lam=1):
+    m = lambda: c / lam
+    s = lambda: c / lam**2
+    
+    def gamma(x):
+        # This only works for integers
+        # return np.math.factorial(x-1)
+        func = lambda t: np.exp(-t) * t**(x-1)
+        return integrate.quad(func, 0, float('inf'))[0]
+    
+    def dens_func(x):
+        if x < 0:
+            return 0
+        else:
+            return (lam * (lam * x)**(c-1) * np.exp(-1 * lam * x)) / gamma(c)
+
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    dist.name = "c=" + str(c) + " lam=" + str(lam)
+    # plot_density_function([dist], 'gamma_dist', [0,5,100])
+    # plot_cumulative_dist_func([dist], "gamma_cum_dist", [0,5,100])
     return dist
 
 
 
 if __name__ == '__main__':
-    # norm = normal_dist(0, 1)
-    # norm2 = normal_dist(0, 2)
-    # plot_density_function([norm, norm2], 'normal_dist', [-4,4,100])
-    # plot_cumulative_dist_func([norm, norm2], 'normal_cum_dist', [-4,4,100])
+    norm = normal_dist(0, 1)
+    norm2 = normal_dist(0, 2)
+    plot_density_function([norm, norm2], 'normal_dist', [-4,4,100])
+    plot_cumulative_dist_func([norm, norm2], 'normal_cum_dist', [-4,4,100])
     # print(norm.mean())
     # print(norm.stdev())
     # print(norm.z_score(-1, 1))
@@ -244,7 +272,17 @@ if __name__ == '__main__':
     # print(exp.mean())
     # print(exp.stdev())
     
-    rect = rect_dist(1,3)
-    print(rect.mean())
-    print(rect.stdev())
+    # rect = rect_dist(1,3)
+    # print(rect.mean())
+    # print(rect.stdev())
+    
+    gam = gamma_dist(1,1)
+    gam2 = gamma_dist(2,2)
+    gam3 = gamma_dist(4,4)
+    plot_density_function([gam, gam2, gam3], 'gamma_dist', [0,5,100])
+    plot_cumulative_dist_func([gam, gam2, gam3], 'gamma_cum_dist', [0,5,100])
+    print(gam.mean())
+    print(gam.stdev())
+    
+    
     
