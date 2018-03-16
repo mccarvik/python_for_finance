@@ -61,7 +61,7 @@ def plot_cumulative_dist_func(dists, title, pts=[0,1,100]):
     mn = mn * 0.95 if mn > 0 else mn * 1.05
     mx = mx * 1.05 if mx > 0 else mx * 0.95
     plt.ylim(mn, mx)
-    plt.legend(loc='bottom right')
+    plt.legend(loc='lower right')
     plt.savefig('png/cont_dists/' + title + '.png', dpi=300)
     plt.close()
 
@@ -145,7 +145,7 @@ def f_dist(n1, n2):
     # main use of F-distribution is to test whether two independent samples have been drawn for the normal populations with the same variance
     # or if two independent estimates of the population variance are homogeneous or not, since it is often desirable to compare two variances rather than two averages
     m = lambda: n2 / (n2 - 2)
-    s = lambda: (2 * n2**2 * (n1 + n2 -2)) / (n1 * (n2 -2)**2 * (n2 - 4))
+    s = lambda: np.sqrt((2 * n2**2 * (n1 + n2 -2)) / (n1 * (n2 -2)**2 * (n2 - 4)))
     
     def gamma(x):
         # This only works for integers
@@ -178,7 +178,7 @@ def exponential_dist(lam):
     # describes the time between events in a Poisson point process
     # i.e., a process in which events occur continuously and independently at a constant average rate rather than two averages
     m = lambda: 1 / lam
-    s = lambda: 1 / lam**2
+    s = lambda: np.sqrt(1 / lam**2)
     
     def dens_func(x):
         if x < 0:
@@ -199,7 +199,7 @@ def exponential_dist(lam):
 
 def rect_dist(a, b):
     m = lambda: (a + b) / 2
-    s = lambda: (b - a)**2 / 12
+    s = lambda: np.sqrt((b - a)**2 / 12)
     
     def dens_func(x):
         if a <= x and x <= b:
@@ -222,7 +222,7 @@ def gamma_dist(c=1, lam=1):
     # can be thought of as a waiting time between Poisson distributed events
     # The waiting time until the cth Poisson event with a rate of change λ is
     m = lambda: c / lam
-    s = lambda: c / lam**2
+    s = lambda: np.sqrt(c / lam**2)
     
     def gamma(x):
         # This only works for integers
@@ -246,6 +246,32 @@ def gamma_dist(c=1, lam=1):
     # plot_density_function([dist], 'gamma_dist', [0,5,100])
     # plot_cumulative_dist_func([dist], "gamma_cum_dist", [0,5,100])
     return dist
+
+def erlang_dist(c=1, lam=1):
+    # can be thought of as a waiting time between Poisson distributed events
+    # The waiting time until the cth Poisson event with a rate of change λ is
+    m = lambda: c / lam
+    s = lambda: np.sqrt(c / lam**2)
+    
+    def dens_func(x):
+        if x < 0:
+            return 0
+        else:
+            return (lam**c * x**(c-1) * np.exp(-1 * lam * x)) / np.math.factorial(c - 1)
+            # return 1 - (np.exp(-lam * x) * sum([(lam * x)**i / np.math.factorial(i) for i in range(c)]))
+
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    dist.name = "c=" + str(c) + " lam=" + str(lam)
+    # plot_density_function([dist], 'gamma_dist', [0,5,100])
+    # plot_cumulative_dist_func([dist], "gamma_cum_dist", [0,5,100])
+    return dist
+
+
 
 
 if __name__ == '__main__':
@@ -277,13 +303,21 @@ if __name__ == '__main__':
     # print(rect.mean())
     # print(rect.stdev())
     
-    gam = gamma_dist(1,1)
-    gam2 = gamma_dist(2,2)
-    gam3 = gamma_dist(4,4)
-    plot_density_function([gam, gam2, gam3], 'gamma_dist', [0,5,100])
-    plot_cumulative_dist_func([gam, gam2, gam3], 'gamma_cum_dist', [0,5,100])
-    print(gam.mean())
-    print(gam.stdev())
+    # gam = gamma_dist(1,1)
+    # gam2 = gamma_dist(2,2)
+    # gam3 = gamma_dist(4,4)
+    # plot_density_function([gam, gam2, gam3], 'gamma_dist', [0,5,100])
+    # plot_cumulative_dist_func([gam, gam2, gam3], 'gamma_cum_dist', [0,5,100])
+    # print(gam.mean())
+    # print(gam.stdev())
+    
+    # erlang1 = erlang_dist(1,1)
+    # erlang2 = erlang_dist(5,1)
+    # erlang3 = erlang_dist(9,1)
+    # plot_density_function([erlang1, erlang2, erlang3], 'erlang_dist', [0,20,100])
+    # plot_cumulative_dist_func([erlang1, erlang2, erlang3], 'erlang_cum_dist', [0,20,100])
+    # print(erlang1.mean())
+    # print(erlang1.stdev())
     
     
     
