@@ -247,9 +247,8 @@ def gamma_dist(c=1, lam=1):
     # plot_cumulative_dist_func([dist], "gamma_cum_dist", [0,5,100])
     return dist
 
+
 def erlang_dist(c=1, lam=1):
-    # can be thought of as a waiting time between Poisson distributed events
-    # The waiting time until the cth Poisson event with a rate of change λ is
     m = lambda: c / lam
     s = lambda: np.sqrt(c / lam**2)
     
@@ -269,6 +268,39 @@ def erlang_dist(c=1, lam=1):
     dist.name = "c=" + str(c) + " lam=" + str(lam)
     # plot_density_function([dist], 'gamma_dist', [0,5,100])
     # plot_cumulative_dist_func([dist], "gamma_cum_dist", [0,5,100])
+    return dist
+
+
+def beta_dist(c=1, d=1):
+    m = lambda: c / (c+d)
+    s = lambda: np.sqrt((c*d) / ((c + d)**2 * (c + d + 1)))
+    
+    def gamma(x):
+        # This only works for integers
+        # return np.math.factorial(x-1)
+        func = lambda t: np.exp(-t) * t**(x-1)
+        return integrate.quad(func, 0, float('inf'))[0]
+    
+    def beta(x, y):
+        return (gamma(x) * gamma(y)) / gamma(x+y)
+    
+    def dens_func(x):
+        if x < 0:
+            return 0
+        elif x > 1:
+            return 0
+        else:
+            return (1 / beta(c, d)) * x**(c-1) * (1-x)**(d-1)
+
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    dist.name = "c=" + str(c) + " d=" + str(d)
+    # plot_density_function([dist], 'beta_dist', [0,5,100])
+    # plot_cumulative_dist_func([dist], "beta_cum_dist", [0,5,100])
     return dist
 
 
@@ -318,6 +350,15 @@ if __name__ == '__main__':
     # plot_cumulative_dist_func([erlang1, erlang2, erlang3], 'erlang_cum_dist', [0,20,100])
     # print(erlang1.mean())
     # print(erlang1.stdev())
+    
+    beta1 = beta_dist(1,1)
+    beta2 = beta_dist(5,5)
+    beta3 = beta_dist(1,4)
+    beta4 = beta_dist(4,1)
+    plot_density_function([beta1, beta2, beta3, beta4], 'beta_dist', [0,1,100])
+    plot_cumulative_dist_func([beta1, beta2, beta3, beta4], 'beta_cum_dist', [0,1,100])
+    print(beta1.mean())
+    print(beta1.stdev())
     
     
     
