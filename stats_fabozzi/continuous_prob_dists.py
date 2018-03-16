@@ -21,7 +21,8 @@ class distribution():
         self.func = func
         self.mean = mean
         self.stdev = stdev
-        
+ 
+   
 def plot_density_function(dists, title, pts=[0,1,100]):
     xs = np.linspace(pts[0], pts[1], pts[2])
     plt.figure(figsize=(10, 6))
@@ -310,6 +311,29 @@ def beta_dist(c=1, d=1):
     return dist
 
 
+def lognormal_dist(mean=0, stdev=1):
+    # A random variable is lognormally distributed if its logarithm is normally distributed
+    m = lambda: np.exp(mean + stdev**2 / 2)
+    s = lambda: np.exp(stdev**2) * (np.exp(stdev**2) - 1) * np.exp(2*mean)
+    
+    
+    def dens_func(x):
+        if x > 0:
+            return (1 / (x * stdev * np.sqrt(2*pi))) * np.exp(-1 * (np.log(x-mean)**2) / (2 * stdev**2))
+        else:
+            return 0
+
+    dist = distribution(dens_func, m, s)
+    
+    def cum_dist(low, hi):
+        return integrate.quad(dens_func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    dist.name = "m=" + str(mean) + " s=" + str(stdev)
+    # plot_density_function([dist], 'beta_dist', [0,5,100])
+    # plot_cumulative_dist_func([dist], "beta_cum_dist", [0,5,100])
+    return dist
+
 
 
 if __name__ == '__main__':
@@ -357,14 +381,21 @@ if __name__ == '__main__':
     # print(erlang1.mean())
     # print(erlang1.stdev())
     
-    beta1 = beta_dist(1,1)
-    beta2 = beta_dist(5,5)
-    beta3 = beta_dist(1,4)
-    beta4 = beta_dist(4,1)
-    plot_density_function([beta1, beta2, beta3, beta4], 'beta_dist', [0,1,100])
-    plot_cumulative_dist_func([beta1, beta2, beta3, beta4], 'beta_cum_dist', [0,1,100])
-    print(beta1.mean())
-    print(beta1.stdev())
+    # beta1 = beta_dist(1,1)
+    # beta2 = beta_dist(5,5)
+    # beta3 = beta_dist(1,4)
+    # beta4 = beta_dist(4,1)
+    # plot_density_function([beta1, beta2, beta3, beta4], 'beta_dist', [0,1,100])
+    # plot_cumulative_dist_func([beta1, beta2, beta3, beta4], 'beta_cum_dist', [0,1,100])
+    # print(beta1.mean())
+    # print(beta1.stdev())
     
+    ln1 = lognormal_dist(0,1)
+    ln2 = lognormal_dist(0,0.5)
+    ln3 = lognormal_dist(0,2)
+    plot_density_function([ln1, ln2, ln3], 'ln_dist', [-1,3,100])
+    plot_cumulative_dist_func([ln1, ln2, ln3], 'ln_cum_dist', [-1,3,100])
+    print(ln1.mean())
+    print(ln1.stdev())
     
     
