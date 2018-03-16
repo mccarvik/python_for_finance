@@ -249,6 +249,9 @@ def gamma_dist(c=1, lam=1):
 
 
 def erlang_dist(c=1, lam=1):
+    # developed to find the number of phone calls which can be made simultaneously to switching station operators
+    # if the shape parameter c is 1, the distribution is the same as the exponential distribution
+    # Generalized form of the gamma distribution
     m = lambda: c / lam
     s = lambda: np.sqrt(c / lam**2)
     
@@ -272,6 +275,9 @@ def erlang_dist(c=1, lam=1):
 
 
 def beta_dist(c=1, d=1):
+    # used to model things that have a limited range, like 0 to 1.
+    # Examples are the probability of success in an experiment having only two outcomes, like success and failure
+    # If you do a limited number of experiments, and some are successful, you can represent what that tells you by a beta distribution
     m = lambda: c / (c+d)
     s = lambda: np.sqrt((c*d) / ((c + d)**2 * (c + d + 1)))
     
