@@ -98,6 +98,32 @@ def gen_pareto_dist(xi, sigma, mu):
     return dist
 
 
+def a_stable_dist(alpha, beta, sigma, mu):
+    # NOTE = extremely complicated, look into learning more
+    # Can be used to better model price shocks
+    # probability density function for a general stable distribution cannot be written analytically
+    # however the general characteristic function can be
+    # Any probability distribution is given by the Fourier transform of its characteristic function φ(t)
+    
+    # only finite mean in certain scenarios
+    m = lambda: None
+    # no finite variance
+    s = lambda: None
+    
+    def func(x):
+       return None
+                
+    dist = distribution(func, m, s)
+    def cum_dist(low, hi):
+        return integrate.quad(func, low, hi)[0]
+    
+    dist.cum_dist = cum_dist
+    dist.name = "a=" + str(alpha) + " b=" + str(beta) + "s=" + str(sigma) + " m=" + str(mu)
+    # plot_density_function([dist], 'normal_dist', [-4,4,100])
+    # plot_cumulative_dist_func([dist], 'normal_cum_dist', [-4,4,100])
+    return dist
+
+
 if __name__ == '__main__':
     # gumbel = gen_extreme_val_dist(0)
     # frechet = gen_extreme_val_dist(0.5)
@@ -107,13 +133,13 @@ if __name__ == '__main__':
     # print(weibull.mean())
     # print(weibull.stdev())
     
-    pareto1 = gen_pareto_dist(-0.25, 1, 0)
-    pareto2 = gen_pareto_dist(0.001, 1, 0)
-    pareto3 = gen_pareto_dist(1, 1, 0)
-    plot_density_function([pareto1, pareto2, pareto3], 'pareto_dist', [0,5,100])
-    plot_cumulative_dist_func([pareto1, pareto2, pareto3], 'pareto_cum_dist', [0,5,100])
-    print(pareto1.mean())
-    print(pareto1.stdev())
+    # pareto1 = gen_pareto_dist(-0.25, 1, 0)
+    # pareto2 = gen_pareto_dist(0.001, 1, 0)
+    # pareto3 = gen_pareto_dist(1, 1, 0)
+    # plot_density_function([pareto1, pareto2, pareto3], 'pareto_dist', [0,5,100])
+    # plot_cumulative_dist_func([pareto1, pareto2, pareto3], 'pareto_cum_dist', [0,5,100])
+    # print(pareto1.mean())
+    # print(pareto1.stdev())
     
     
     
