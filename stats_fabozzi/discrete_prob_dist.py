@@ -34,6 +34,22 @@ def stdev(dist):
     m = mean(dist)
     var = sum([(v - m)**2 * w for v, w in zip(dist.vals, dist.weights)])
     return np.sqrt(var)
+
+
+def skewness(dist):
+    # negative skewness --> left skewed     positive skewness --> right skewed      0 skewness --> not skewed
+    m = mean(dist)
+    var = sum([(v - m)**2 * w for v, w in zip(dist.vals, dist.weights)])
+    stdev = np.sqrt(var)
+    return sum([(v - m)**3 * w for v, w in zip(dist.vals, dist.weights)]) / stdev**3
+    
+    
+def kurtosis(dist):
+    # k > 3 --> excess kurtosis / leptokurtic   k < 3 --> platykurtic       k = 3 --> mesokurtic
+    m = mean(dist)
+    var = sum([(v - m)**2 * w for v, w in zip(dist.vals, dist.weights)])
+    stdev = np.sqrt(var)
+    return sum([(v - m)**4 * w for v, w in zip(dist.vals, dist.weights)]) / stdev**4
     
 
 def dice_dist():
@@ -166,10 +182,10 @@ if __name__ == '__main__':
     # print(dist.mean(0))
     # print(dist.stdev(0))
     
-    print(mean(poisson_dist(100, 2, 4)))
-    print(stdev(poisson_dist(100, 2, 4)))
-    print(poisson_dist(100, 2, 4).mean_calc())
-    print(poisson_dist(100, 2, 4).var_calc())
+    # print(mean(poisson_dist(100, 2, 4)))
+    # print(stdev(poisson_dist(100, 2, 4)))
+    # print(poisson_dist(100, 2, 4).mean_calc())
+    # print(poisson_dist(100, 2, 4).var_calc())
     
     # print(mean(disc_uni_dist(10)))
     # print(stdev(disc_uni_dist(10)))

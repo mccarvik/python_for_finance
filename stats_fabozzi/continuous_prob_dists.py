@@ -79,6 +79,8 @@ def normal_dist(mean, stdev):
     s = lambda: stdev
     func = lambda x: (1 / (sqrt(2 * pi) * np.sqrt(stdev))) * np.exp(-1 * (x-mean)**2 / (2 * stdev))
     dist = distribution(func, m, s)
+    dist.skewness = lambda: 0
+    dist.kurtosis = lambda: 3
     
     def zscore(low, hi):
         return integrate.quad(func, low, hi)[0]
@@ -109,13 +111,15 @@ def chi_squared_dist(df=1):
             return ((1 / (2**(df/2) * gamma(df/2))) * np.exp(-x/2) * x**(df/2 - 1))
 
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: np.sqrt(8/df)
+    dist.kurtosis = lambda: 3 + 12/df
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
     
     dist.cum_dist = cum_dist
-    plot_density_function(dist, 'chi_squared_dist', [0,15,100])
-    plot_cumulative_dist_func(dist, "chi_squared_cum_dist", [0,15,100])
+    # plot_density_function(dist, 'chi_squared_dist', [0,15,100])
+    # plot_cumulative_dist_func(dist, "chi_squared_cum_dist", [0,15,100])
     return dist
 
 
@@ -138,6 +142,8 @@ def students_t_dist(df=3):
         return front * mid * back
 
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: 0   # if n >= 4
+    dist.kurtosis = lambda: 3 + 6 / (df - 4)    # if df >= 5
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
@@ -194,6 +200,8 @@ def exponential_dist(lam):
             return lam * np.exp(-1 * lam * x)
 
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: 2
+    dist.kurtosis = lambda: 9
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
@@ -215,6 +223,8 @@ def rect_dist(a, b):
             return 0
         
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: 0
+    dist.kurtosis = lambda: 1.8
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
@@ -244,6 +254,8 @@ def gamma_dist(c=1, lam=1):
             return (lam * (lam * x)**(c-1) * np.exp(-1 * lam * x)) / gamma(c)
 
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: 2 / np.sqrt(c)
+    dist.kurtosis = lambda: 3 + 6/c
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
@@ -330,6 +342,8 @@ def lognormal_dist(mean=0, stdev=1):
             return 0
 
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: (np.exp(stdev**2) + 2) * np.sqrt(np.exp(stdev**2) - 1)
+    dist.kurtosis = lambda: np.exp(stdev**2)**4 + 2 * np.exp(stdev**2)**3 + 3 * np.exp(stdev**2)**2 - 3
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
@@ -351,9 +365,11 @@ if __name__ == '__main__':
     # print(norm.stdev())
     # print(norm.z_score(-1, 1))
     
-    # x_sqr = chi_squared_dist(5)
-    # print(x_sqr.mean())
-    # print(x_sqr.stdev())
+    x_sqr = chi_squared_dist(5)
+    print(x_sqr.mean())
+    print(x_sqr.stdev())
+    print(x_sqr.skewness())
+    print(x_sqr.kurtosis())
     
     # students_t = students_t_dist(3)
     # print(students_t.mean())
@@ -396,12 +412,12 @@ if __name__ == '__main__':
     # print(beta1.mean())
     # print(beta1.stdev())
     
-    ln1 = lognormal_dist(0,1)
-    ln2 = lognormal_dist(0,0.5)
-    ln3 = lognormal_dist(0,2)
-    plot_density_function([ln1, ln2, ln3], 'ln_dist', [-1,3,100])
-    plot_cumulative_dist_func([ln1, ln2, ln3], 'ln_cum_dist', [-1,3,100])
-    print(ln1.mean())
-    print(ln1.stdev())
+    # ln1 = lognormal_dist(0,1)
+    # ln2 = lognormal_dist(0,0.5)
+    # ln3 = lognormal_dist(0,2)
+    # plot_density_function([ln1, ln2, ln3], 'ln_dist', [-1,3,100])
+    # plot_cumulative_dist_func([ln1, ln2, ln3], 'ln_cum_dist', [-1,3,100])
+    # print(ln1.mean())
+    # print(ln1.stdev())
     
     

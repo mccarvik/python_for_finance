@@ -64,6 +64,9 @@ def gen_extreme_val_dist(xi):
                 return 0
                 
     dist = distribution(func, m, s)
+    dist.skewness = lambda: 1.1396
+    dist.kurtosis = lambda: 5.4
+    
     def cum_dist(low, hi):
         return integrate.quad(func, low, hi)[0]
     
