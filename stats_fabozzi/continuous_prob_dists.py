@@ -16,6 +16,12 @@ import pandas as pd
 import datetime as dt
 
 
+# NOTES
+# Second central moment = variance
+# third central moment = skew
+# fourth central moment = kurtosis
+
+
 class distribution():
     def __init__(self, func, mean, stdev):
         self.func = func

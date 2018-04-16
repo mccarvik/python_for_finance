@@ -67,6 +67,8 @@ def binomial_dist(n, p):
         dist.vals.append(i)
         w = binom_coeff(n, i) * p**i * (1-p)**(n-i)
         dist.weights.append(w)
+    
+    dist.mean_calc = lambda: n * p
     return dist
 
 
@@ -131,6 +133,9 @@ def poisson_dist(N, lam, t):
         dist.vals.append(k)
         wgt = ((lam * t)**k / np.math.factorial(k)) * np.exp(-lam * t)
         dist.weights.append(wgt)
+    
+    dist.mean_calc = lambda: lam * t
+    dist.var_calc = lambda: lam * t
     return dist
 
 
@@ -152,6 +157,7 @@ if __name__ == '__main__':
     
     # print(mean(binomial_dist(10, 0.5)))
     # print(stdev(binomial_dist(10, 0.5)))
+    # print(binomial_dist(10, 0.5).mean_calc())
     
     # print(mean(hypergeometric_dist(10, 4, 5)))
     # print(stdev(hypergeometric_dist(10, 4, 5)))
@@ -160,16 +166,11 @@ if __name__ == '__main__':
     # print(dist.mean(0))
     # print(dist.stdev(0))
     
-    # print(mean(poisson_dist(100, 2, 4)))
-    # print(stdev(poisson_dist(100, 2, 4)))
+    print(mean(poisson_dist(100, 2, 4)))
+    print(stdev(poisson_dist(100, 2, 4)))
+    print(poisson_dist(100, 2, 4).mean_calc())
+    print(poisson_dist(100, 2, 4).var_calc())
     
-    print(mean(disc_uni_dist(10)))
-    print(stdev(disc_uni_dist(10)))
-    
-    
-    
-    
-    
-    
-    
+    # print(mean(disc_uni_dist(10)))
+    # print(stdev(disc_uni_dist(10)))
     
