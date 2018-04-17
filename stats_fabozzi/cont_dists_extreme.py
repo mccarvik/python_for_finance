@@ -18,6 +18,9 @@ import datetime as dt
 
 from continuous_prob_dists import distribution, plot_density_function, plot_cumulative_dist_func
 
+# NOTES
+# Normal Inverse Gaussian Distribution may be worth looking into. Very complicated, distribution function not analytically presentable
+
 
 def gen_extreme_val_dist(xi):
     # Gaussian distribution
@@ -91,6 +94,9 @@ def gen_pareto_dist(xi, sigma, mu):
             return (1 / sigma) * (1 + xi * ((x - mu) / sigma))**(-1-(1/xi))
                 
     dist = distribution(func, m, s)
+    dist.skewness = lambda: ((2*(xi+1)) / (1-3*xi)) * np.sqrt(1 - 2*xi)     # if 1 > 3*xi
+    dist.kurtosis = lambda: 3 + ((6*(1+xi-6*xi**2-2*xi**3)) / ((1-3*xi)*(1-4*xi)))      # 1 > 4*xi
+    
     def cum_dist(low, hi):
         return integrate.quad(func, low, hi)[0]
     

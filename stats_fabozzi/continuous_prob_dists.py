@@ -177,6 +177,8 @@ def f_dist(n1, n2):
             return c * x**(n1/2 - 1) * (1 + (n1/n2) * x)**(-1 * (n1 + n2) / 2)
 
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: ((2*n1 + n2 - 2) * (np.sqrt(8 * (n2-4)))) / ((n2 - 6) * np.sqrt(n1 * (n1 + n2 - 2)))    # n2 > 6
+    dist.kurtosis = lambda: 12 * ((n1 * (5*n2 - 22) * (n1 + n2 -2) + (n2 - 4) * (n2 - 2)**2) / (n1 * (n2 - 6) * (n2 - 8) *(n1 + n2 - 2)))   # n2 > 8
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
@@ -318,6 +320,8 @@ def beta_dist(c=1, d=1):
             return (1 / beta(c, d)) * x**(c-1) * (1-x)**(d-1)
 
     dist = distribution(dens_func, m, s)
+    dist.skewness = lambda: 0   # complicated calc
+    dist.kurtosis = lambda: (3 * (c + d + 1) * (c**2 * (d+2) + d**2 * (c+2) - 2*c*d)) / (c*d * (c+d+2) *(c+d+3))
     
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
