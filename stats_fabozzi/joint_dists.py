@@ -56,11 +56,31 @@ def multivar_normal_dist(m, cov_mat):
     surf = ax.plot_surface(X1, X2, Z, linewidth=0, antialiased=False)
     plt.savefig('png/bivariate_dists/' + 'bivariate' + '.png', dpi=300)
     plt.close()
-    
+
+
+# Just doing this for 2 assets for now
+def min_var_port(r, o, cov_mat, max_var):
+    w1 = np.arange(0, 1.01, 0.05)
+    w2 = 1 - w1
+    wgts = zip(w1, w2)
+    p = cov_mat[1,0] / (np.sqrt(cov_mat[0,0]) * np.sqrt(cov_mat[1,1]))
+    opt = [0, 0, 0]
+    for i in wgts:
+        var = i[0]**2*o[0]**2 + i[1]**2*o[1]**2 + 2*i[0]*i[1]*p
+        ret = i[0]*r[0] + i[1]*r[1]
+        if var < max_var and ret > opt[0]:
+            opt = [ret[0], var[0], i[0], i[1]]
+            print(opt)
+    return opt
 
 if __name__ == '__main__':
     # print(joint_dist_example(0, 0.25, 0, 1))
     # cov_mat = np.array([[0.25, 0.30], [0.30, 1.00]])
-    cov_mat = np.array([[1, 0], [0, 1]])
-    m = np.array([[0], [0]])
-    multivar_normal_dist(m, cov_mat)
+    # cov_mat = np.array([[1, 0], [0, 1]])
+    # m = np.array([[0], [0]])
+    # multivar_normal_dist(m, cov_mat)
+    
+    cov_mat = np.array([[0.25, 0.30], [0.30, 1.00]])
+    m = np.array([[0.1], [1.6]])
+    o = np.array([[0.1], [1.6]])
+    min_var_port(m, o, cov_mat, 2)
