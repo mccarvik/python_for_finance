@@ -142,13 +142,11 @@ if __name__ == '__main__':
     # print(weibull.mean())
     # print(weibull.stdev())
     
-    # pareto1 = gen_pareto_dist(-0.25, 1, 0)
-    # pareto2 = gen_pareto_dist(0.001, 1, 0)
-    # pareto3 = gen_pareto_dist(1, 1, 0)
-    # plot_density_function([pareto1, pareto2, pareto3], 'pareto_dist', [0,5,100])
-    # plot_cumulative_dist_func([pareto1, pareto2, pareto3], 'pareto_cum_dist', [0,5,100])
-    # print(pareto1.mean())
-    # print(pareto1.stdev())
-    
-    
+    pareto1 = gen_pareto_dist(-0.25, 1, 0)
+    pareto2 = gen_pareto_dist(0.001, 1, 0)
+    pareto3 = gen_pareto_dist(1, 1, 0)
+    plot_density_function([pareto1, pareto2, pareto3], 'pareto_dist', [0,5,100])
+    plot_cumulative_dist_func([pareto1, pareto2, pareto3], 'pareto_cum_dist', [0,5,100])
+    print(pareto1.mean())
+    print(pareto1.stdev())
     
