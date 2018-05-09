@@ -84,7 +84,23 @@ def normal_dist(mean, stdev):
     
     def zscore(low, hi):
         return integrate.quad(func, low, hi)[0]
+        
+    def conf_interval(a, mv=0.01, f=3, b=-3):
+        # narrows the gap until the value is approx = conf interval
+        # move, front, and back all inputs
+        i = 1 - a
+        
+        while True:
+            cum_val = dist.cum_dist(b, f)
+            if cum_val < i:
+                b -= mv
+                f += mv
+                break
+            b += mv
+            f -= mv
+        return (b, f)
     
+    dist.conf_interval = conf_interval
     dist.z_score = zscore
     dist.cum_dist = zscore
     dist.name = "m=" + str(mean) + " s=" + str(stdev)
@@ -110,6 +126,21 @@ def chi_squared_dist(df=1):
         else:
             return ((1 / (2**(df/2) * gamma(df/2))) * np.exp(-x/2) * x**(df/2 - 1))
 
+    def conf_interval(a, mv=0.01, f=3, b=-3):
+        # narrows the gap until the value is approx = conf interval
+        # move, front, and back all inputs
+        i = 1 - a
+        
+        while True:
+            cum_val = dist.cum_dist(b, f)
+            if cum_val < i:
+                b -= mv
+                f += mv
+                break
+            b += mv
+            f -= mv
+        return (b, f)
+
     dist = distribution(dens_func, m, s)
     dist.skewness = lambda: np.sqrt(8/df)
     dist.kurtosis = lambda: 3 + 12/df
@@ -117,6 +148,7 @@ def chi_squared_dist(df=1):
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
     
+    dist.conf_interval = conf_interval
     dist.cum_dist = cum_dist
     # plot_density_function(dist, 'chi_squared_dist', [0,15,100])
     # plot_cumulative_dist_func(dist, "chi_squared_cum_dist", [0,15,100])
@@ -140,7 +172,22 @@ def students_t_dist(df=3):
         mid = gamma((df+1)/2) / gamma(df/2)
         back = (1 + (x**2 / df))**(-1 * ((df+1) / 2))
         return front * mid * back
-
+    
+    def conf_interval(a, mv=0.01, f=3, b=-3):
+        # narrows the gap until the value is approx = conf interval
+        # move, front, and back all inputs
+        i = 1 - a
+        
+        while True:
+            cum_val = dist.cum_dist(b, f)
+            if cum_val < i:
+                b -= mv
+                f += mv
+                break
+            b += mv
+            f -= mv
+        return (b, f)
+    
     dist = distribution(dens_func, m, s)
     dist.skewness = lambda: 0   # if n >= 4
     dist.kurtosis = lambda: 3 + 6 / (df - 4)    # if df >= 5
@@ -148,9 +195,10 @@ def students_t_dist(df=3):
     def cum_dist(low, hi):
         return integrate.quad(dens_func, low, hi)[0]
     
+    dist.conf_interval = conf_interval
     dist.cum_dist = cum_dist
-    plot_density_function(dist, 'students_t_dist', [-4,4,100])
-    plot_cumulative_dist_func(dist, "students_t_cum_dist", [-4,4,100])
+    # plot_density_function(dist, 'students_t_dist', [-4,4,100])
+    # plot_cumulative_dist_func(dist, "students_t_cum_dist", [-4,4,100])
     return dist
 
 
