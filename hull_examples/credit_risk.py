@@ -35,6 +35,35 @@ def calc_hazard_rates(rec_rate, yld_sprds):
     return (cum_haz, ind_haz)
 
 
+def match_bond_prices(yld_dt, rf, recov_rate=0.40, par=100, freq=0.5):
+    rf_prices = []
+    prices = []
+    for i in yld_dt:
+        cfs = createCashFlows(dt.datetime(2017, 1, 1), 0.5, dt.datetime(2017+i[0], 1, 1), 0.08, par)
+        rf_pv = cumPresentValue(dt.datetime(2017, 1, 1), rf, cfs)
+        pv = cumPresentValue(dt.datetime(2017, 1, 1), i[1], cfs)
+        pv_exp_default = rf_pv - pv
+        pv_loss = 0
+        t = 1
+        pdb.set_trace()
+        for cf in cfs:
+            # NEEEEED to convert date to fraction, theres a way to do this in python finance lib
+            pv_loss += cf[1] * np.exp(-0.05*(freq*t - freq/2))
+            t += 1
+        print()
+        
+        # func = lambda x: [(1 - np.exp(-0.5*x)) * ]
+    
+    pv_exp_default = [rf - p for p, rf in zip(prices, rf_prices)]
+    print(pv_exp_default)
+        
+        
+        
+    
+
 
 if __name__ == '__main__':
-    print(calc_hazard_rates(0.40, [150, 180, 195]))
+    # print(calc_hazard_rates(0.40, [150, 180, 195]))
+    yld_dt_pairs = [[1, 0.065], [2, 0.068], [3, 0.0695]]
+    print(match_bond_prices(yld_dt_pairs, 0.05))
+    

@@ -3,6 +3,7 @@ import sys, pdb
 import numpy as np
 # import pandas as pd
 import datetime as dt
+from math import sqrt, pi, log, e
 
 def derivative(f, x, h):
     return (f(x+h) - f(x-h)) / (2.0*h)  # might want to return a small non-zero if ==0
@@ -86,7 +87,79 @@ def bootstrap(first_zero_rate, first_mat, bs_rate_mats):
         new_bs_rate_mats.append(tuple([bs_rate_mats[i][1] + new_bs_rate_mats[-1][0], next_bs_zero_rate]))
     return new_bs_rate_mats
     
+
+def calcPV(cf, ir, period):
+    ''' discounts the cash flow for the interest rate and period
+    Parameters
+    ==========
+    cf : float
+        amount of the cash flow
+    ir : float
+        current discount rate expressed in decimal terms
+    period : float
+        length of discount period
     
+    Return
+    ======
+    cf : float
+        discounted cash flow
+    '''
+    return (cf / (1+ir)**period)
+
+
+def calcPVContinuous(cf, ir, period):
+    ''' discounts the cash flow for the interest rate and period with continuous compounding
+    Parameters
+    ==========
+    cf : float
+        amount of the cash flow
+    ir : float
+        current discount rate
+    period : float
+        length of discount period
+    
+    Return
+    ======
+    cf : float
+        discounted cash flow
+    '''
+    return cf * e**((-1) * ir * period)
+
+
+def cumPresentValue(today, annual_disc_rate, cfs, freq=1, cont=True):
+    ''' calculates the sum of the present value of all discounted cash flows
+    Parameters
+    ==========
+    today : date
+        trade date
+    annual_disc_rate : float
+        current annualized discount rate
+    cfs : dataframe of tuples
+        tuple pairs of amount and date for each cash flow
+    freq : float
+        frequency of payments
+    cont : bool
+        if the compounding is continuous or not
+    
+    Return
+    ======
+    cum_pv : float
+        the cumulative present value of the cash flows
+    '''
+    # filters for only cash flows that haven't occurred yet
+    cfs = [c for c in cfs if c[0] > today]
+    
+    cum_pv = 0
+    # freq if rate passed in is not annual, ex: 0.5 = semiannual
+    ir = annual_disc_rate * freq
+    for i in cfs:
+        period = ((i[0] - today).days / 365) / freq
+        if cont:
+            cum_pv += calcPVContinuous(i[1], ir, period)
+        else:
+            cum_pv += calcPV(i[1], ir, period)
+    return cum_pv
+
     
 if __name__ == '__main__':
     print(bootstrap(0.048, 400, [(0.053, 91), (0.055, 98)]))
