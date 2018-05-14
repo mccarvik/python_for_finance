@@ -12,6 +12,7 @@ from utils.utils import *
 import numpy as np
 import pandas as pd
 import datetime as dt
+from functools import reduce
 from math import sqrt, pi, log, e
 
 
@@ -35,27 +36,39 @@ def calc_hazard_rates(rec_rate, yld_sprds):
     return (cum_haz, ind_haz)
 
 
-def match_bond_prices(yld_dt, rf, recov_rate=0.40, par=100, freq=0.5):
-    rf_prices = []
-    prices = []
+def match_bond_prices(yld_dt, rf, recov_rate=0.40, par=100, freq=0.5, start_dt=dt.datetime(2017, 1, 1)):
+    hazard_rates = []
+    prob_of_default = []
     for i in yld_dt:
-        cfs = createCashFlows(dt.datetime(2017, 1, 1), 0.5, dt.datetime(2017+i[0], 1, 1), 0.08, par)
-        rf_pv = cumPresentValue(dt.datetime(2017, 1, 1), rf, cfs)
-        pv = cumPresentValue(dt.datetime(2017, 1, 1), i[1], cfs)
+        cfs = createCashFlows(start_dt, 0.5, dt.datetime(2017+i[0], 1, 1), 0.08, par)
+        rf_pv = cumPresentValue(start_dt, rf, cfs)
+        pv = cumPresentValue(start_dt, i[1], cfs)
         pv_exp_default = rf_pv - pv
         pv_loss = 0
-        t = 1
-        pdb.set_trace()
-        for cf in cfs:
-            # NEEEEED to convert date to fraction, theres a way to do this in python finance lib
-            pv_loss += cf[1] * np.exp(-0.05*(freq*t - freq/2))
+        pv_losses = []
+        t = 0
+        while t < len(cfs)-1:
+            t_cfs = cfs[t:]
+            for cf in t_cfs:
+                frac_date = get_year_deltas([start_dt, cf[0]])[-1]
+                # assume middle of period
+                frac_date = frac_date - freq / 2 - (freq*t)
+                pv_loss += cf[1] * np.exp(-0.05*frac_date)
+            frac_date = get_year_deltas([start_dt, t_cfs[0][0]])[-1] - freq / 2
+            pv_losses.append((pv_loss - recov_rate*par) * np.exp(-0.05*frac_date))
+            pv_loss = 0
             t += 1
+        
+        first_legs = [p_of_d * pv for p_of_d, pv in zip(prob_of_default, pv_losses)]
+        pv_losses = pv_losses[len(first_legs):]
+        # func = lambda x: ((1 - np.exp(-0.5 * x)) * pv_losses[0] + ((1 - np.exp(-0.5 * x)**2) - (1 - np.exp(-0.5 * x))) * pv_losses[1]) + sum(first_legs) - pv_exp_default
+        func = lambda x: sum([(np.exp(-0.5 * i * x) - np.exp(-0.5 * (i+1) * x)) * pv_losses[i] for i in range(len(pv_losses))]) + sum(first_legs) - pv_exp_default
+        hazard_rates.append(newton_raphson(func, 0.03))
+        prob_of_default += [(np.exp(-0.5 * i * hazard_rates[-1]) - np.exp(-0.5 * (i+1) * hazard_rates[-1])) for i in range(len(pv_losses))]
+        # surv_rate = surv_rate of last year (or 1 if its first year) - prob_of_default
         print()
         
-        # func = lambda x: [(1 - np.exp(-0.5*x)) * ]
-    
-    pv_exp_default = [rf - p for p, rf in zip(prices, rf_prices)]
-    print(pv_exp_default)
+    return hazard_rates
         
         
         
