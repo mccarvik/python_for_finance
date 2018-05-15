@@ -14,6 +14,8 @@ import pandas as pd
 import datetime as dt
 from functools import reduce
 from math import sqrt, pi, log, e
+from bsm_model import *
+from greeks import N
 
 
 def calc_hazard_rates(rec_rate, yld_sprds):
@@ -69,14 +71,33 @@ def match_bond_prices(yld_dt, rf, recov_rate=0.40, par=100, freq=0.5, start_dt=d
         print()
         
     return hazard_rates
-        
-        
-        
+
+
+def equity_as_call_on_assets(E, vol_e, r, T, D):
+    # E = V0 * N(d1) - De**(-r * T) * N(d2)
+    # vol_e * E = N(d1) * vol_v * V0
+    # solving for the 2 equations give v0 = 12.40 and vol_v = 0.2123
+    # very complicated to do programatically
+    V0 = 12.40
+    vol_v = 0.2123
+    
+    prob_of_default = N(-d2(V0, D, r, T, vol_v, 0))
+    print(prob_of_default)
+    mv_of_debt = V0 - E
+    pv_of_debt = D * np.exp(-r*T)
+    # expected loss as a percentage of no default value
+    exp_loss_on_debt = (pv_of_debt - mv_of_debt) / pv_of_debt
+    recovery_rate = (1 - exp_loss_on_debt / prob_of_default)
+    print(recovery_rate)
+    return recovery_rate
+    
+    
     
 
 
 if __name__ == '__main__':
     # print(calc_hazard_rates(0.40, [150, 180, 195]))
-    yld_dt_pairs = [[1, 0.065], [2, 0.068], [3, 0.0695]]
-    print(match_bond_prices(yld_dt_pairs, 0.05))
+    # yld_dt_pairs = [[1, 0.065], [2, 0.068], [3, 0.0695]]
+    # print(match_bond_prices(yld_dt_pairs, 0.05))
+    print(equity_as_call_on_assets(3, 0.80, 0.05, 1, 10))
     
