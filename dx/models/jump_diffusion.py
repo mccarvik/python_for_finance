@@ -83,7 +83,6 @@ class jump_diffusion(simulation_class):
         
         # rj --> drift correction for the riskless rate so jumps maintain risk neutrality
         rj = self.lamb * (np.exp(self.mu + 0.5 * self.delt ** 2) - 1)
-        pdb.set_trace()
         
         for t in range(1, len(self.time_grid)):
             # select the right time slice from the relevant
@@ -92,6 +91,8 @@ class jump_diffusion(simulation_class):
                 ran = sn1[t]
             else:
                 # only with correlation in portfolio context
+                # A list of random numbers is generated for each member
+                # Cholesky correlation matrix then used to ensure the random numbers are appropriately correlated
                 ran = np.dot(self.cholesky_matrix, sn1[:, t, :])
                 ran = ran[self.rn_set]
             

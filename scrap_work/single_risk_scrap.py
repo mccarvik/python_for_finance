@@ -31,6 +31,7 @@ no_paths = 10000
 me = market_environment('me', dt.datetime(2015, 1, 1))
 me.add_constant('initial_value', 35)
 me.add_constant('volatility', 0.2)
+me.add_constant('maturity', dt.datetime(2015, 12, 31))
 me.add_constant('final_date', dt.datetime(2016, 1, 31))
 me.add_constant('currency', 'EUR')
 me.add_constant('frequency', 'W')       # M = monthly, W = weekly, A = Annual
@@ -149,6 +150,97 @@ def mcs_american_single():
     
     plot_option_stats_full(k_list, pv, de, ve, th, rh, ga, PATH, "amer_put_strikes")
 
+
+def port_valuation():
+    me.add_constant('model', 'gbm')
+    put = derivatives_position(
+                name='put',  # name of position
+                quantity=1,  # number of instruments
+                underlyings=['gbm'],  # relevant risk factors
+                mar_env=me,  # market environment
+                otype='American single',  # the option type
+                payoff_func='np.maximum(40. - instrument_values, 0)') # the payoff funtion
+    # put.get_info()
+    
+    # Uncorrelated
+    me_jump = market_environment('me_jump', dt.datetime(2015, 1, 1))
+    me_jump.add_environment(me)
+    me_jump.add_constant('lambda', 0.8)
+    me_jump.add_constant('mu', -0.8)
+    me_jump.add_constant('delta', 0.1)
+    me_jump.add_constant('model', 'jd')
+
+    call_jump = derivatives_position(
+                    name='call_jump',
+                    quantity=3,
+                    underlyings=['jd'],
+                    mar_env=me_jump,
+                    otype='European single',
+                    payoff_func='np.maximum(maturity_value - 36., 0)')
+    
+    risk_factors = {'gbm': me, 'jd' : me_jump}
+    positions = {'put' : put, 'call_jump' : call_jump}
+
+    val_env = market_environment('general', dt.datetime(2015, 1, 1))
+    val_env.add_constant('frequency', 'M')
+    val_env.add_constant('paths', 10000)
+    val_env.add_constant('starting_date', val_env.pricing_date)
+    val_env.add_constant('final_date', val_env.pricing_date)
+    val_env.add_curve('discount_curve', r)
+
+    port = derivatives_portfolio(
+                name='portfolio',  # name 
+                positions=positions,  # derivatives positions
+                val_env=val_env,  # valuation environment
+                risk_factors=risk_factors, # relevant risk factors
+                correlations=False,  # correlation between risk factors
+                fixed_seed=False,  # fixed seed for randon number generation
+                parallel=False)  # parallel valuation of portfolio positions
+
+    # portolio delta, vega, etc. just the sum when uncorrelated
+    stats = port.get_statistics()
+    print(stats)
+    print(stats[['pos_value', 'pos_delta', 'pos_vega']].sum())
+    print(port.get_values())
+    # print(port.get_positions())
+    
+    
+    # Correlated
+    # 90% correlated
+    correlations = [['gbm', 'jd', 0.9]]
+
+    port = derivatives_portfolio(
+                name='portfolio',
+                positions=positions,
+                val_env=val_env,
+                risk_factors=risk_factors,
+                correlations=correlations,
+                fixed_seed=True,
+                parallel=False)
+    
+    pdb.set_trace()
+    port.get_statistics()
+    print(port.val_env.lists['cholesky_matrix'])
+
+    path_no = 0
+    paths1 = port.underlying_objects['gbm'].get_instrument_values()[:, path_no]
+    paths2 = port.underlying_objects['jd'].get_instrument_values()[:, path_no]
+    
+    # highly correlated underlyings
+    # -- with a large jump for one risk factor
+    plt.figure(figsize=(10, 6))
+    plt.plot(port.time_grid, paths1, 'r', label='gbm')
+    plt.plot(port.time_grid, paths2, 'b', label='jd')
+    plt.gcf().autofmt_xdate()
+    plt.legend(loc=0); plt.grid(True)
+    plt.savefig(PATH + "correlated_port.png", dpi=300)
+    plt.close()
+    
+    
+    
+
+
 if __name__ == '__main__':
     # mcs_european_single()
-    mcs_american_single()
+    # mcs_american_single()
+    port_valuation()

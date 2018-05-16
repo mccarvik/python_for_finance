@@ -92,12 +92,26 @@ def equity_as_call_on_assets(E, vol_e, r, T, D):
     return recovery_rate
     
     
-    
+def credit_mitigation(px_opt, t, bond_yld):
+    # need to increase the discount rate on a derivative payoff to factor in that it might not get paid off
+    # discount the value of the derivative by the yld over the risk free rate of the counterparty's debt
+    new_val = px_opt * np.exp(-bond_yld * t)
+    return new_val
+
+
+def credit_risk_mitigiation_fwd(K, T, F, dflts, r, recov_rate, vol_g):
+    # T = array of time periods where default is possible
+    pdb.set_trace()
+    d_1 = d1(F, K, 0, T[0]/2, vol_g, 0)
+    d_2 = d2(F, K, 0, T[0]/2, vol_g, 0)
+    w = np.exp(-r*((T[1]-T[0])/2 + T[0])) * (F * N(d_1) - K * N(d_2))
 
 
 if __name__ == '__main__':
     # print(calc_hazard_rates(0.40, [150, 180, 195]))
     # yld_dt_pairs = [[1, 0.065], [2, 0.068], [3, 0.0695]]
     # print(match_bond_prices(yld_dt_pairs, 0.05))
-    print(equity_as_call_on_assets(3, 0.80, 0.05, 1, 10))
+    # print(equity_as_call_on_assets(3, 0.80, 0.05, 1, 10))
+    # print(credit_mitigation(3, 2, 0.015))
+    print(credit_risk_mitigiation_fwd(1500, [1, 2], 1600, [0.02, 0.03], 0.05, 0.3, 0.2))
     

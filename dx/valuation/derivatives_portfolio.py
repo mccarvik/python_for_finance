@@ -95,8 +95,7 @@ class derivatives_portfolio(object):
         estimates sensitivities for point-wise parameter shocks
     '''
 
-    def __init__(self, name, positions, val_env, risk_factors,
-                 correlations=None, fixed_seed=False, parallel=False):
+    def __init__(self, name, positions, val_env, risk_factors, correlations=None, fixed_seed=False, parallel=False):
         self.name = name
         self.positions = positions
         self.val_env = val_env
@@ -114,13 +113,9 @@ class derivatives_portfolio(object):
         self.special_dates = []
         for pos in self.positions:
             # determine earliest starting_date
-            self.val_env.constants['starting_date'] = \
-                min(self.val_env.constants['starting_date'],
-                    positions[pos].mar_env.pricing_date)
+            self.val_env.constants['starting_date'] = min(self.val_env.constants['starting_date'], positions[pos].mar_env.pricing_date)
             # determine latest date of relevance
-            self.val_env.constants['final_date'] = \
-                max(self.val_env.constants['final_date'],
-                    positions[pos].mar_env.constants['maturity'])
+            self.val_env.constants['final_date'] = max(self.val_env.constants['final_date'], positions[pos].mar_env.constants['maturity'])
             # collect all underlyings
             # add to set; avoids redundancy
             for ul in positions[pos].underlyings:
@@ -129,9 +124,7 @@ class derivatives_portfolio(object):
         # generating general time grid
         start = self.val_env.constants['starting_date']
         end = self.val_env.constants['final_date']
-        time_grid = pd.date_range(start=start, end=end,
-                                  freq=self.val_env.constants['frequency']
-                                  ).to_pydatetime()
+        time_grid = pd.date_range(start=start, end=end, freq=self.val_env.constants['frequency']).to_pydatetime()
         time_grid = list(time_grid)
         for pos in self.positions:
             maturity_date = positions[pos].mar_env.constants['maturity']
@@ -153,8 +146,7 @@ class derivatives_portfolio(object):
         ul_list = sorted(self.underlyings)
         correlation_matrix = np.zeros((len(ul_list), len(ul_list)))
         np.fill_diagonal(correlation_matrix, 1.0)
-        correlation_matrix = pd.DataFrame(correlation_matrix,
-                                          index=ul_list, columns=ul_list)
+        correlation_matrix = pd.DataFrame(correlation_matrix, index=ul_list, columns=ul_list)
 
         if self.correlations is not None:
             if isinstance(self.correlations, list):
@@ -168,15 +160,12 @@ class derivatives_portfolio(object):
                     correlation_matrix[corr[0]].ix[corr[1]] = corr[2]
                     correlation_matrix[corr[1]].ix[corr[0]] = corr[2]
                 # determine Cholesky matrix
-                cholesky_matrix = np.linalg.cholesky(np.array(
-                    correlation_matrix))
+                cholesky_matrix = np.linalg.cholesky(np.array(correlation_matrix))
             else:
                 # if correlation matrix was already given as pd.DataFrame
-                cholesky_matrix = np.linalg.cholesky(np.array(
-                    self.correlations))
+                cholesky_matrix = np.linalg.cholesky(np.array(self.correlations))
         else:
-            cholesky_matrix = np.linalg.cholesky(np.array(
-                correlation_matrix))
+            cholesky_matrix = np.linalg.cholesky(np.array(correlation_matrix))
 
         # dictionary with index positions for the
         # slice of the random number array to be used by
@@ -192,7 +181,7 @@ class derivatives_portfolio(object):
              len(self.time_grid),
              self.val_env.constants['paths']),
             fixed_seed=self.fixed_seed)
-
+        
         # adding all to valuation environment which is
         # to be shared with every underlying
         self.val_env.add_list('correlation_matrix', correlation_matrix)
@@ -212,8 +201,7 @@ class derivatives_portfolio(object):
                 corr = True
             else:
                 corr = False
-            self.underlying_objects[asset] = model(asset, mar_env,
-                                                   corr=corr)
+            self.underlying_objects[asset] = model(asset, mar_env, corr=corr)
 
         for pos in positions:
             # select right valuation class (European, American)
@@ -285,18 +273,13 @@ class derivatives_portfolio(object):
         ''' Get full distribution of present values. '''
         present_values = np.zeros(self.val_env.get_constant('paths'))
         if self.parallel is True:
-            self.underlying_objects = \
-                simulate_parallel(self.underlying_objects.values())
-            results = value_parallel(self.valuation_objects.values(),
-                                     full=True)
+            self.underlying_objects = simulate_parallel(self.underlying_objects.values())
+            results = value_parallel(self.valuation_objects.values(), full=True)
             for pos in self.valuation_objects:
-                present_values += results[self.valuation_objects[pos].name] \
-                    * self.positions[pos].quantity
+                present_values += results[self.valuation_objects[pos].name] * self.positions[pos].quantity
         else:
             for pos in self.valuation_objects:
-                present_values += self.valuation_objects[pos].present_value(
-                    fixed_seed=fixed_seed, full=True)[1] \
-                    * self.positions[pos].quantity
+                present_values += self.valuation_objects[pos].present_value(fixed_seed=fixed_seed, full=True)[1] * self.positions[pos].quantity
         return present_values
 
     def get_statistics(self, fixed_seed=None):
@@ -305,22 +288,18 @@ class derivatives_portfolio(object):
         if fixed_seed is None:
             fixed_seed = self.fixed_seed
         if self.parallel is True:
-            self.underlying_objects = \
-                simulate_parallel(self.underlying_objects.values())
-            results = value_parallel(self.valuation_objects.values(),
-                                     fixed_seed=fixed_seed)
-            delta_list = greeks_parallel(self.valuation_objects.values(),
-                                         Greek='Delta')
-            vega_list = greeks_parallel(self.valuation_objects.values(),
-                                        Greek='Vega')
+            self.underlying_objects = simulate_parallel(self.underlying_objects.values())
+            results = value_parallel(self.valuation_objects.values(), fixed_seed=fixed_seed)
+            delta_list = greeks_parallel(self.valuation_objects.values(), Greek='Delta')
+            vega_list = greeks_parallel(self.valuation_objects.values(), Greek='Vega')
+            
         # iterate over all positions in portfolio
         for pos in self.valuation_objects:
             pos_list = []
             if self.parallel is True:
                 present_value = results[self.valuation_objects[pos].name]
             else:
-                present_value = self.valuation_objects[pos].present_value(
-                    fixed_seed=fixed_seed, accuracy=3)
+                present_value = self.valuation_objects[pos].present_value(fixed_seed=fixed_seed, accuracy=3)
             pos_list.append(pos)
             pos_list.append(self.positions[pos].name)
             pos_list.append(self.positions[pos].quantity)
@@ -331,6 +310,7 @@ class derivatives_portfolio(object):
             pos_list.append(self.valuation_objects[pos].currency)
             # single instrument value times quantity
             pos_list.append(present_value * self.positions[pos].quantity)
+            
             if self.positions[pos].otype[-5:] == 'multi':
                 # multiple delta and vega values for multi-risk derivatives
                 delta_dict = {}
@@ -355,11 +335,9 @@ class derivatives_portfolio(object):
                                     self.positions[pos].quantity)
                 else:
                     # delta per position
-                    pos_list.append(self.valuation_objects[pos].delta() *
-                                    self.positions[pos].quantity)
+                    pos_list.append(self.valuation_objects[pos].delta() * self.positions[pos].quantity)
                     # vega per position
-                    pos_list.append(self.valuation_objects[pos].vega() *
-                                    self.positions[pos].quantity)
+                    pos_list.append(self.valuation_objects[pos].vega() * self.positions[pos].quantity)
             res_list.append(pos_list)
         res_df = pd.DataFrame(res_list, columns=['position', 'name',
                                                  'quantity', 'otype',

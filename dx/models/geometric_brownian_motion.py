@@ -69,6 +69,9 @@ class geometric_brownian_motion(simulation_class):
             if self.correlated is False:
                 ran = rand[t]
             else:
+                # A list of random numbers is generated for each member
+                # Cholesky correlation matrix then used to ensure the random numbers are appropriately correlated
+                # A matrix * the cholesky correlation matrix creates an array of correlated values
                 ran = np.dot(self.cholesky_matrix, rand[:, t, :])
                 ran = ran[self.rn_set]
             dt = (self.time_grid[t] - self.time_grid[t - 1]).days / day_count
