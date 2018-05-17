@@ -14,9 +14,11 @@ import pandas as pd
 import datetime as dt
 from functools import reduce
 from math import sqrt, pi, log, e
+import scipy.stats as ss
 from bsm_model import *
 from greeks import N
 
+N_inv = ss.norm.ppf
 
 def calc_hazard_rates(rec_rate, yld_sprds):
     # yld_spreads are in basis points
@@ -101,10 +103,30 @@ def credit_mitigation(px_opt, t, bond_yld):
 
 def credit_risk_mitigiation_fwd(K, T, F, dflts, r, recov_rate, vol_g):
     # T = array of time periods where default is possible
-    pdb.set_trace()
     d_1 = d1(F, K, 0, T[0]/2, vol_g, 0)
     d_2 = d2(F, K, 0, T[0]/2, vol_g, 0)
-    w = np.exp(-r*((T[1]-T[0])/2 + T[0])) * (F * N(d_1) - K * N(d_2))
+    wt1 = np.exp(-r*((T[1]-T[0])/2 + T[0])) * (F * N(d_1) - K * N(d_2))
+    vt1 = wt1 * np.exp(-r*T[0]/2) * (1 - recov_rate)
+    
+    d_1 = d1(F, K, 0, (T[1]-T[0])/2 + T[0], vol_g, 0)
+    d_2 = d2(F, K, 0, (T[1]-T[0])/2 + T[0], vol_g, 0)
+    wt2 = np.exp(-r*(T[0]/2)) * (F * N(d_1) - K * N(d_2))
+    vt2 = wt2 * np.exp(-r*((T[1]-T[0])/2 + T[0])) * (1 - recov_rate)
+    
+    # The cost of default at each stage
+    exp_cost_of_default = dflts[0] * vt1 + dflts[1] * vt2
+    no_def_val = (F - K) * np.exp(-r*T[1])
+    val_with_defaults = no_def_val - exp_cost_of_default
+    return val_with_defaults
+
+
+def credit_var(A, conf, dflt, corr, recov_rate):
+    num = N_inv(0.02) + np.sqrt(corr) * N_inv(conf)
+    denom = np.sqrt(1 - corr)
+    worst_case_dflt_rate = N(num / denom)
+    return A * worst_case_dflt_rate * (1 - recov_rate)
+    
+    
 
 
 if __name__ == '__main__':
@@ -113,5 +135,6 @@ if __name__ == '__main__':
     # print(match_bond_prices(yld_dt_pairs, 0.05))
     # print(equity_as_call_on_assets(3, 0.80, 0.05, 1, 10))
     # print(credit_mitigation(3, 2, 0.015))
-    print(credit_risk_mitigiation_fwd(1500, [1, 2], 1600, [0.02, 0.03], 0.05, 0.3, 0.2))
+    # print(credit_risk_mitigiation_fwd(1500, [1, 2], 1600, [0.02, 0.03], 0.05, 0.3, 0.2))
+    print(credit_var(100, 0.999, 0.02, 0.1, 0.6))
     

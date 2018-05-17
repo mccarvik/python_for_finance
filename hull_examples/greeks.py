@@ -16,6 +16,7 @@ import scipy.stats as ss
 from math import sqrt, pi, log, e
 from hull_examples.bsm_model import *
 
+
 # yields = [0.0025, 0.01, 0.015, 0.025]
 # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 7, 1), dt.datetime(2015, 12, 31), dt.datetime(2018, 12, 31)]
 yields = [0.01, 0.0366, 0.04]
