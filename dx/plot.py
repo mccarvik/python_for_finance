@@ -1,9 +1,10 @@
+import pdb
 import matplotlib as mpl; mpl.use('agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from pylab import cm
 
-PATH = '/home/ubuntu/workspace/python_for_finance/png/dx/'
+PATH = '/home/ubuntu/workspace/python_for_finance/png/scrap/'
 
 def plot_option_stats(name, s_list, pv, de, ve):
     ''' Plot option prices, deltas and vegas for a set of

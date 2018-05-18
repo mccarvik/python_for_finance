@@ -60,8 +60,7 @@ class geometric_brownian_motion(simulation_class):
             rand = self.random_numbers
 
         # forward rates for drift of process
-        forward_rates = self.discount_curve.get_forward_rates(
-            self.time_grid, self.paths, dtobjects=True)[1]
+        forward_rates = self.discount_curve.get_forward_rates(self.time_grid, self.paths, dtobjects=True)[1]
 
         for t in range(1, len(self.time_grid)):
             # select the right time slice from the relevant

@@ -32,8 +32,7 @@ class valuation_class_multi(object):
         returns the vega of the derivative
     '''
 
-    def __init__(self, name, val_env, risk_factors=None, correlations=None,
-                 payoff_func='', fixed_seed=False, portfolio=False):
+    def __init__(self, name, val_env, risk_factors=None, correlations=None, payoff_func='', fixed_seed=False, portfolio=False):
         try:
             self.name = name
             self.val_env = val_env
@@ -148,8 +147,7 @@ class valuation_class_multi(object):
             if obj.instrument_values is None:
                 obj.generate_paths(fixed_seed=fixed_seed)
 
-    def update(self, key=None, pricing_date=None, initial_value=None,
-               volatility=None, short_rate=None, strike=None, maturity=None):
+    def update(self, key=None, pricing_date=None, initial_value=None, volatility=None, short_rate=None, strike=None, maturity=None):
         ''' Updates parameters of the derivative. '''
         if key is not None:
             underlying = self.underlying_objects[key]
@@ -300,8 +298,7 @@ class valuation_mcs_european_multi(valuation_class_multi):
 
     def generate_payoff(self, fixed_seed=True):
         self.get_instrument_values(fixed_seed=True)
-        paths = {key: name.instrument_values for key, name
-                 in self.underlying_objects.items()}
+        paths = {key: name.instrument_values for key, name in self.underlying_objects.items()}
         time_grid = self.time_grid
         try:
             time_index = np.where(time_grid == self.maturity)[0]
@@ -326,8 +323,7 @@ class valuation_mcs_european_multi(valuation_class_multi):
     def present_value(self, accuracy=3, fixed_seed=True, full=False):
         cash_flow = self.generate_payoff(fixed_seed)
 
-        discount_factor = self.discount_curve.get_discount_factors(
-            self.time_grid, self.paths)[1][0]
+        discount_factor = self.discount_curve.get_discount_factors(self.time_grid, self.paths)[1][0]
 
         result = np.sum(discount_factor * cash_flow) / len(cash_flow)
         if full:
