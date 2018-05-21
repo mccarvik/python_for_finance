@@ -1,2 +1,4 @@
 github library of examples: https://github.com/yhilpisch/dx
-Some reading lists: https://www.quantstart.com/articles/Quant-Reading-List-Derivative-Pricing/ 
+Some reading lists: https://www.quantstart.com/articles/Quant-Reading-List-Derivative-Pricing/
+CFA login = excellent resource: https://bookshelf.vitalsource.com
+    - username: mccarviks@gmail.com, pw: Kmac7272!
