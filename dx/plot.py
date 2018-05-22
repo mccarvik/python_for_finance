@@ -92,7 +92,7 @@ def plot_option_stats_full(s_list, pv, de, ve, th, rh, ga, path=PATH, name="temp
     plt.close()
 
 
-def plot_greeks_3d(inputs, labels):
+def plot_greeks_3d(name, inputs, labels, path=PATH):
     ''' Plot Greeks in 3d.
     Parameters
     ==========
@@ -105,12 +105,13 @@ def plot_greeks_3d(inputs, labels):
     xl, yl, zl = labels
     fig = plt.figure(figsize=(10, 7))
     ax = fig.gca(projection='3d')
-    surf = ax.plot_surface(x, y, z, rstride=1, cstride=1,
-                           cmap=cm.coolwarm, linewidth=0.5, antialiased=True)
+    surf = ax.plot_surface(x, y, z, rstride=1, cstride=1, cmap=cm.coolwarm, linewidth=0.5, antialiased=True)
     ax.set_xlabel(xl)
     ax.set_ylabel(yl)
     ax.set_zlabel(zl)
     fig.colorbar(surf, shrink=0.5, aspect=5)
+    plt.savefig(path + name + '.png', dpi=300)
+    plt.close()
 
 
 def plot_calibration_results(cali, relative=False):

@@ -174,7 +174,6 @@ class valuation_class_multi(object):
 
     def delta(self, key, interval=None, accuracy=4):
         ''' Returns the delta for the specified risk factor for the derivative. '''
-        pdb.set_trace()
         if len(self.instrument_values) == 0:
             self.get_instrument_values()
         asset = self.underlying_objects[key]
