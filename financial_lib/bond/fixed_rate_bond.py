@@ -106,13 +106,20 @@ class FixedRateBond(Bond):
         return (pv, ytm)
     
     def calcPVwithSpotRates(self, curve):
-        pdb.set_trace()
         pv = 0
         for cf in self._cash_flows:
             t = get_year_deltas([self._trade_dt, cf[0]])[-1]
             r = curve.get_interpolated_yields([self._trade_dt, cf[0]])[1][1]
             pv += calcPV(cf[1], r, t)
         return round(pv, 4)
+    
+    def calcPVMidDate(self, dt):
+        return cumPresentValue(dt, self._ytm, self._cash_flows, self._pay_freq, cont=False)
+    
+    def calcAccruedInterest(self, dt):
+        cf = min([c for c in self._cash_flows if c[0] > dt], key = lambda t: t[0])
+        t = get_year_deltas([dt, cf[0]])[-1]
+        return ((self._pay_freq - t) / self._pay_freq) * cf[1]
     
     def calcConversionFactor(self):
         ''' Calculates the conversion factor for his bond in relation to bond futures baskets
@@ -261,24 +268,41 @@ class FixedRateBond(Bond):
             calculated rate, converts the ytm to an annual rate
         '''
         return (1+(self._ytm * self._pay_freq))**(1 / self._pay_freq) - 1
+    
+    def cleanPrice(self, dt):
+        return self.calcPVMidDate(dt) - self.calcAccruedInterest(dt)
+    
+    def dirtyPrice(self, dt):
+        return self.cleanPrice(dt) + self.calcAccruedInterest(dt)
         
     def show_stats(self):
         print(self._cusip)
         print("YTM: " + str(round(self._ytm, 4)))
         print("Px: " + str(round(self._pv, 4)))
 
-def test():
+def cfa_v1_r54():
     # bond = FixedRateBond(trade_dt=dt.datetime(2017, 1, 1), mat_dt=dt.datetime(2022, 1, 1), freq=1, cpn=8, price=108.425)
     # bond.show_stats()
-    bond = FixedRateBond(trade_dt=dt.datetime(2017, 1, 1), mat_dt=dt.datetime(2020, 1, 1), freq=1, cpn=5)
-    rates = [0.01, 0.02, 0.03, 0.04]
-    dates = [dt.datetime(2017,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1), dt.datetime(2020, 1, 1)]
-    dsr = deterministic_short_rate('dsr', list(zip(dates, rates)))
-    print(bond.calcPVwithSpotRates(dsr))
+    
+    # bond = FixedRateBond(trade_dt=dt.datetime(2017, 1, 1), mat_dt=dt.datetime(2020, 1, 1), freq=1, cpn=5)
+    # rates = [0.01, 0.02, 0.03, 0.04]
+    # dates = [dt.datetime(2017,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1), dt.datetime(2020, 1, 1)]
+    # dsr = deterministic_short_rate('dsr', list(zip(dates, rates)))
+    # print(bond.calcPVwithSpotRates(dsr))
+    
+    # bond = FixedRateBond(trade_dt=dt.datetime(2017, 5, 15), mat_dt=dt.datetime(2020, 1, 1), freq=0.5, cpn=4.375)
+    # print(bond.calcAccruedInterest(dt.datetime(2017, 6, 27)))
+    
+    bond = FixedRateBond(trade_dt=dt.datetime(2014, 2, 15), mat_dt=dt.datetime(2024, 2, 15), freq=0.5, cpn=5, ytm=4.8)
+    print(bond.calcAccruedInterest(dt.datetime(2015, 5, 14)))
+    print(bond.cleanPrice(dt.datetime(2015, 5, 14)))
+    print(bond.dirtyPrice(dt.datetime(2015, 5, 14)))
+    
+    
 
 
 if __name__ == "__main__":
-    test()
+    cfa_v1_r54()
     # fwd_rates = [.05, .058, .064, .068]
     # cf = [cf[0] for cf in bond._cash_flows]
     # fwd_rates = list(zip(cf,fwd_rates))
