@@ -11,6 +11,7 @@ import pandas as pd
 import datetime as dt
 
 from utils.fi_funcs import *
+from dx.frame import deterministic_short_rate, get_year_deltas
 
 
 class FixedRateBond(Bond):
@@ -78,7 +79,7 @@ class FixedRateBond(Bond):
         except:
             pdb.set_trace()
             exc_type, exc_obj, exc_tb = sys.exc_info()
-            app.logger.info("ISSUE Calculating bond for cusip: {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, self._cusip))
+            print("ISSUE Calculating bond for cusip: {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, self._cusip))
     
     def calcPVandYTM(self, pv, ytm):
         ''' Will calculate PV from YTM or YTM from pv depending on what is provided
@@ -103,6 +104,15 @@ class FixedRateBond(Bond):
             ytm = self._bm[1]
             pv = cumPresentValue(self._trade_dt, ytm, self._cash_flows, self._pay_freq, cont=False)
         return (pv, ytm)
+    
+    def calcPVwithSpotRates(self, curve):
+        pdb.set_trace()
+        pv = 0
+        for cf in self._cash_flows:
+            t = get_year_deltas([self._trade_dt, cf[0]])[-1]
+            r = curve.get_interpolated_yields([self._trade_dt, cf[0]])[1][1]
+            pv += calcPV(cf[1], r, t)
+        return round(pv, 4)
     
     def calcConversionFactor(self):
         ''' Calculates the conversion factor for his bond in relation to bond futures baskets
@@ -258,8 +268,13 @@ class FixedRateBond(Bond):
         print("Px: " + str(round(self._pv, 4)))
 
 def test():
-    bond = FixedRateBond(trade_dt=dt.datetime(2017, 1, 1), mat_dt=dt.datetime(2022, 1, 1), freq=1, cpn=8, price=108.425)
-    bond.show_stats()
+    # bond = FixedRateBond(trade_dt=dt.datetime(2017, 1, 1), mat_dt=dt.datetime(2022, 1, 1), freq=1, cpn=8, price=108.425)
+    # bond.show_stats()
+    bond = FixedRateBond(trade_dt=dt.datetime(2017, 1, 1), mat_dt=dt.datetime(2020, 1, 1), freq=1, cpn=5)
+    rates = [0.01, 0.02, 0.03, 0.04]
+    dates = [dt.datetime(2017,1,1), dt.datetime(2018,1,1), dt.datetime(2019,1,1), dt.datetime(2020, 1, 1)]
+    dsr = deterministic_short_rate('dsr', list(zip(dates, rates)))
+    print(bond.calcPVwithSpotRates(dsr))
 
 
 if __name__ == "__main__":
@@ -269,10 +284,10 @@ if __name__ == "__main__":
     # fwd_rates = list(zip(cf,fwd_rates))
     # print(bond.calcParYield(fwd_rates,cont_comp=True))
     # print(bond._conv_factor)
-    print(bond.calcZSpread())
-    print(bond.calcGSpread())
-    print(bond._pv)
-    print(bond._ytm)
+    # print(bond.calcZSpread())
+    # print(bond.calcGSpread())
+    # print(bond._pv)
+    # print(bond._ytm)
     # print(bond.calcEffectiveAnnualRate())
     # print(bond._dur_mod)
     # print(bond._dur_mac)
