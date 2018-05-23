@@ -269,6 +269,15 @@ class FixedRateBond(Bond):
         '''
         return (1+(self._ytm * self._pay_freq))**(1 / self._pay_freq) - 1
     
+    def calcSpecificPeriodicity(self, periodicity):
+        # calculate bond with given periodicity
+        # semiannual bond basis yield, or semiannual bond equivalent yield has a periodicity of 2
+        ear = self.calcEffectiveAnnualRate()
+        func = lambda x: (1 + (x/periodicity))**periodicity - (1 + ear)
+        rate = newton_raphson(func, ear)
+        return rate
+        
+    
     def cleanPrice(self, dt):
         return self.calcPVMidDate(dt) - self.calcAccruedInterest(dt)
     
@@ -294,6 +303,7 @@ def cfa_v1_r54():
     # print(bond.calcAccruedInterest(dt.datetime(2017, 6, 27)))
     
     bond = FixedRateBond(trade_dt=dt.datetime(2014, 2, 15), mat_dt=dt.datetime(2024, 2, 15), freq=0.5, cpn=5, ytm=4.8)
+    pdb.set_trace()
     print(bond.calcAccruedInterest(dt.datetime(2015, 5, 14)))
     print(bond.cleanPrice(dt.datetime(2015, 5, 14)))
     print(bond.dirtyPrice(dt.datetime(2015, 5, 14)))
