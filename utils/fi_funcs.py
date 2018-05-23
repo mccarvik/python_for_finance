@@ -280,7 +280,7 @@ def VaR(symbol='AAPL', notl=None, conf=0.95, dist=None, _d1=None, _d2=None, volw
     print('Rolling VaR              : ', np.sum(courbe['UnqBreakR']))
     print('Rolling Normalized VaR   : ', np.sum(courbe['nqBreakR']))
     
-    
+
 if __name__ == "__main__":
     # print(bootstrap(0.048, 400, [(0.053, 91), (0.055, 98)]))
     # print(calcYieldToDate(95.0428, 100, 1.5, 5.75))

@@ -276,7 +276,6 @@ class FixedRateBond(Bond):
         func = lambda x: (1 + (x/periodicity))**periodicity - (1 + ear)
         rate = newton_raphson(func, ear)
         return rate
-        
     
     def cleanPrice(self, dt):
         return self.calcPVMidDate(dt) - self.calcAccruedInterest(dt)
@@ -288,6 +287,8 @@ class FixedRateBond(Bond):
         print(self._cusip)
         print("YTM: " + str(round(self._ytm, 4)))
         print("Px: " + str(round(self._pv, 4)))
+
+
 
 def cfa_v1_r54():
     # bond = FixedRateBond(trade_dt=dt.datetime(2017, 1, 1), mat_dt=dt.datetime(2022, 1, 1), freq=1, cpn=8, price=108.425)
