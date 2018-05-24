@@ -1,0 +1,1 @@
+IMG_PATH = '/home/ubuntu/workspace/python_for_finance/financial_lib/img/'

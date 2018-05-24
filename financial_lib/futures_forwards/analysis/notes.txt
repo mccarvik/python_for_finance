@@ -1,0 +1,4 @@
+look into this:
+
+https://blog.quandl.com/api-for-futures-data
+https://www.quandl.com/search?query=

@@ -5,6 +5,8 @@ import numpy as np
 import datetime as dt
 from math import sqrt, pi, log, e
 
+QUANDL_API_KEY = 'J4d6zKiPjebay-zW7T8X'
+
 def derivative(f, x, h):
     return (f(x+h) - f(x-h)) / (2.0*h)  # might want to return a small non-zero if ==0
 
