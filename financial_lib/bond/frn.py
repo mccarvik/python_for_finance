@@ -10,16 +10,16 @@ class FRN(Bond):
     """This class will hold all the variables associated with a Floating Rate Note"""
     
     
-    def __init__(self, cusip, issue_dt, mat_dt, sec_type, cpn=0, trade_dt=datetime.date.today(),
-                dcc="ACT/ACT", par=100, price=None, ytm=None, pay_freq=0.5,  quoted_sprd=0,
-                reset='arrears', first_pay_dt=None, index_freq=None, index="tsy"):
+    def __init__(self, cusip='TEST', trade_dt=dt.date.today(), mat_dt=dt.datetime.now()+dt.timedelta(days=365)
+                sec_type='Float', first_pay_dt=None, freq=0.5, cpn=0, dcc="ACT/ACT", par=100, price=None, ytm=None,
+                quoted_sprd=0, reset='arrears', index_freq=None, index="tsy"):
         ''' Constructor
         Parameters
         ==========
         cusip : str
             cusip of this bond
-        issue_dt : str
-            issue date of the bond
+        trade_dt : str
+            trade date of the bond
         mat_dt : str
             maturity date of the bond
         sec_type : str
@@ -36,8 +36,6 @@ class FRN(Bond):
         ytm : float
             yield to maturity of the bond
             NOTE - will come in as percent value and divided by 100, ex come in as 2(%) and become / 100 = 0.02
-        trade_dt : date
-            day the calculation is done from, DEFAULT = today
         pay_freq : float
             payment frequency of the bond, expressed in fractional terms of 1 year, ex: 0.5 = 6 months
             DEFAULT = 0.5
@@ -65,11 +63,10 @@ class FRN(Bond):
         ======
         NONE
         '''
-        super().__init__(cusip, issue_dt, mat_dt, sec_type)
+        super().__init__(cusip, trade_dt, mat_dt, sec_type)
         index_freq = pay_freq if not index_freq else index_freq
         self._dcc = dcc or "ACT/ACT"
         self._par = par
-        self._trade_dt = trade_dt
         self._reset = reset
         self._pay_freq = pay_freq
         self._index_freq = index_freq

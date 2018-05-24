@@ -71,7 +71,7 @@ class CallableBond(FixedRateBond):
         return min(ylds)
         
     def optionAdjustedPx(self):
-        # NEED to use black scholes for this
+        # TODO to use black scholes for this
         pass
 
 
