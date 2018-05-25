@@ -3,7 +3,7 @@ sys.path.append("/home/ubuntu/workspace/finance")
 sys.path.append("/usr/local/lib/python2.7/dist-packages")
 import pdb, requests, datetime, csv
 import pandas as pd
-from financial_lib.data_grab.quandl_api_helper import quandl_api_dict, URL, MONTH_MAP
+from financial_lib.data_grab.quandl_api_helper import quandl_api_dict, quandl_api_hist_dict, URLs, MONTH_MAP
 
 def callQuandlAPI(call_url):
     urlData = requests.get(call_url).content.decode('utf-8')
