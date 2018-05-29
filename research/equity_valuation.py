@@ -25,6 +25,7 @@ def clean_add_columns(df):
     for c in ['cogs', 'sga', 'rd']:
         df[c] = (df[c] / 100) * df['revenue']
     df['operatingCost'] = df['sga'] + df['rd']
+    df['Taxes'] = df['EBT'] - df['netIncome']
     return df
     
 
