@@ -3,6 +3,7 @@ IS_COLS = {
     'Revenue' : 'revenue',
     'Cost of revenue' : 'cogs',
     'Gross profit' : 'grossProfit',
+    'Research and development' : 'rd',
     'Operating expenses' : 'operatingCost',
     'Sales, General and administrative' : 'sga',
     'Total operating expenses' : 'totalOperatingCost', 
@@ -18,5 +19,7 @@ IS_COLS = {
     'EPSDiluted' : 'EPS', 
     'SharesBasic' : 'sharesBasic', 
     'SharesDiluted' : 'shares', 
-    'EBITDA' : 'EBITDA'
+    'EBITDA' : 'EBITDA',
+    'Restructuring, merger and acquisition' : 'mna',
+    'Other operating expenses' : 'other_exp'
 }
