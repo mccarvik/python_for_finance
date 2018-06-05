@@ -39,9 +39,9 @@ def modelEst(cum, chg, margin, dt_idx):
     cum = cum.reset_index()[cum.reset_index().month != ''].set_index(idx)
     
     # next qurater est is equal to revenue * average est margin over the last year
-    while True:
+    for i in range(4):
         n_idx = list(cum.iloc[-1].name)
-        n_idx[2] = "0" + str(int(n_idx[2]) + 3) + 'E'
+        n_idx = getNextQuarter(n_idx)
         n_data = n_idx + list(margin[-5:-1].mean())
         t_df = pd.DataFrame(dict((key, value) for (key, value) in zip(idx+list(margin.columns), n_data)), columns=idx+list(margin.columns), index=[0]).set_index(idx)
         margin = margin.append(t_df)
@@ -49,11 +49,45 @@ def modelEst(cum, chg, margin, dt_idx):
         n_cum_dict['revenue'] = cum[-5:-1]['revenue'].mean()
         for c in ['cogs', 'rd', 'sga', 'grossProfit', 'mna', 'other_exp']:
             n_cum_dict[c] = margin.loc[tuple(n_idx)][c] * n_cum_dict['revenue']
-        pdb.set_trace()
-        n_cum_dict['totalOperatingCost'] = n_cum_dict['rd'] + n_cum_dict['sga'] + n_cum_dict['cogs'] + n_cum_dict['mna'] + n_cum_dict['other_exp']
-        n_cum_dict['EBIT'] = n_cum_dict['revenue'] - n_cum_dict['totalOperatingCost']    # operating income
+        n_cum_dict['totalOperatingCost'] = n_cum_dict['rd'] + n_cum_dict['sga'] + n_cum_dict['mna'] + n_cum_dict['other_exp']
+        n_cum_dict['EBIT'] = n_cum_dict['revenue'] - n_cum_dict['totalOperatingCost'] - n_cum_dict['cogs']   # operating income
+        # Need to update these when we do balance sheet
+        total_debt = 1500
+        cash_and_inv = 50
+        # 0.6 = about corp rate , 0.02 = about yield on cash, 0.25 = 1/4 of the year 
+        n_cum_dict['intExp'] = total_debt * 0.25 * 0.7 - cash_and_inv * 0.25 * 0.02
+        # just assume average of last year, gonna be very specific company to company
+        n_cum_dict['otherInc'] = cum[-5:-1]['otherInc'].mean()
+        n_cum_dict['EBT'] = n_cum_dict['EBIT'] - n_cum_dict['intExp'] + n_cum_dict['otherInc']
+        # average tax rate of the last year
+        n_cum_dict['taxes'] = (cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean() * n_cum_dict['EBT']
+        n_cum_dict['netIncome'] = n_cum_dict['EBT'] - n_cum_dict['taxes']
+        
+        # Assume change over the last year continues for next quarter - may need to adjust this per company
+        n_cum_dict['shares'] = ((((cum.iloc[-1]['shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
+        n_cum_dict['sharesBasic'] = ((((cum.iloc[-1]['sharesBasic'] / cum.iloc[-5]['sharesBasic']) - 1) / 4) + 1) * cum.iloc[-1]['sharesBasic']
+        
+        n_cum_dict['EPS'] = n_cum_dict['netIncome'] / n_cum_dict['shares']
+        n_cum_dict['EPSBasic'] = n_cum_dict['netIncome'] / n_cum_dict['sharesBasic']
+        
         t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(idx)
         cum = cum.append(t_df)
+        
+    pdb.set_trace()
+    print()
+
+
+def getNextQuarter(index):
+    pdb.set_trace()
+    tick = index[1]
+    y = int(index[0])
+    m = int(index[2].replace("E","")) + 3
+    if m > 12:
+        m -= 12
+        y += 1
+    if m < 10:
+        m = "0" + str(m)
+    return [str(y), tick, str(m)+"E"]
 
 
 def clean_add_columns(df):
@@ -126,58 +160,6 @@ def margin_df(df):
     return data
 
 
-def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
-    # Use this for quarterly info
-    # Period can be 3 or 12 for quarterly vs annual
-    # Sheet can be bs = balance sheet, is = income statement, cf = cash flow statement
-    # Column year can be 5 or 10, doesnt really work
-    # 1 = None 2 = Thousands 3 = Millions 4 = Billions
-    url = 'http://financials.morningstar.com/ajax/ReportProcess4CSV.html?t={0}&reportType={1}&period={2}&dataType=A&order=asc&columnYear={3}&number={4}'.format(ticker, sheet, per, col, num)
-    urlData = requests.get(url).content.decode('utf-8')
-    if 'Error reading' in urlData:
-        # try one more time
-        time.sleep(5)
-        urlData = requests.get(url).content.decode('utf-8')
-    if 'Error reading' in urlData:
-        print('API issue')
-        return None
-        
-    cr = csv.reader(urlData.splitlines(), delimiter=',')
-    data = []
-    for row in list(cr):
-        data.append(row)
-    # Remove empty rows
-    data = [x for x in data if x != []]
-    data = [x for x in data if len(x) != 1]
-    # Remove dates
-    dates = data[0][1:]
-    data = data[1:]
-    # Remove certain strings from headers (USD, Mil, etc) and removing first 2 lines
-    headers = [d[0] for d in data]
-    # Replace headers with better col names
-    if sheet == 'is':
-        columns = IS_COLS
-        headers = is_replacements(headers)
-        data = [[columns[h]] + d[1:] for h, d in zip(headers, data)]
-    
-    data = pd.DataFrame(data).transpose()
-    cols = data.iloc[0]
-    data = data[1:]
-    data = data.apply(pd.to_numeric)
-    data.columns = cols
-    years = [d.split('-')[0] for d in dates]
-    months = [d.split('-')[1] for d in dates[:-1]+["-"]]
-    data['date'] = years
-    data['month'] = months
-    data['ticker'] = ticker
-    # Need this to fill in columns not included
-    for i in columns.values():
-        if i not in data.columns:
-            data[i] = 0
-    data = data.set_index(idx)
-    return data    
-
-
 def dataCumColumns(data):
     tick = data.reset_index()['ticker'][0]
     data = data.drop([('TTM', tick, '')])
@@ -198,31 +180,8 @@ def reorgCols(cums, chgs):
     return cums.append(chgs).reset_index().reindex([0, 1, 8, 2, 9, 3, 4, 10, 5, 6, 11, 7, 12]).set_index(idx)
     
 
-def is_replacements(headers):
-    first = False
-    new_headers = []
-    for h in headers:
-        if not first:
-            if h == 'Basic':
-                new_headers.append('EPS' + h)
-            else:
-                if h == 'Diluted':
-                    new_headers.append('EPS' + h)
-                    first = True
-                else:
-                    new_headers.append(h)
-        else:
-            if h == 'Basic':
-                new_headers.append('Shares' + h)
-            else:
-                if h == 'Diluted':
-                    new_headers.append('Shares' + h)
-                else:
-                    new_headers.append(h)
-    return new_headers
-
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'])
-    # income_state_model(['MCD'])
-    income_state_model(['CSCO'])
+    income_state_model(['MCD'])
+    # income_state_model(['CSCO'])
