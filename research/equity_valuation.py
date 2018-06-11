@@ -9,30 +9,44 @@ import datetime as dt
 
 from res_utils import *
 from utils.db_utils import DBHelper
+from dx.frame import get_year_deltas
 
 idx = ['date', 'ticker', 'month']
 
-def income_state_model(ticks, mode='api'):
+hist_quarterly_map = {
+    'operatingIncome' : 'EBIT',
+    'totalLiabilities' : 'totalLiab',
+    'cashAndShortTermInv' : 'totalCash'
+}
+
+def income_state_model(ticks, mode='db'):
     if mode == 'api':
         data = makeAPICall(ticks[0], 'is')
-        data_cum = dataCumColumns(data)
-        data_chg = period_chg(data)
-        data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'other_exp']]
-        data_est = modelEst(data_cum, data_chg, data_margin, ['2018', ticks[0], '03'])
-        pdb.set_trace()
         # reorganizing columns
-        data = reorgCols(data_cum, data_chg)
+        # data = reorgCols(data_cum, data_chg)
     else:
-        data = get_ticker_info(['MCD'])
-        data = prune_columns(data)
-        data = clean_add_columns(data)
-        data_chg = period_chg(data)
+        data = get_ticker_info(ticks, 'morningstar_monthly_is')
+        data_bs = get_ticker_info(ticks, 'morningstar_monthly_bs')[['totalCash', 'totalLiab']]
+        data_hist = get_ticker_info(ticks, 'morningstar')
+        # join on whatever data you need
+        data = data.join(data_bs)
+
+    data = removeEmptyCols(data)
+    data_cum = dataCumColumns(data)
+    data_chg = period_chg(data)
+    data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
+    data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
+    
+    
+    # data = prune_columns(data)
+    # data = clean_add_columns(data)
+    # data_chg = period_chg(data)
     # data = data.join(data_chg.set_index(idx), how='inner')
     pdb.set_trace()
     print()
 
 
-def modelEst(cum, chg, margin, dt_idx):
+def modelEst(cum, hist, chg, margin):
     df_est = pd.DataFrame()
     # some cleanup
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(idx)
@@ -42,18 +56,40 @@ def modelEst(cum, chg, margin, dt_idx):
     for i in range(4):
         n_idx = list(cum.iloc[-1].name)
         n_idx = getNextQuarter(n_idx)
-        n_data = n_idx + list(margin[-5:-1].mean())
-        t_df = pd.DataFrame(dict((key, value) for (key, value) in zip(idx+list(margin.columns), n_data)), columns=idx+list(margin.columns), index=[0]).set_index(idx)
-        margin = margin.append(t_df)
+        # n_data = n_idx + list(margin[-5:-1].mean())
+        # t_df = pd.DataFrame(dict((key, value) for (key, value) in zip(idx+list(margin.columns), n_data)), columns=idx+list(margin.columns), index=[0]).set_index(idx)
+        # margin = margin.append(t_df)
+        
         n_cum_dict = {k: v for k, v in zip(idx, n_idx)}
-        n_cum_dict['revenue'] = cum[-5:-1]['revenue'].mean()
-        for c in ['cogs', 'rd', 'sga', 'grossProfit', 'mna', 'other_exp']:
+        # n_cum_dict['revenue'] = cum[-5:-1]['revenue'].mean()
+        
+        #########
+        # Use OLS to get projected values
+        #########
+        hist['totalAssets'] = (hist.bookValuePerShare * hist.shares) / (hist.totalEquity / 100)
+        # need to convert from margin to gross
+        for cc in ['totalLiabilities', 'cashAndShortTermInv']:
+            hist[cc] = hist['totalAssets'] * hist[cc]
+        
+        for cc in ['revenue', 'operatingIncome', 'totalLiabilities', 'cashAndShortTermInv']:
+            xs = hist.reset_index()[['date','month']]
+            yint, slope = ols_calc(xs, hist[cc])
+            start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
+            new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]), int(n_idx[2][:-1]), 1).date()])[-1]
+            # divide by four for quarterly
+            cc = hist_quarterly_map.get(cc, cc)
+            n_cum_dict[cc] = (yint + new_x * slope) / 4
+        
+        #########
+        # Use mean of previous few years to get there
+        #########
+        for c in ['cogs', 'rd', 'sga', 'grossProfit', 'mna', 'otherExp']:
             n_cum_dict[c] = margin.loc[tuple(n_idx)][c] * n_cum_dict['revenue']
-        n_cum_dict['totalOperatingCost'] = n_cum_dict['rd'] + n_cum_dict['sga'] + n_cum_dict['mna'] + n_cum_dict['other_exp']
-        n_cum_dict['EBIT'] = n_cum_dict['revenue'] - n_cum_dict['totalOperatingCost'] - n_cum_dict['cogs']   # operating income
+        n_cum_dict['operatingCost'] = n_cum_dict['rd'] + n_cum_dict['sga'] + n_cum_dict['mna'] + n_cum_dict['otherExp']
+        n_cum_dict['EBIT'] = n_cum_dict['revenue'] - n_cum_dict['operatingCost'] - n_cum_dict['cogs']   # operating income
         # Need to update these when we do balance sheet
-        total_debt = 1500
-        cash_and_inv = 50
+        total_debt = cum.iloc[-1]['totalLiab']
+        cash_and_inv = cum.iloc[-1]['totalCash']
         # 0.6 = about corp rate , 0.02 = about yield on cash, 0.25 = 1/4 of the year 
         n_cum_dict['intExp'] = total_debt * 0.25 * 0.7 - cash_and_inv * 0.25 * 0.02
         # just assume average of last year, gonna be very specific company to company
@@ -70,15 +106,22 @@ def modelEst(cum, chg, margin, dt_idx):
         n_cum_dict['EPS'] = n_cum_dict['netIncome'] / n_cum_dict['shares']
         n_cum_dict['EPSBasic'] = n_cum_dict['netIncome'] / n_cum_dict['sharesBasic']
         
+        # Assume cash and liabilities are static
+        n_cum_dict['totalLiab'] = total_debt
+        n_cum_dict['totalCash'] = cash_and_inv
+        
         t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(idx)
         cum = cum.append(t_df)
         
+    # clean up df
+    cum = cum.fillna(0)
+    empty_cols = [c for c in list(cum.columns) if all(v == 0 for v in cum[c])]
+    cum = cum[list(set(cum.columns) - set(empty_cols))]
     pdb.set_trace()
-    print()
+    return cum
 
 
 def getNextQuarter(index):
-    pdb.set_trace()
     tick = index[1]
     y = int(index[0])
     m = int(index[2].replace("E","")) + 3
@@ -99,7 +142,7 @@ def clean_add_columns(df):
     return df
     
 
-def get_ticker_info(ticks, dates=None):
+def get_ticker_info(ticks, table, dates=None):
     # Temp to make testing quicker
     t0 = time.time()
     # tickers = pd.read_csv('/home/ubuntu/workspace/ml_dev_work/utils/dow_ticks.csv', header=None)
@@ -109,7 +152,7 @@ def get_ticker_info(ticks, dates=None):
         lis = ''
         for t in ticks:
             lis += "'" + t + "', "
-        df = db.select('morningstar', where = 'ticker in (' + lis[:-2] + ')')
+        df = db.select(table, where = 'ticker in (' + lis[:-2] + ')')
         
     # Getting Dataframe
     t1 = time.time()
@@ -162,7 +205,11 @@ def margin_df(df):
 
 def dataCumColumns(data):
     tick = data.reset_index()['ticker'][0]
-    data = data.drop([('TTM', tick, '')])
+    try:
+        data = data.drop([('TTM', tick, '')])
+    except:
+        # no TTM included
+        pass
     H1 = data.iloc[-4] + data.iloc[-3]
     M9 = H1 + data.iloc[-2]
     Y1 = M9 + data.iloc[-1]
@@ -180,8 +227,23 @@ def reorgCols(cums, chgs):
     return cums.append(chgs).reset_index().reindex([0, 1, 8, 2, 9, 3, 4, 10, 5, 6, 11, 7, 12]).set_index(idx)
     
 
+def ols_calc(xs, ys, n_idx=None):
+    xs = [dt.datetime(int(x[0]), int(x[1]), 1).date() for x in xs.values]
+    start = xs[0]
+    xs = get_year_deltas(xs)
+    A = np.vstack([xs, np.ones(len(xs))]).T
+    slope, yint = np.linalg.lstsq(A, ys.values)[0]
+    # new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]), int(n_idx[2][:-1]), 1).date()])[-1]
+    return (yint, slope)
+
+
+def removeEmptyCols(df):
+    return df.dropna(axis='columns', how='all')
+
 
 if __name__ == '__main__':
-    # income_state_model(['MSFT'])
-    income_state_model(['MCD'])
+    income_state_model(['MSFT'])
+    # income_state_model(['MCD'])
     # income_state_model(['CSCO'])
+    # income_state_model(['FLWS'], mode='db')
+    # income_state_model(['FLWS'], mode='api')

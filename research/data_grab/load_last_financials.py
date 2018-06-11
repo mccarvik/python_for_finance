@@ -28,30 +28,52 @@ def getData(tickers=None):
     # tasks = [t for t in tasks if t not in ms_dg_helper.remove_ticks_ms]
     # tasks = [t for t in tasks if t not in ms_dg_helper.remove_ticks_dr]
     
+    with DBHelper() as db:
+        db.connect()
+        already = db.select('morningstar_monthly_cf')['ticker'].values
+    
     try:
         ct = 0
         for t in tasks:
+            if t in already:
+                continue
             if ct % 25 == 0:
                 print(str(ct) + " stocks completed so far")
             try:
-                data = makeAPICall(t, 'is')
-                if len(data) != 0:
-                    sendToDB(data, 'morningstar_monthly_is')
-                    success.append(t)
-                else:
-                    failure.append(t)
+                succ = True
+                # data = makeAPICall(t, 'is')
+                # if len(data) != 0:
+                #     sendToDB(data, 'morningstar_monthly_is')
+                # else:
+                #     succ = False
+                #     failure.append(t)
+                
                 # data = makeAPICall(t, 'bs')
-                # sendToDB(data, 'morningstar_monthly_bs')
+                # if len(data) != 0:
+                #     sendToDB(data, 'morningstar_monthly_bs')
+                # else:
+                #     succ = False
+                #     failure.append(t)
+                
+                data = makeAPICall(t, 'cf')
+                if len(data) != 0:
+                    sendToDB(data, 'morningstar_monthly_cf')
+                else:
+                    succ = False
+                    failure.append(t)
+                
+                if succ:
+                    success.append(t)
+                
                 # data = makeAPICall(t, 'cf')
                 # sendToDB(data, 'morningstar_monthly_cf')
                 
             except:
-                pdb.set_trace()
+                # pdb.set_trace()
                 failure.append(t)
                 print("Failed " + t + "\t")
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                print("Error in task loop: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
-                raise
+                # print("Error in task loop: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
             ct+=1
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
