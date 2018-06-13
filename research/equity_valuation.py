@@ -16,7 +16,8 @@ idx = ['date', 'ticker', 'month']
 hist_quarterly_map = {
     'operatingIncome' : 'EBIT',
     'totalLiabilities' : 'totalLiab',
-    'cashAndShortTermInv' : 'totalCash'
+    'cashAndShortTermInv' : 'totalCash',
+    'netInterestOtherMargin' : 'otherInc'
 }
 
 def income_state_model(ticks, mode='db'):
@@ -35,7 +36,8 @@ def income_state_model(ticks, mode='db'):
     data_cum = dataCumColumns(data)
     data_chg = period_chg(data)
     data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
-    data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
+    # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
+    data_est = modelEstOLS(data_cum, data_hist, data_chg, data_margin)
     
     
     # data = prune_columns(data)
@@ -44,6 +46,77 @@ def income_state_model(ticks, mode='db'):
     # data = data.join(data_chg.set_index(idx), how='inner')
     pdb.set_trace()
     print()
+
+
+def modelEstOLS(cum, hist, chg, margin):
+    df_est = pd.DataFrame()
+    # some cleanup
+    margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(idx)
+    cum = cum.reset_index()[cum.reset_index().month != ''].set_index(idx)
+    
+    
+    # next qurater est is equal to revenue * average est margin over the last year
+    for i in range(4):
+        n_idx = list(cum.iloc[-1].name)
+        n_idx = getNextQuarter(n_idx)
+        # n_data = n_idx + list(margin[-5:-1].mean())
+        # t_df = pd.DataFrame(dict((key, value) for (key, value) in zip(idx+list(margin.columns), n_data)), columns=idx+list(margin.columns), index=[0]).set_index(idx)
+        # margin = margin.append(t_df)
+        
+        n_cum_dict = {k: v for k, v in zip(idx, n_idx)}
+        n_hist_dict = {k: v for k, v in zip(idx, n_idx)}
+        # Assume these are static
+        total_debt = cum.iloc[-1]['totalLiab']
+        cash_and_inv = cum.iloc[-1]['totalCash']
+        
+        #########
+        # Use OLS to get projected values
+        #########
+        
+        # need to convert from margin to gross
+        hist_cols_conv = ['cogs', 'rd', 'sga', 'other', 'netInterestOtherMargin', 'shares']
+        for cc in ['totalLiabilities', 'cashAndShortTermInv'] + hist_cols_conv:
+            hist[cc] = hist['totalAssets'] * hist[cc]
+        
+        for cc in ['revenue', 'operatingIncome'] + hist_cols_conv: 
+            xs = hist.reset_index()[['date','month']]
+            yint, slope = ols_calc(xs, hist[cc])
+            start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
+            new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]), int(n_idx[2][:-1]), 1).date()])[-1]
+            # divide by four for quarterly
+            cc = hist_quarterly_map.get(cc, cc)
+            # n_cum_dict[cc] = (yint + new_x * slope) / 4
+            n_hist_dict[cc] = (yint + new_x * slope)
+        
+        pdb.set_trace()
+        # 0.6 = about corp rate , 0.02 = about yield on cash, 0.25 = 1/4 of the year
+        # n_cum_dict['intExp'] = total_debt * 0.25 * 0.7 - cash_and_inv * 0.25 * 0.02
+        # n_cum_dict['EBT'] = n_cum_dict['EBIT'] - n_cum_dict['intExp'] + n_cum_dict['otherInc']
+        
+        n_hist_dict['intExp'] = total_debt * 0.25 * 0.7 - cash_and_inv * 0.25 * 0.02
+        n_hist_dict['EBT'] = n_hist_dict['EBIT'] - n_hist_dict['intExp'] + n_cum_dict['otherInc']
+        
+        # average tax rate of the last 5 years
+        # n_cum_dict['taxes'] = (cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean() * n_cum_dict['EBT']
+        # n_cum_dict['netIncome'] = n_cum_dict['EBT'] - n_cum_dict['taxes']
+        
+        n_hist_dict['taxes'] = (cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean() * n_hist_dict['EBT']
+        n_hist_dict['netIncome'] = n_hist_dict['EBT'] - n_hist_dict['taxes']
+        
+        # Assume change over the last year continues for next quarter - may need to adjust this per company
+        # n_cum_dict['shares'] = ((((cum.iloc[-1]['shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
+        # n_cum_dict['EPS'] = n_cum_dict['netIncome'] / n_cum_dict['shares']
+        
+        n_hist_dict['shares'] = ((((cum.iloc[-1]['shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
+        n_hist_dict['EPS'] = n_hist_dict['netIncome'] / n_hist_dict['shares']
+        
+        # t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(idx)
+        t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(idx)
+        cum = cum.append(t_df)
+    
+    pdb.set_trace()
+    return cum
+        
 
 
 def modelEst(cum, hist, chg, margin):
@@ -56,29 +129,12 @@ def modelEst(cum, hist, chg, margin):
     for i in range(4):
         n_idx = list(cum.iloc[-1].name)
         n_idx = getNextQuarter(n_idx)
-        # n_data = n_idx + list(margin[-5:-1].mean())
-        # t_df = pd.DataFrame(dict((key, value) for (key, value) in zip(idx+list(margin.columns), n_data)), columns=idx+list(margin.columns), index=[0]).set_index(idx)
-        # margin = margin.append(t_df)
+        n_data = n_idx + list(margin[-5:-1].mean())
+        t_df = pd.DataFrame(dict((key, value) for (key, value) in zip(idx+list(margin.columns), n_data)), columns=idx+list(margin.columns), index=[0]).set_index(idx)
+        margin = margin.append(t_df)
         
         n_cum_dict = {k: v for k, v in zip(idx, n_idx)}
-        # n_cum_dict['revenue'] = cum[-5:-1]['revenue'].mean()
-        
-        #########
-        # Use OLS to get projected values
-        #########
-        hist['totalAssets'] = (hist.bookValuePerShare * hist.shares) / (hist.totalEquity / 100)
-        # need to convert from margin to gross
-        for cc in ['totalLiabilities', 'cashAndShortTermInv']:
-            hist[cc] = hist['totalAssets'] * hist[cc]
-        
-        for cc in ['revenue', 'operatingIncome', 'totalLiabilities', 'cashAndShortTermInv']:
-            xs = hist.reset_index()[['date','month']]
-            yint, slope = ols_calc(xs, hist[cc])
-            start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
-            new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]), int(n_idx[2][:-1]), 1).date()])[-1]
-            # divide by four for quarterly
-            cc = hist_quarterly_map.get(cc, cc)
-            n_cum_dict[cc] = (yint + new_x * slope) / 4
+        n_cum_dict['revenue'] = cum[-5:-1]['revenue'].mean()
         
         #########
         # Use mean of previous few years to get there
