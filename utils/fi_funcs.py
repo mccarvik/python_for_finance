@@ -289,6 +289,6 @@ if __name__ == "__main__":
     # print("solution: x = ", xFound)
     # VaR()
     t_curve = [(datetime.date(2018,1,1), 0.021), (datetime.date(2019,1,1), 0.03635)]
-    crv = Curve(rates=[r[1] for r in t_curve], dts = [r[0] for r in t_curve])
-    calcZSprd(crv, 100.125, 100, datetime.date(2019,1,1), 0.0, freq=1,
-                start_date=datetime.date(2017,1,1))
+    # crv = Curve(rates=[r[1] for r in t_curve], dts = [r[0] for r in t_curve])
+    # calcZSprd(crv, 100.125, 100, datetime.date(2019,1,1), 0.0, freq=1,
+    #             start_date=datetime.date(2017,1,1))
