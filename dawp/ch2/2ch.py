@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from dawp.chs.ch5 import BSM_call_value
+from dawp.ch5.ch5 import BSM_call_value
 
 mpl.rcParams['font.family'] = 'serif'
 
