@@ -1,11 +1,17 @@
-import math
+import math, pdb, sys
 import numpy as np
 import pandas as pd
 import scipy.stats as scs
 import statsmodels.api as sm
 import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 mpl.rcParams['font.family'] = 'serif'
+
+from dax_returns import *
+from euribor_analysis import *
+
+PNG_PATH = '../png/3ch/'
 
 #
 # Helper Function
@@ -36,6 +42,7 @@ def dN(x, mu, sigma):
 
 
 def simulate_gbm():
+    # will create a random path based on the normal distribution
     # model parameters
     S0 = 100.0  # initial index level
     T = 10.0  # time horizon
@@ -92,8 +99,11 @@ def print_statistics(data):
     print("Normal Test p-value        %9.6f" %
           scs.normaltest(data['returns'])[1])
     print("---------------------------------------------")
-    print("Realized Volatility        %9.6f" % data['rea_vol'].iloc[-1])
-    print("Realized Variance          %9.6f" % data['rea_var'].iloc[-1])
+    try:
+        print("Realized Volatility        %9.6f" % data['rea_vol'].iloc[-1])
+        print("Realized Variance          %9.6f" % data['rea_var'].iloc[-1])
+    except:
+        print("May not have realized vol stats")
 
 #
 # Graphical Output
@@ -103,10 +113,14 @@ def print_statistics(data):
 
 
 def quotes_returns(data):
+    # Will create plot of the path of the data and the daily log returns
     ''' Plots quotes and returns. '''
     plt.figure(figsize=(9, 6))
     plt.subplot(211)
-    data['index'].plot()
+    try:
+        data['index'].plot()
+    except:
+        data['1w'].plot()
     plt.ylabel('daily quotes')
     plt.grid(True)
     plt.axis('tight')
@@ -116,11 +130,14 @@ def quotes_returns(data):
     plt.ylabel('daily log returns')
     plt.grid(True)
     plt.axis('tight')
+    plt.savefig(PNG_PATH + "quotes_returns", dpi=300)
+    plt.close()
 
 # histogram of annualized daily log returns
 
 
 def return_histogram(data):
+    # Will create a histogram of the log returns
     ''' Plots a histogram of the returns. '''
     plt.figure(figsize=(9, 5))
     x = np.linspace(min(data['returns']), max(data['returns']), 100)
@@ -130,31 +147,41 @@ def return_histogram(data):
     plt.xlabel('log returns')
     plt.ylabel('frequency/probability')
     plt.grid(True)
+    plt.savefig(PNG_PATH + "return_histogram", dpi=300)
+    plt.close()
 
 # Q-Q plot of annualized daily log returns
 
 
 def return_qqplot(data):
+    # qq plot --> graphical tool to help us assess if a set of data plausibly came from some theoretical distribution
+    # plot all the different quantiles and see of they line up with the theoretical location of where they should be
     ''' Generates a Q-Q plot of the returns.'''
     plt.figure(figsize=(9, 5))
     sm.qqplot(data['returns'], line='s')
     plt.grid(True)
     plt.xlabel('theoretical quantiles')
     plt.ylabel('sample quantiles')
+    plt.savefig(PNG_PATH + "return_qqplot", dpi=300)
+    plt.close()
 
 
 # realized volatility
 def realized_volatility(data):
+    # Will create a plot of the realized volatility over the course of the path
     ''' Plots the realized volatility. '''
     plt.figure(figsize=(9, 5))
     data['rea_vol'].plot()
     plt.ylabel('realized volatility')
     plt.grid(True)
+    plt.savefig(PNG_PATH + "realized_volatility", dpi=300)
+    plt.close()
 
 # mean return, volatility and correlation (252 days moving = 1 year)
 
 
 def rolling_statistics(data):
+    # shows mean reversion and negative correlation relationship with 
     ''' Calculates and plots rolling statistics (mean, std, correlation). '''
     plt.figure(figsize=(11, 8))
 
@@ -181,3 +208,29 @@ def rolling_statistics(data):
     cx = plt.axis()
     plt.axis([vx[0], vx[1], cx[2], cx[3]])
     plt.axhline(co.mean(), color='r', ls='dashed', lw=1.5)
+    
+    plt.savefig(PNG_PATH + "rolling_statistics", dpi=300)
+    plt.close()
+    
+
+if __name__ == '__main__':
+    # data = simulate_gbm()
+    # data = read_dax_data()
+    data = read_euribor_data()
+    try:
+        print("Count Jumps: " + str(count_jumps(data, 0.05)))
+    except:
+        print("No count jump function")
+    
+    try:
+        plot_term_structure(data)
+    except:
+        print("No term structure function")
+        
+    print_statistics(data)
+    pdb.set_trace()
+    quotes_returns(data)
+    return_histogram(data)
+    # realized_volatility(data)
+    rolling_statistics(data)
+    return_qqplot(data)
