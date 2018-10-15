@@ -10,9 +10,11 @@ import numpy as np
 from numpy.fft import fft
 from scipy.integrate import quad
 from scipy import stats
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 mpl.rcParams['font.family'] = 'serif'
+PNG_PATH = '../png/6ch/'
 
 #
 # Model Parameters
@@ -211,3 +213,9 @@ def plot_val_differences(vtype='int'):
     plt.legend(loc=0)
     plt.xlabel('strike')
     plt.tight_layout()
+    plt.savefig(PNG_PATH + 'bsm_fft_calc', dpi=300)
+    plt.close()
+    
+    
+if __name__ == '__main__':
+    plot_val_differences()

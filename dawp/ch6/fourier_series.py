@@ -34,6 +34,7 @@ def fourier_series(x, n):
     # Really don't understang how this works or the value added, need to read up more
     fourier_values = np.pi / 2
     for i in range(1, n + 1):
+        # derviation for the absolute value function
         fourier_values += ((2 * ((-1) ** i - 1)) / (np.pi * i ** 2) * np.cos(i * x))
     return fourier_values
 
