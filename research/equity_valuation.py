@@ -12,7 +12,7 @@ from utils.db_utils import DBHelper
 from dx.frame import get_year_deltas
 
 idx = ['date', 'ticker', 'month']
-sum_cols = ['revenue', 'intExp', 'shares', 'EBT', 'netIncome', 'taxes', 'EPS', 'cogs', 'sga', 'rd']
+sum_cols = ['revenue', 'intExp', 'shares', 'EBT', 'netIncome', 'taxes', 'EPS', 'cogs', 'sga', 'rd', 'netInterestOtherMargin']
 
 hist_quarterly_map = {
     'operatingIncome' : 'EBIT',
@@ -38,7 +38,8 @@ def income_state_model(ticks, mode='db'):
     data_chg = period_chg(data)
     data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
-    data_est = modelEstOLS(data_cum, data_hist, data_chg, data_margin)
+    # data_est = modelEstOLS(data_cum, data_hist, data_chg, data_margin)
+    data_est = modelEstOLS(data_cum, data_hist, data_chg, data_margin, ['netInterestOtherMargin'])
     
     
     # data = prune_columns(data)
@@ -49,16 +50,17 @@ def income_state_model(ticks, mode='db'):
     print()
 
 
-def modelEstOLS(cum, hist, chg, margin):
+def modelEstOLS(cum, hist, chg, margin, assume_avg=[]):
     df_est = pd.DataFrame()
     # some cleanup
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(idx)
     cum = cum.reset_index()[cum.reset_index().month != ''].set_index(idx)
     
-    # next qurater est is equal to revenue * average est margin over the last year
-    for i in range(4):
-        n_idx = list(cum.iloc[-1].name)
-        n_idx = getNextQuarter(n_idx)
+    for i in range(5):
+        n_idx = list(hist.iloc[-1].name)
+        # We only have annual data so tough to do quarterly projections
+        # n_idx = getNextQuarter(n_idx)
+        n_idx = getNextYear(n_idx)
         
         n_cum_dict = {k: v for k, v in zip(idx, n_idx)}
         n_hist_dict = {k: v for k, v in zip(idx, n_idx)}
@@ -71,49 +73,51 @@ def modelEstOLS(cum, hist, chg, margin):
         #########
         
         # need to convert from margin to gross
-        pdb.set_trace()
         hist_cols_conv = ['cogs', 'rd', 'sga', 'other', 'netInterestOtherMargin', 'shares']
         for cc in ['totalLiabilities', 'cashAndShortTermInv'] + hist_cols_conv:
             hist[cc] = hist['totalAssets'] * hist[cc]
         
         for cc in ['revenue', 'operatingIncome'] + hist_cols_conv:
+            if cc in assume_avg:
+                # Need this for volatile categories
+                n_hist_dict[cc] = hist[cc].mean()
+                continue
+            # Ordinary Least Squares regression done over the history of the company
             xs = hist.reset_index()[['date','month']]
             slope, yint = ols_calc(xs, hist[cc])
             start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
-            new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]), int(n_idx[2][:-1]), 1).date()])[-1]
+            new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]), int(float(n_idx[2][:-1])), 1).date()])[-1]
+            
+            # Only need this for quarterly model as names changed
+            # cc = hist_quarterly_map.get(cc, cc)
             # divide by four for quarterly
-            cc = hist_quarterly_map.get(cc, cc)
             # n_cum_dict[cc] = (yint + new_x * slope) / 4
             n_hist_dict[cc] = (yint + new_x * slope)
         
-        # 0.6 = about corp rate , 0.02 = about yield on cash, 0.25 = 1/4 of the year
-        # n_cum_dict['intExp'] = total_debt * 0.25 * 0.7 - cash_and_inv * 0.25 * 0.02
-        # n_cum_dict['EBT'] = n_cum_dict['EBIT'] - n_cum_dict['intExp'] + n_cum_dict['otherInc']
-        
+        # 0.7 = about corp rate , 0.02 = about yield on cash, 0.25 = 1/4 of the year
+        pdb.set_trace()
+        # TODO - Scale is off here, need to look into it
         n_hist_dict['intExp'] = total_debt * 0.25 * 0.7 - cash_and_inv * 0.25 * 0.02
-        n_hist_dict['EBT'] = n_hist_dict['EBIT'] - n_hist_dict['intExp'] + n_hist_dict['otherInc']
+        n_hist_dict['EBT'] = n_hist_dict['operatingIncome'] - n_hist_dict['intExp'] + n_hist_dict['netInterestOtherMargin']
         
         # average tax rate of the last 5 years
-        # n_cum_dict['taxes'] = (cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean() * n_cum_dict['EBT']
-        # n_cum_dict['netIncome'] = n_cum_dict['EBT'] - n_cum_dict['taxes']
-        
         n_hist_dict['taxes'] = (cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean() * n_hist_dict['EBT']
         n_hist_dict['netIncome'] = n_hist_dict['EBT'] - n_hist_dict['taxes']
         
-        # Assume change over the last year continues for next quarter - may need to adjust this per company
-        # n_cum_dict['shares'] = ((((cum.iloc[-1]['shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
-        # n_cum_dict['EPS'] = n_cum_dict['netIncome'] / n_cum_dict['shares']
-        
+        # Assume change over the last year continues for next year - may need to adjust this per company
         n_hist_dict['shares'] = ((((cum.iloc[-1]['shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
         n_hist_dict['EPS'] = n_hist_dict['netIncome'] / n_hist_dict['shares']
         
         # t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(idx)
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(idx)
-        cum = cum.append(t_df)
+        # cum = cum.append(t_df)
+        hist = hist.append(t_df)
         
+    # cum[sum_cols]
+    # return cum
     pdb.set_trace()
-    cum[sum_cols]
-    return cum
+    hist[sum_cols]
+    return hist
         
 
 
@@ -171,7 +175,6 @@ def modelEst(cum, hist, chg, margin):
     cum = cum.fillna(0)
     empty_cols = [c for c in list(cum.columns) if all(v == 0 for v in cum[c])]
     cum = cum[list(set(cum.columns) - set(empty_cols))]
-    pdb.set_trace()
     return cum
 
 
@@ -185,6 +188,10 @@ def getNextQuarter(index):
     if m < 10:
         m = "0" + str(m)
     return [str(y), tick, str(m)+"E"]
+
+
+def getNextYear(index):
+    return [str(int(index[0])+1), index[1], str(index[2]).replace("E","")+"E"]
 
 
 def clean_add_columns(df):
@@ -282,7 +289,7 @@ def reorgCols(cums, chgs):
     
 
 def ols_calc(xs, ys, n_idx=None):
-    xs = [dt.datetime(int(x[0]), int(x[1]), 1).date() for x in xs.values]
+    xs = [dt.datetime(int(x[0]), int(float(str(x[1]).replace("E",""))), 1).date() for x in xs.values]
     start = xs[0]
     xs = get_year_deltas(xs)
     A = np.vstack([xs, np.ones(len(xs))]).T
