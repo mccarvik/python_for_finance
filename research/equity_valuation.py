@@ -12,7 +12,7 @@ from utils.db_utils import DBHelper
 from dx.frame import get_year_deltas
 
 idx = ['date', 'ticker', 'month']
-sum_cols = ['revenue', 'intExp', 'shares', 'EBT', 'netIncome', 'taxes', 'EPS', 'cogs', 'sga', 'rd']
+sum_cols = ['revenue', 'operatingIncome', 'shares', 'EBT', 'netIncome', 'taxes', 'EPS', 'cogs', 'sga', 'rd']
 
 hist_quarterly_map = {
     'operatingIncome' : 'EBIT',
@@ -54,9 +54,14 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(idx)
     cum = cum.reset_index()[cum.reset_index().month != ''].set_index(idx)
     
+    # need to convert from margin to gross
+    hist_cols_conv = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
+    for cc in ['totalLiabilities', 'cashAndShortTermInv'] + hist_cols_conv:
+        hist[cc] = hist['revenue'] * (hist[cc] / 100)
+    
     # next qurater est is equal to revenue * average est margin over the last year
-    for i in range(4):
-        n_idx = list(cum.iloc[-1].name)
+    for i in range(5):
+        n_idx = list(hist.iloc[-1].name)
         # n_idx = getNextQuarter(n_idx)
         n_idx = getNextYear(n_idx)
         
@@ -70,26 +75,21 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
         # Use OLS to get projected values
         #########
         
-        # need to convert from margin to gross
-        hist_cols_conv = ['cogs', 'rd', 'sga', 'other', 'netInterestOtherMargin']
-        for cc in ['totalLiabilities', 'cashAndShortTermInv'] + hist_cols_conv:
-            hist[cc] = hist['revenue'] * (hist[cc] / 100)
-        
-        for cc in ['revenue', 'operatingIncome'] + hist_cols_conv:
+        for cc in ['revenue', 'operatingIncome', 'taxRate'] + hist_cols_conv:
             # Need these for columns that are too eradic for OLS
-            if hist_quarterly_map.get(cc, cc) in avg_cols:
-                n_hist_dict[hist_quarterly_map.get(cc, cc)] = hist[cc].mean()
+            if cc in avg_cols:
+                n_hist_dict[cc] = hist[cc].mean()
                 continue
-            if hist_quarterly_map.get(cc, cc) in use_last:
-                n_hist_dict[hist_quarterly_map.get(cc, cc)] = hist[cc].values[-1]
+            if cc in use_last:
+                n_hist_dict[cc] = hist[cc].values[-1]
                 continue
             
             xs = hist.reset_index()[['date','month']]
             slope, yint = ols_calc(xs, hist[cc])
             start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
             new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]), int(n_idx[2][:-1]), 1).date()])[-1]
-            # divide by four for quarterly if necessary
-            cc = hist_quarterly_map.get(cc, cc)
+            # Need this to convert terminology for quarterly, also need to divide by four
+            # cc = hist_quarterly_map.get(cc, cc)
             n_hist_dict[cc] = (yint + new_x * slope)
         
         # 0.6 = about corp rate , 0.02 = about yield on cash, 0.25 = 1/4 of the year
@@ -99,8 +99,8 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
         # Interest Expense included in other income
         # n_hist_dict['intExp'] = total_debt * 0.06 - cash_and_inv * 0.02 
         pdb.set_trace()
-        n_hist_dict['EBT'] = n_hist_dict['EBIT'] + n_hist_dict['otherInc']
-        n_hist_dict['taxes'] = (cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean() * n_hist_dict['EBT']
+        n_hist_dict['EBT'] = n_hist_dict['operatingIncome'] + n_hist_dict['netInterestOtherMargin']
+        n_hist_dict['taxes'] = (n_hist_dict['taxRate'] / 100) * n_hist_dict['EBT']
         n_hist_dict['netIncome'] = n_hist_dict['EBT'] - n_hist_dict['taxes']
         
         n_hist_dict['shares'] = ((((cum.iloc[-1]['shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
@@ -108,12 +108,11 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
         
         # t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(idx)
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(idx)
-        pdb.set_trace()
-        cum = cum.append(t_df)
+        hist = hist.append(t_df)
         
     pdb.set_trace()
-    cum[sum_cols]
-    return cum
+    hist[sum_cols]
+    return hist
 
 
 def modelEst(cum, hist, chg, margin):
@@ -187,7 +186,7 @@ def getNextQuarter(index):
 
 
 def getNextYear(index):
-    return [str(int(index[0])+1), index[1], str(int(index[2].replace("E","")))+"E"]
+    return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E",""))))+"E"]
 
 
 def clean_add_columns(df):
@@ -285,7 +284,7 @@ def reorgCols(cums, chgs):
     
 
 def ols_calc(xs, ys, n_idx=None):
-    xs = [dt.datetime(int(x[0]), int(x[1]), 1).date() for x in xs.values]
+    xs = [dt.datetime(int(x[0]), int(float(str(x[1]).replace("E",""))), 1).date() for x in xs.values]
     start = xs[0]
     xs = get_year_deltas(xs)
     A = np.vstack([xs, np.ones(len(xs))]).T
