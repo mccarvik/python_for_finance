@@ -328,6 +328,7 @@ def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
     # Sheet can be bs = balance sheet, is = income statement, cf = cash flow statement
     # Column year can be 5 or 10, doesnt really work
     # 1 = None 2 = Thousands 3 = Millions 4 = Billions
+    pdb.set_trace()
     url = 'http://financials.morningstar.com/ajax/ReportProcess4CSV.html?t={0}&reportType={1}&period={2}&dataType=A&order=asc&columnYear={3}&number={4}'.format(ticker, sheet, per, col, num)
     urlData = requests.get(url).content.decode('utf-8')
     if 'Error reading' in urlData or urlData=='':
