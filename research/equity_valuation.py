@@ -11,6 +11,12 @@ from res_utils import *
 from utils.db_utils import DBHelper
 from dx.frame import get_year_deltas
 
+# NOTES:
+# simulate api call --> http://financials.morningstar.com/ajax/exportKR2CSV.html?t=BA
+
+
+
+
 idx = ['date', 'ticker', 'month']
 sum_cols = ['revenue', 'operatingIncome', 'shares', 'EBT', 'netIncome', 'taxes', 'EPS', 'cogs', 'sga', 'rd']
 
@@ -20,6 +26,13 @@ hist_quarterly_map = {
     'cashAndShortTermInv' : 'totalCash',
     'netInterestOtherMargin' : 'otherInc'
 }
+
+margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin', 'cashAndShortTermInv', 
+                'totalLiabilities']
+bal_sheet_cols = ['totalCurrentLiabilities', 'totalCurrentAssets']
+gross_cols = ['workingCapital']
+ratio_val_cols = ['currentRatio']
+
 
 def income_state_model(ticks, mode='db'):
     if mode == 'api':
@@ -37,8 +50,11 @@ def income_state_model(ticks, mode='db'):
     data_cum = dataCumColumns(data)
     data_chg = period_chg(data)
     data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
+    
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
-    data_est = modelEstOLS(data_cum, data_hist, data_chg, data_margin, [], [])
+    pdb.set_trace()
+    data_ols = modelEstOLS(data_cum, data_hist, data_chg, data_margin, [], [])
+    ratios = ratios_and_valuation(data_ols)
     
     # data = prune_columns(data)
     # data = clean_add_columns(data)
@@ -48,6 +64,14 @@ def income_state_model(ticks, mode='db'):
     print()
 
 
+def ratios_and_valuation(data):
+    # quick ratio, working capital, trade working capital
+    # https://www.investopedia.com/terms/t/tradeworkingcapital.asp
+    pdb.set_trace()
+    data['currentRatio'] = data['totalCurrentAssets'] / data['totalCurrentLiabilities']
+    print(data)
+
+
 def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
     df_est = pd.DataFrame()
     # some cleanup
@@ -55,9 +79,10 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
     cum = cum.reset_index()[cum.reset_index().month != ''].set_index(idx)
     
     # need to convert from margin to gross
-    hist_cols_conv = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
-    for cc in ['totalLiabilities', 'cashAndShortTermInv'] + hist_cols_conv:
+    for cc in margin_cols:
         hist[cc] = hist['revenue'] * (hist[cc] / 100)
+    for cc in bal_sheet_cols:
+        hist[cc] = hist['totalAssets'] * (hist[cc] / 100)
     
     # next qurater est is equal to revenue * average est margin over the last year
     for i in range(5):
@@ -67,15 +92,12 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
         
         n_cum_dict = {k: v for k, v in zip(idx, n_idx)}
         n_hist_dict = {k: v for k, v in zip(idx, n_idx)}
-        # Assume these are static
-        total_debt = cum.iloc[-1]['totalLiab']
-        cash_and_inv = cum.iloc[-1]['totalCash']
         
         #########
         # Use OLS to get projected values
         #########
         
-        for cc in ['revenue', 'operatingIncome', 'taxRate'] + hist_cols_conv:
+        for cc in ['revenue', 'operatingIncome', 'taxRate'] + margin_cols + gross_cols + bal_sheet_cols:
             # Need these for columns that are too eradic for OLS
             if cc in avg_cols:
                 n_hist_dict[cc] = hist[cc].mean()
@@ -98,7 +120,6 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
         
         # Interest Expense included in other income
         # n_hist_dict['intExp'] = total_debt * 0.06 - cash_and_inv * 0.02 
-        pdb.set_trace()
         n_hist_dict['EBT'] = n_hist_dict['operatingIncome'] + n_hist_dict['netInterestOtherMargin']
         n_hist_dict['taxes'] = (n_hist_dict['taxRate'] / 100) * n_hist_dict['EBT']
         n_hist_dict['netIncome'] = n_hist_dict['EBT'] - n_hist_dict['taxes']
@@ -109,9 +130,7 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
         # t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(idx)
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(idx)
         hist = hist.append(t_df)
-        
-    pdb.set_trace()
-    hist[sum_cols]
+    # print(hist[sum_cols])
     return hist
 
 
@@ -169,7 +188,6 @@ def modelEst(cum, hist, chg, margin):
     cum = cum.fillna(0)
     empty_cols = [c for c in list(cum.columns) if all(v == 0 for v in cum[c])]
     cum = cum[list(set(cum.columns) - set(empty_cols))]
-    pdb.set_trace()
     return cum
 
 
@@ -300,8 +318,8 @@ def removeEmptyCols(df):
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
     income_state_model(['MSFT'])
-    
     # income_state_model(['MCD'])
     # income_state_model(['CSCO'])
     # income_state_model(['FLWS'], mode='db')
     # income_state_model(['FLWS'], mode='api')
+    
