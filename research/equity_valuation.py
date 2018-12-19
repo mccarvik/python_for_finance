@@ -15,8 +15,6 @@ from dx.frame import get_year_deltas
 # simulate api call --> http://financials.morningstar.com/ajax/exportKR2CSV.html?t=BA
 
 
-
-
 idx = ['date', 'ticker', 'month']
 sum_cols = ['revenue', 'operatingIncome', 'shares', 'EBT', 'netIncome', 'taxes', 'EPS', 'cogs', 'sga', 'rd']
 
@@ -27,11 +25,11 @@ hist_quarterly_map = {
     'netInterestOtherMargin' : 'otherInc'
 }
 
-margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin', 'cashAndShortTermInv', 
-                'totalLiabilities']
-bal_sheet_cols = ['totalCurrentLiabilities', 'totalCurrentAssets']
+margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
+bal_sheet_cols = ['totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
+                 'accountsPayable', 'cashAndShortTermInv']
 gross_cols = ['workingCapital']
-ratio_val_cols = ['currentRatio']
+ratio_val_cols = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio']
 
 
 def income_state_model(ticks, mode='db'):
@@ -54,6 +52,7 @@ def income_state_model(ticks, mode='db'):
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
     pdb.set_trace()
     data_ols = modelEstOLS(data_cum, data_hist, data_chg, data_margin, [], [])
+    pdb.set_trace()
     ratios = ratios_and_valuation(data_ols)
     
     # data = prune_columns(data)
@@ -67,8 +66,11 @@ def income_state_model(ticks, mode='db'):
 def ratios_and_valuation(data):
     # quick ratio, working capital, trade working capital
     # https://www.investopedia.com/terms/t/tradeworkingcapital.asp
-    pdb.set_trace()
+    data['workingCapital'] = data['totalCurrentAssets'] - data['totalCurrentLiabilities']
+    data['tradeWorkingCapital'] = data['accountsRecievable'] + data['inventory'] - data['accountsPayable']
     data['currentRatio'] = data['totalCurrentAssets'] / data['totalCurrentLiabilities']
+    data['quickRatio'] = (data['cashAndShortTermInv'] + data['accountsRecievable']) / data['totalCurrentLiabilities']
+    pdb.set_trace()
     print(data)
 
 
@@ -294,6 +296,7 @@ def dataCumColumns(data):
     data = data.reindex([0,1,2,5,3,6,4,7])
     data = data.set_index(idx)
     return data
+
 
 
 def reorgCols(cums, chgs):
