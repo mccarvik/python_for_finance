@@ -14,10 +14,7 @@ from dx.frame import get_year_deltas
 # NOTES:
 # simulate api call --> http://financials.morningstar.com/ajax/exportKR2CSV.html?t=BA
 
-
 idx = ['date', 'ticker', 'month']
-sum_cols = ['revenue', 'operatingIncome', 'shares', 'EBT', 'netIncome', 'taxes', 'EPS', 'cogs', 'sga', 'rd']
-
 hist_quarterly_map = {
     'operatingIncome' : 'EBIT',
     'totalLiabilities' : 'totalLiab',
@@ -25,11 +22,17 @@ hist_quarterly_map = {
     'netInterestOtherMargin' : 'otherInc'
 }
 
+# input cols
 margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
 bal_sheet_cols = ['totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
-                 'accountsPayable', 'cashAndShortTermInv']
-gross_cols = ['workingCapital']
-ratio_val_cols = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio']
+                 'accountsPayable', 'cashAndShortTermInv', 'netPPE', 'totalEquity']
+gross_cols = ['workingCapital', 'totalAssets']
+
+# output cols
+int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
+op_eff = ['receivablesTurnover', 'receivablesDaysOutstanding', 'totalAssetTurnover', 'inventoryTurnover',
+          'inventoryDaysOutstanding', 'daysSalesOutstanding', 'equityTurnover', 'payablesTurnover',
+          'payablesDaysOutstanding', 'cash_conversion_cycle']
 
 
 def income_state_model(ticks, mode='db'):
@@ -50,9 +53,7 @@ def income_state_model(ticks, mode='db'):
     data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
     
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
-    pdb.set_trace()
-    data_ols = modelEstOLS(data_cum, data_hist, data_chg, data_margin, [], [])
-    pdb.set_trace()
+    data_ols = modelEstOLS(5, data_cum, data_hist, data_chg, data_margin, [], [])
     ratios = ratios_and_valuation(data_ols)
     
     # data = prune_columns(data)
@@ -64,17 +65,30 @@ def income_state_model(ticks, mode='db'):
 
 
 def ratios_and_valuation(data):
-    # quick ratio, working capital, trade working capital
-    # https://www.investopedia.com/terms/t/tradeworkingcapital.asp
+    # Internal Liquidity
     data['workingCapital'] = data['totalCurrentAssets'] - data['totalCurrentLiabilities']
     data['tradeWorkingCapital'] = data['accountsRecievable'] + data['inventory'] - data['accountsPayable']
     data['currentRatio'] = data['totalCurrentAssets'] / data['totalCurrentLiabilities']
     data['quickRatio'] = (data['cashAndShortTermInv'] + data['accountsRecievable']) / data['totalCurrentLiabilities']
+    data['workingCap_v_Sales'] = data['workingCapital'] / data['revenue']
+    
+    # Operating Efficiency
+    data['receivablesTurnover'] = data['revenue'] / data['accountsRecievable']
+    data['receivablesDaysOutstanding'] = 365 / data['receivablesTurnover'] 
+    data['totalAssetTurnover'] = data['revenue'] / data['totalAssets']
+    data['inventoryTurnover'] = data['cogs'] / data['inventory']
+    data['inventoryDaysOutstanding'] = 365 / data['inventoryTurnover'] 
+    data['daysSalesOutstanding'] = data['accountsRecievable'] / (data['revenue'] / 365)
+    data['fixedAssetTurnover'] = data['revenue'] / data['netPPE']
+    data['equityTurnover'] = data['revenue'] / data['totalEquity']
+    data['payablesTurnover'] = data['revenue'] / data['accountsPayable']
+    data['payablesDaysOutstanding'] = 365 / data['payablesTurnover']
+    data['cash_conversion_cycle'] = data['inventoryDaysOutstanding'] + data['receivablesDaysOutstanding'] - data['payablesDaysOutstanding']
     pdb.set_trace()
     print(data)
 
 
-def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
+def modelEstOLS(years, cum, hist, chg, margin, avg_cols=[], use_last=[]):
     df_est = pd.DataFrame()
     # some cleanup
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(idx)
@@ -87,7 +101,7 @@ def modelEstOLS(cum, hist, chg, margin, avg_cols=[], use_last=[]):
         hist[cc] = hist['totalAssets'] * (hist[cc] / 100)
     
     # next qurater est is equal to revenue * average est margin over the last year
-    for i in range(5):
+    for i in range(years):
         n_idx = list(hist.iloc[-1].name)
         # n_idx = getNextQuarter(n_idx)
         n_idx = getNextYear(n_idx)
