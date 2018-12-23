@@ -24,15 +24,18 @@ hist_quarterly_map = {
 
 # input cols
 margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
-bal_sheet_cols = ['totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
+bal_sheet_cols = ['totalLiabilities', 'totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
                  'accountsPayable', 'cashAndShortTermInv', 'netPPE', 'totalEquity']
-gross_cols = ['workingCapital', 'totalAssets']
+gross_cols = ['workingCapital', 'totalAssets', 'enterpriseValue', 'EBITDA', 'nopat', 'dividendPerShare']
 
 # output cols
 int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
 op_eff = ['receivablesTurnover', 'receivablesDaysOutstanding', 'totalAssetTurnover', 'inventoryTurnover',
           'inventoryDaysOutstanding', 'daysSalesOutstanding', 'equityTurnover', 'payablesTurnover',
           'payablesDaysOutstanding', 'cash_conversion_cycle']
+marg_rats = ['grossMargin', 'operMargin', 'pretaxMargin', 'netMargin', 'EBITDAMargin', 'EBITDA_v_EV', 'EV_v_EBITDA']
+ret_rats = ['ROIC', 'RTC', 'ROA', 'ROE', 'ROE_dupont']
+risk_anal = ['operLev', 'intCov', 'debtToEquity', 'debtToCap']
 
 
 def income_state_model(ticks, mode='db'):
@@ -52,6 +55,7 @@ def income_state_model(ticks, mode='db'):
     data_chg = period_chg(data)
     data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
     
+    data_hist = histAdjustments(data_hist, data)
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
     data_ols = modelEstOLS(5, data_cum, data_hist, data_chg, data_margin, [], [])
     ratios = ratios_and_valuation(data_ols)
@@ -84,6 +88,29 @@ def ratios_and_valuation(data):
     data['payablesTurnover'] = data['revenue'] / data['accountsPayable']
     data['payablesDaysOutstanding'] = 365 / data['payablesTurnover']
     data['cash_conversion_cycle'] = data['inventoryDaysOutstanding'] + data['receivablesDaysOutstanding'] - data['payablesDaysOutstanding']
+    
+    # margin ratios
+    data['grossMargin'] = (data['revenue'] - data['cogs']) / data['revenue'] 
+    data['operMargin'] = (data['operatingIncome']) / data['revenue']
+    data['pretaxMargin'] = data['EBT'] / data['revenue']
+    data['netMargin'] = data['netIncome'] / data['revenue']
+    data['EBITDAMargin'] = data['EBITDA'] / data['revenue']
+    data['EBITDA_v_EV'] = data['EBITDA'] / data['enterpriseValue']
+    data['EV_v_EBITDA'] = data['enterpriseValue'] / data['EBITDA']
+    
+    # return ratios
+    data['ROIC'] = data['nopat'] / (data['totalAssets'] - data['cashAndShortTermInv'] - data['totalCurrentLiabilities']) 
+    data['RTC'] = data['nopat'] / data['totalAssets']
+    data['ROA'] = data['netIncome'] / data['totalAssets']
+    data['ROE'] = data['netIncome'] / data['totalEquity']
+    data['ROE_dupont'] = (data['netIncome'] / data['revenue']) * (data['revenue'] / data['totalAssets']) * (data['totalAssets'] / data['totalEquity'])
+    
+    # risk analysis
+    data['operLev'] = data['operatingIncome'].pct_change() / data['revenue'].pct_change()
+    data['intCov'] = data['operatingIncome'] / data['netInterestOtherMargin']
+    data['debtToEquity'] = data['totalLiabilities'] / data['totalEquity']
+    data['debtToCap'] = data['totalLiabilities'] / data['totalAssets']
+    
     pdb.set_trace()
     print(data)
 
@@ -330,6 +357,17 @@ def ols_calc(xs, ys, n_idx=None):
 
 def removeEmptyCols(df):
     return df.dropna(axis='columns', how='all')
+
+
+def histAdjustments(hist, data_is):
+    # assume sum of last 4 quarters as annual
+    hist['depAndAmort'] = data_is['depAndAmort'][-4:].sum()
+    hist['EBITDA'] = data_is['EBITDA'][-4:].sum()
+    
+    # Adding columns
+    # Net Operatin Profat after tax
+    hist['nopat'] = hist['operatingIncome'] * (1 - hist['taxRate']/100)
+    return hist
 
 
 if __name__ == '__main__':
