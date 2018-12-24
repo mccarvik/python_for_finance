@@ -322,6 +322,25 @@ CF_COLS = {
 }
 
 
+# input cols
+margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
+bal_sheet_cols = ['totalLiabilities', 'totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
+                 'accountsPayable', 'cashAndShortTermInv', 'netPPE', 'totalEquity']
+gross_cols = ['workingCapital', 'totalAssets', 'enterpriseValue', 'EBITDA', 'nopat', 'dividendPerShare', 'capSpending', 'operCF', 'FCF',
+              ]
+
+# output cols
+int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
+op_eff = ['receivablesTurnover', 'receivablesDaysOutstanding', 'totalAssetTurnover', 'inventoryTurnover',
+          'inventoryDaysOutstanding', 'daysSalesOutstanding', 'equityTurnover', 'payablesTurnover',
+          'payablesDaysOutstanding', 'cashConversionCycle']
+marg_rats = ['grossMargin', 'operMargin', 'pretaxMargin', 'netMargin', 'EBITDAMargin', 'EBITDA_v_EV', 'EV_v_EBITDA']
+ret_rats = ['ROIC', 'RTC', 'ROA', 'ROE', 'ROE_dupont']
+risk_anal = ['operLev', 'intCov', 'debtToEquity', 'debtToCap']
+cf_anal = ['operCF', 'FCF', 'FCF_min_wc', 'FCF_min_twc', 'retEarnRatio', 'divPayoutRatio', 'constGrwothRate']
+pe = ['PE_low_hist', 'PE_high_hist', 'PE_avg_hist']
+
+
 def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
     # Use this for quarterly info
     # Period can be 3 or 12 for quarterly vs annual

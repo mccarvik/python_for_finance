@@ -22,51 +22,17 @@ hist_quarterly_map = {
     'netInterestOtherMargin' : 'otherInc'
 }
 
-# input cols
-margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
-bal_sheet_cols = ['totalLiabilities', 'totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
-                 'accountsPayable', 'cashAndShortTermInv', 'netPPE', 'totalEquity']
-gross_cols = ['workingCapital', 'totalAssets', 'enterpriseValue', 'EBITDA', 'nopat', 'dividendPerShare']
 
-# output cols
-int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
-op_eff = ['receivablesTurnover', 'receivablesDaysOutstanding', 'totalAssetTurnover', 'inventoryTurnover',
-          'inventoryDaysOutstanding', 'daysSalesOutstanding', 'equityTurnover', 'payablesTurnover',
-          'payablesDaysOutstanding', 'cash_conversion_cycle']
-marg_rats = ['grossMargin', 'operMargin', 'pretaxMargin', 'netMargin', 'EBITDAMargin', 'EBITDA_v_EV', 'EV_v_EBITDA']
-ret_rats = ['ROIC', 'RTC', 'ROA', 'ROE', 'ROE_dupont']
-risk_anal = ['operLev', 'intCov', 'debtToEquity', 'debtToCap']
-
-
-def income_state_model(ticks, mode='db'):
-    if mode == 'api':
-        data = makeAPICall(ticks[0], 'is')
-        # reorganizing columns
-        # data = reorgCols(data_cum, data_chg)
-    else:
-        data = get_ticker_info(ticks, 'morningstar_monthly_is')
-        data_bs = get_ticker_info(ticks, 'morningstar_monthly_bs')[['totalCash', 'totalLiab']]
-        data_hist = get_ticker_info(ticks, 'morningstar')
-        # join on whatever data you need
-        data = data.join(data_bs)
-
-    data = removeEmptyCols(data)
-    data_cum = dataCumColumns(data)
-    data_chg = period_chg(data)
-    data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
-    
-    data_hist = histAdjustments(data_hist, data)
-    # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
-    data_ols = modelEstOLS(5, data_cum, data_hist, data_chg, data_margin, [], [])
-    ratios = ratios_and_valuation(data_ols)
-    
-    # data = prune_columns(data)
-    # data = clean_add_columns(data)
-    # data_chg = period_chg(data)
-    # data = data.join(data_chg.set_index(idx), how='inner')
+def historical_ratios(data):
+    # PE Ratios
     pdb.set_trace()
-    print()
-
+    data['PE_low_hist'] = (data['52WeekLow'] * data['shares']) / data['netIncome']
+    data['PE_high_hist'] = (data['52WeekHigh'] * data['shares']) / data['netIncome']
+    data['PE_avg_hist'] = (data['52WeekAvg'] * data['shares']) / data['netIncome']
+    
+    pdb.set_trace()
+    return data
+    
 
 def ratios_and_valuation(data):
     # Internal Liquidity
@@ -87,7 +53,7 @@ def ratios_and_valuation(data):
     data['equityTurnover'] = data['revenue'] / data['totalEquity']
     data['payablesTurnover'] = data['revenue'] / data['accountsPayable']
     data['payablesDaysOutstanding'] = 365 / data['payablesTurnover']
-    data['cash_conversion_cycle'] = data['inventoryDaysOutstanding'] + data['receivablesDaysOutstanding'] - data['payablesDaysOutstanding']
+    data['cashConversionCycle'] = data['inventoryDaysOutstanding'] + data['receivablesDaysOutstanding'] - data['payablesDaysOutstanding']
     
     # margin ratios
     data['grossMargin'] = (data['revenue'] - data['cogs']) / data['revenue'] 
@@ -111,8 +77,14 @@ def ratios_and_valuation(data):
     data['debtToEquity'] = data['totalLiabilities'] / data['totalEquity']
     data['debtToCap'] = data['totalLiabilities'] / data['totalAssets']
     
-    pdb.set_trace()
+    # cash flow analysis
+    data['FCF_min_wc'] = data['FCF'] - data['workingCapital'].diff()
+    data['FCF_min_twc'] = data['FCF'] - data['tradeWorkingCapital'].diff()
+    data['divPayoutRatio'] = (data['dividendPerShare'] * data['shares']) / data['netIncome']
+    data['retEarnRatio'] = (1 - data['divPayoutRatio'])
+    data['constGrwothRate'] = data['ROE'] * data['retEarnRatio']
     print(data)
+    return data
 
 
 def modelEstOLS(years, cum, hist, chg, margin, avg_cols=[], use_last=[]):
@@ -361,13 +333,46 @@ def removeEmptyCols(df):
 
 def histAdjustments(hist, data_is):
     # assume sum of last 4 quarters as annual
-    hist['depAndAmort'] = data_is['depAndAmort'][-4:].sum()
-    hist['EBITDA'] = data_is['EBITDA'][-4:].sum()
+    hist['depAndAmort'] = data_is['depAndAmort'].mean() * 4
+    hist['EBITDA'] = data_is['EBITDA'][-4:].mean() * 4
     
     # Adding columns
     # Net Operatin Profat after tax
     hist['nopat'] = hist['operatingIncome'] * (1 - hist['taxRate']/100)
+    hist['operCF'] = hist['netIncome'] + hist['depAndAmort']
+    hist['FCF'] = hist['operCF'] - hist['capSpending']
     return hist
+
+
+def income_state_model(ticks, mode='db'):
+    if mode == 'api':
+        data = makeAPICall(ticks[0], 'is')
+        # reorganizing columns
+        # data = reorgCols(data_cum, data_chg)
+    else:
+        data = get_ticker_info(ticks, 'morningstar_monthly_is')
+        data_bs = get_ticker_info(ticks, 'morningstar_monthly_bs')[['totalCash', 'totalLiab']]
+        data_hist = get_ticker_info(ticks, 'morningstar')
+        # join on whatever data you need
+        data = data.join(data_bs)
+
+    data = removeEmptyCols(data)
+    data_cum = dataCumColumns(data)
+    data_chg = period_chg(data)
+    data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
+    
+    data_hist = histAdjustments(data_hist, data)
+    # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
+    data_ols = modelEstOLS(5, data_cum, data_hist, data_chg, data_margin, [], [])
+    ratios = ratios_and_valuation(data_ols)
+    hist_rats = historical_ratios(ratios)
+    
+    # data = prune_columns(data)
+    # data = clean_add_columns(data)
+    # data_chg = period_chg(data)
+    # data = data.join(data_chg.set_index(idx), how='inner')
+    pdb.set_trace()
+    print()
 
 
 if __name__ == '__main__':
