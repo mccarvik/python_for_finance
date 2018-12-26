@@ -327,7 +327,7 @@ margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
 bal_sheet_cols = ['totalLiabilities', 'totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
                  'accountsPayable', 'cashAndShortTermInv', 'netPPE', 'totalEquity']
 gross_cols = ['workingCapital', 'totalAssets', 'enterpriseValue', 'EBITDA', 'nopat', 'dividendPerShare', 'capSpending', 'operCF', 'FCF',
-              ]
+              'totalEquity']
 
 # output cols
 int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
@@ -338,8 +338,12 @@ marg_rats = ['grossMargin', 'operMargin', 'pretaxMargin', 'netMargin', 'EBITDAMa
 ret_rats = ['ROIC', 'RTC', 'ROA', 'ROE', 'ROE_dupont']
 risk_anal = ['operLev', 'intCov', 'debtToEquity', 'debtToCap']
 cf_anal = ['operCF', 'FCF', 'FCF_min_wc', 'FCF_min_twc', 'retEarnRatio', 'divPayoutRatio', 'constGrwothRate']
-pe = ['PE_low_hist', 'PE_high_hist', 'PE_avg_hist']
-
+pe = ['PE_low_hist', 'PE_high_hist', 'PE_avg_hist', 'PE_curr_hist', 'PE_fwd']
+ps = ['PS', 'PS_curr', 'PS_fwd', 'PS_5yr_avg_hist']
+pb = ['PB', 'PB_curr', 'PB_fwd', 'PB_5yr_avg_hist']
+pcf = ['PCF', 'PCF_curr', 'PCF_fwd', 'PCF_5yr_avg_hist']
+pfcf = ['PFCF', 'PFCF_curr', 'PFCF_fwd', 'PFCF_5yr_avg_hist']
+peg = ['PEG', 'PEG_5yr_avg', 'PEGY', 'PEGY_5yr_avg', 'divYield']
 
 def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
     # Use this for quarterly info

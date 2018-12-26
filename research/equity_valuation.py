@@ -23,12 +23,93 @@ hist_quarterly_map = {
 }
 
 
-def historical_ratios(data):
-    # PE Ratios
+def discountFCF(data, period):
+    mv_eq = data['currentPrice'][period] * data['shares'][period]
+    # mv_debt = HARD TO GET
+    bv_debt = data['totalLiabilities'][period]
+    cost_debt = 0.07
+    
+    shares 
+    wacc = cost_equity + cost_debt
+    
+
+
+def historical_ratios(data, period):
+    next_per = tuple(getNextYear(period))
+    pers_2 = tuple(getNextYear(next_per))
+    
+    # fill current price with latest measurement
     pdb.set_trace()
+    data['currentPrice'] = data['currentPrice'].fillna(data['currentPrice'].dropna()[-1])
+    
+    # PE Ratios
     data['PE_low_hist'] = (data['52WeekLow'] * data['shares']) / data['netIncome']
     data['PE_high_hist'] = (data['52WeekHigh'] * data['shares']) / data['netIncome']
     data['PE_avg_hist'] = (data['52WeekAvg'] * data['shares']) / data['netIncome']
+    data['PE_curr_hist'] = (data['currentPrice'] * data['shares']) / data['netIncome']
+    data['PE_fwd'] = (data['currentPrice'] * data['shares']) / data['netIncome'].shift(1)
+    data['PE_5yr_avg_hist'] = data['PE_avg_hist'].rolling(center=False,window=5).mean()
+    for p in [next_per, pers_2]:
+        print("Hist avg PE: {}  Fwd EPS: {}  DV Est {} {}: {}".format('%.3f'%(data['PE_5yr_avg_hist'][period]), 
+            '%.3f'%(data['EPS'][p]), p[1], p[0], '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][p])))
+    
+    # P/S
+    data['PS'] = (data['52WeekAvg'] * data['shares']) / data['revenue']
+    data['PS_curr'] = (data['currentPrice'] * data['shares']) / data['revenue']
+    data['PS_fwd'] = (data['currentPrice'] * data['shares']) / data['revenue'].shift(1)
+    data['PS_5yr_avg_hist'] = data['PS'].rolling(center=False,window=5).mean()
+    for p in [next_per, pers_2]:
+        print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PS_5yr_avg_hist'][period]), 
+            '%.3f'%(data['revenue'][p] / data['shares'][period]), p[1], p[0],
+            '%.3f'%(data['PS_5yr_avg_hist'][period] * data['revenue'][p] / data['shares'][period])))
+    
+    # P/B
+    data['PB'] = (data['52WeekAvg'] * data['shares']) / data['totalEquity']
+    data['PB_curr'] = (data['currentPrice'] * data['shares']) / data['totalEquity']
+    data['PB_fwd'] = (data['currentPrice'] * data['shares']) / data['totalEquity'].shift(1)
+    data['PB_5yr_avg_hist'] = data['PB'].rolling(center=False,window=5).mean()
+    for p in [next_per, pers_2]:
+        print("Hist avg PB: {}  Fwd equity/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PB_5yr_avg_hist'][period]), 
+            '%.3f'%(data['totalEquity'][p] / data['shares'][period]), p[1], p[0],
+            '%.3f'%(data['PB_5yr_avg_hist'][period] * data['totalEquity'][p] / data['shares'][period])))
+    
+    # P/CF
+    data['PCF'] = (data['52WeekAvg'] * data['shares']) / data['operCF']
+    data['PCF_curr'] = (data['currentPrice'] * data['shares']) / data['operCF']
+    data['PCF_fwd'] = (data['currentPrice'] * data['shares']) / data['operCF'].shift(1)
+    data['PCF_5yr_avg_hist'] = data['PCF'].rolling(center=False,window=5).mean()
+    for p in [next_per, pers_2]:
+        print("Hist avg PCF: {}  Fwd CF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PCF_5yr_avg_hist'][period]), 
+            '%.3f'%(data['operCF'][p] / data['shares'][period]), p[1], p[0],
+            '%.3f'%(data['PCF_5yr_avg_hist'][period] * data['operCF'][p] / data['shares'][period])))
+    
+    # P/FCF
+    data['PFCF'] = (data['52WeekAvg'] * data['shares']) / data['FCF']
+    data['PFCF_curr'] = (data['currentPrice'] * data['shares']) / data['FCF']
+    data['PFCF_fwd'] = (data['currentPrice'] * data['shares']) / data['FCF'].shift(1)
+    data['PFCF_5yr_avg_hist'] = data['PFCF'].rolling(center=False,window=5).mean()
+    for p in [next_per, pers_2]:
+        print("Hist avg PFCF: {}  Fwd FCF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PFCF_5yr_avg_hist'][period]), 
+            '%.3f'%(data['FCF'][p] / data['shares'][period]), p[1], p[0],
+            '%.3f'%(data['PFCF_5yr_avg_hist'][period] * data['FCF'][p] / data['shares'][period])))
+    
+    # Relative P/E
+    # NEED THE EARNIGNS OF THE SNP500
+    # data['PE_rel'] = (data['52WeekAvg'] * data['shares']) / data['PE_of_SnP']
+    # data['PE_rel_curr'] = (data['currentPrice'] * data['shares']) / data['PE_of_SnP']
+    # data['PE_rel_fwd'] = (data['currentPrice'] * data['shares']) / data['PE_of_SnP'].shift(1)
+    # data['PE_rel__5yr_avg'] = data['PE_rel'].rolling(center=False,window=5).mean()
+    # for p in [next_per, pers_2]:
+        # print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format(data['PE_rel__5yr_avg'][period], 
+        #     data['PE_of_SnP'][p] / data['shares'][period], period[1], period[0]
+        #     data['PE_rel__5yr_avg'][period] * data['revenue'][p] / data['shares'][period]))
+    
+    # PEG
+    data['PEG'] = data['PE_avg_hist'] / (data['netIncome'].pct_change() * 100)
+    data['PEG_5yr_avg'] = data['PEG'].rolling(center=False,window=5).mean()
+    data['divYield'] = data['dividendPerShare'] / data['52WeekAvg']
+    data['PEGY'] = data['PE_avg_hist'] / ((data['netIncome'].pct_change() + data['divYield']) * 100)
+    data['PEGY_5yr_avg'] = data['PEGY'].rolling(center=False,window=5).mean()
     
     pdb.set_trace()
     return data
@@ -83,7 +164,6 @@ def ratios_and_valuation(data):
     data['divPayoutRatio'] = (data['dividendPerShare'] * data['shares']) / data['netIncome']
     data['retEarnRatio'] = (1 - data['divPayoutRatio'])
     data['constGrwothRate'] = data['ROE'] * data['retEarnRatio']
-    print(data)
     return data
 
 
@@ -365,7 +445,9 @@ def income_state_model(ticks, mode='db'):
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
     data_ols = modelEstOLS(5, data_cum, data_hist, data_chg, data_margin, [], [])
     ratios = ratios_and_valuation(data_ols)
-    hist_rats = historical_ratios(ratios)
+    period = [i for i in ratios.index.values if "E" not in i[2]][-1]
+    hist_rats = historical_ratios(ratios, period)
+    dfcf = discountFCF(hist_rats,period)
     
     # data = prune_columns(data)
     # data = clean_add_columns(data)
