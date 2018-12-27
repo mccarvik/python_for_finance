@@ -24,13 +24,24 @@ hist_quarterly_map = {
 
 
 def discountFCF(data, period):
+    cost_debt = 0.07  # should be pulled off debt issued by company, hard coded for now
+    
+    rf = 0.028 # rate on 10yr tsy
+    market_risk_prem = 0.05 # generally accepted market risk premium above risk free rate
+    # 1 year beta, take the 3 year average
+    beta = data['beta'].rolling(center=False,window=3).mean()[period]
+    # CAPM
+    cost_equity = rf + beta * market_risk_prem
+    
     mv_eq = data['currentPrice'][period] * data['shares'][period]
     # mv_debt = HARD TO GET
-    bv_debt = data['totalLiabilities'][period]
-    cost_debt = 0.07
-    
-    shares 
-    wacc = cost_equity + cost_debt
+    bv_debt = data['shortTermDebt'][period] + data['longTermDebt'][period]
+    total_capital = bv_debt + mv_eq
+    eq_v_cap = mv_eq / total_capital
+    debt_v_cap = bv_debt / total_capital
+    tax_rate = data['taxRate'].rolling(center=False,window=5).mean()[period]
+    pdb.set_trace()
+    wacc = (cost_equity * eq_v_cap) + (cost_debt * debt_v_cap) * (1 - tax_rate / 100)
     
 
 
@@ -39,7 +50,6 @@ def historical_ratios(data, period):
     pers_2 = tuple(getNextYear(next_per))
     
     # fill current price with latest measurement
-    pdb.set_trace()
     data['currentPrice'] = data['currentPrice'].fillna(data['currentPrice'].dropna()[-1])
     
     # PE Ratios
@@ -110,8 +120,6 @@ def historical_ratios(data, period):
     data['divYield'] = data['dividendPerShare'] / data['52WeekAvg']
     data['PEGY'] = data['PE_avg_hist'] / ((data['netIncome'].pct_change() + data['divYield']) * 100)
     data['PEGY_5yr_avg'] = data['PEGY'].rolling(center=False,window=5).mean()
-    
-    pdb.set_trace()
     return data
     
 
