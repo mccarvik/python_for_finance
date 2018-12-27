@@ -40,8 +40,18 @@ def discountFCF(data, period):
     eq_v_cap = mv_eq / total_capital
     debt_v_cap = bv_debt / total_capital
     tax_rate = data['taxRate'].rolling(center=False,window=5).mean()[period]
-    pdb.set_trace()
     wacc = (cost_equity * eq_v_cap) + (cost_debt * debt_v_cap) * (1 - tax_rate / 100)
+    
+    pdb.set_trace()
+    eps_g_proj = 0.12 # analysts projected EPS growth
+    data['proj_calc_g'] = (data['constGrowthRate'] + eps_g_proj) / 2 # average of calc'd growth and analyst projection
+    data['1st_5yr_lt_g'] = data['constGrowthRate'].rolling(center=False, window=5).mean() # 5yr avg of constant growth calc
+    data['2nd_5yr_lt_g'] = data['1st_5yr_lt_g'] - 0.02 # slightly lower than 1st growth calc, usually 2 to 4%
+    term_growth = 0.05 # long term terminal growth rate - typically some average of gdp and the industry standard
+    pdb.set_trace()
+    print()
+    
+    
     
 
 
@@ -171,7 +181,7 @@ def ratios_and_valuation(data):
     data['FCF_min_twc'] = data['FCF'] - data['tradeWorkingCapital'].diff()
     data['divPayoutRatio'] = (data['dividendPerShare'] * data['shares']) / data['netIncome']
     data['retEarnRatio'] = (1 - data['divPayoutRatio'])
-    data['constGrwothRate'] = data['ROE'] * data['retEarnRatio']
+    data['constGrowthRate'] = data['ROE'] * data['retEarnRatio']
     return data
 
 
