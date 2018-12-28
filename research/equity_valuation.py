@@ -23,7 +23,7 @@ hist_quarterly_map = {
 }
 
 
-def discountFCF(data, period):
+def discountFCF(data, period, ests):
     cost_debt = 0.07  # should be pulled off debt issued by company, hard coded for now
     
     rf = 0.028 # rate on 10yr tsy
@@ -42,20 +42,59 @@ def discountFCF(data, period):
     tax_rate = data['taxRate'].rolling(center=False,window=5).mean()[period]
     wacc = (cost_equity * eq_v_cap) + (cost_debt * debt_v_cap) * (1 - tax_rate / 100)
     
-    pdb.set_trace()
     eps_g_proj = 0.12 # analysts projected EPS growth
     data['proj_calc_g'] = (data['constGrowthRate'] + eps_g_proj) / 2 # average of calc'd growth and analyst projection
     data['1st_5yr_lt_g'] = data['constGrowthRate'].rolling(center=False, window=5).mean() # 5yr avg of constant growth calc
     data['2nd_5yr_lt_g'] = data['1st_5yr_lt_g'] - 0.02 # slightly lower than 1st growth calc, usually 2 to 4%
     term_growth = 0.05 # long term terminal growth rate - typically some average of gdp and the industry standard
-    pdb.set_trace()
-    print()
     
+    # 2 Stage DFCF
+    years_to_terminal = 2
+    FCF_pershare = data['FCF_min_twc'][period] / data['shares'][period]
+    indices = [d for d in list(data.index.values) if int(d[0]) > int(period[0]) and int(d[0]) <= int(period[0])+years_to_terminal]
+    FCFs = [FCF_pershare * (1 + data['1st_5yr_lt_g'][period])**(int(x[0])-int(period[0])) for x in indices]
+    disc_FCFs = [FCFs[x] / (1+cost_equity)**(int(indices[x][0])-int(period[0])) for x in range(0,len(indices))]
+    sum_of_disc_CF = sum(disc_FCFs)
+    term_val = (data['FCF_min_twc'][indices[-1]] / data['shares'][period]) / (cost_equity - term_growth)
+    final_val = term_val + sum_of_disc_CF
+    ests.append(("2stage", indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
+    print("2 Stage Val Est {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
     
+    # 3 Stage DFCF
+    years_phase1 = 1
+    years_phase2 = 1
+    # 1st growth phase
+    FCF_pershare = data['FCF_min_twc'][period] / data['shares'][period]
+    indices = [d for d in list(data.index.values) if int(d[0]) > int(period[0]) and int(d[0]) <= int(period[0])+years_phase1]
+    FCFs = [FCF_pershare * (1 + data['1st_5yr_lt_g'][period])**(int(x[0])-int(period[0])) for x in indices]
+    disc_FCFs_1 = [FCFs[x] / (1+cost_equity)**(int(indices[x][0])-int(period[0])) for x in range(0,len(indices))]
+    # second growth phase
+    indices = [d for d in list(data.index.values) if int(d[0]) > int(indices[-1][0]) and int(d[0]) <= int(indices[-1][0])+years_phase2]
+    FCFs = [FCF_pershare * (1 + data['2nd_5yr_lt_g'][period])**(int(x[0])-int(period[0])) for x in indices]
+    disc_FCFs_2 = [FCFs[x] / (1+cost_equity)**(int(indices[x][0])-int(period[0])) for x in range(0,len(indices))]
+    sum_of_disc_CF = sum(disc_FCFs_1) + sum(disc_FCFs_2)
+    term_val = (data['FCF_min_twc'][indices[-1]] / data['shares'][period]) / (cost_equity - term_growth)
+    final_val = term_val + sum_of_disc_CF
+    ests.append(("3stage", indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
+    print("3 Stage Val Est {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
     
+    # Component DFCF
+    years_to_terminal = 2
+    # use the OLS growth calcs for FCFs
+    FCFs = data['FCF_min_twc'] / data['shares'][period]
+    indices = [d for d in list(data.index.values) if int(d[0]) > int(period[0]) and int(d[0]) <= int(period[0])+years_to_terminal]
+    disc_FCFs = [FCFs[indices[x]] / (1+cost_equity)**(int(indices[x][0])-int(period[0])) for x in range(0,len(indices))]
+    sum_of_disc_CF = sum(disc_FCFs)
+    term_val = (data['FCF_min_twc'][indices[-1]] / data['shares'][period]) / (cost_equity - term_growth)
+    final_val = term_val + sum_of_disc_CF
+    ests.append(("Component Anal", indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
+    print("Component Val {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
+
+    return data, ests
 
 
 def historical_ratios(data, period):
+    ests = []
     next_per = tuple(getNextYear(period))
     pers_2 = tuple(getNextYear(next_per))
     
@@ -70,18 +109,21 @@ def historical_ratios(data, period):
     data['PE_fwd'] = (data['currentPrice'] * data['shares']) / data['netIncome'].shift(1)
     data['PE_5yr_avg_hist'] = data['PE_avg_hist'].rolling(center=False,window=5).mean()
     for p in [next_per, pers_2]:
+        final_val = '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][p])
+        ests.append(("PE", p[1], p[0], final_val))
         print("Hist avg PE: {}  Fwd EPS: {}  DV Est {} {}: {}".format('%.3f'%(data['PE_5yr_avg_hist'][period]), 
-            '%.3f'%(data['EPS'][p]), p[1], p[0], '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][p])))
+            '%.3f'%(data['EPS'][p]), p[1], p[0], final_val))
     
     # P/S
     data['PS'] = (data['52WeekAvg'] * data['shares']) / data['revenue']
     data['PS_curr'] = (data['currentPrice'] * data['shares']) / data['revenue']
     data['PS_fwd'] = (data['currentPrice'] * data['shares']) / data['revenue'].shift(1)
     data['PS_5yr_avg_hist'] = data['PS'].rolling(center=False,window=5).mean()
-    for p in [next_per, pers_2]:
+    for p in [next_per, pers_2]: 
+        final_val = '%.3f'%(data['PS_5yr_avg_hist'][period] * data['revenue'][p] / data['shares'][period])
+        ests.append(("PS", p[1], p[0], final_val))
         print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PS_5yr_avg_hist'][period]), 
-            '%.3f'%(data['revenue'][p] / data['shares'][period]), p[1], p[0],
-            '%.3f'%(data['PS_5yr_avg_hist'][period] * data['revenue'][p] / data['shares'][period])))
+            '%.3f'%(data['revenue'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # P/B
     data['PB'] = (data['52WeekAvg'] * data['shares']) / data['totalEquity']
@@ -89,9 +131,10 @@ def historical_ratios(data, period):
     data['PB_fwd'] = (data['currentPrice'] * data['shares']) / data['totalEquity'].shift(1)
     data['PB_5yr_avg_hist'] = data['PB'].rolling(center=False,window=5).mean()
     for p in [next_per, pers_2]:
+        final_val = '%.3f'%(data['PB_5yr_avg_hist'][period] * data['totalEquity'][p] / data['shares'][period])
+        ests.append(("PB", p[1], p[0], final_val))
         print("Hist avg PB: {}  Fwd equity/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PB_5yr_avg_hist'][period]), 
-            '%.3f'%(data['totalEquity'][p] / data['shares'][period]), p[1], p[0],
-            '%.3f'%(data['PB_5yr_avg_hist'][period] * data['totalEquity'][p] / data['shares'][period])))
+            '%.3f'%(data['totalEquity'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # P/CF
     data['PCF'] = (data['52WeekAvg'] * data['shares']) / data['operCF']
@@ -99,9 +142,10 @@ def historical_ratios(data, period):
     data['PCF_fwd'] = (data['currentPrice'] * data['shares']) / data['operCF'].shift(1)
     data['PCF_5yr_avg_hist'] = data['PCF'].rolling(center=False,window=5).mean()
     for p in [next_per, pers_2]:
+        final_val = '%.3f'%(data['PCF_5yr_avg_hist'][period] * data['operCF'][p] / data['shares'][period])
+        ests.append(("PCF", p[1], p[0], final_val))
         print("Hist avg PCF: {}  Fwd CF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PCF_5yr_avg_hist'][period]), 
-            '%.3f'%(data['operCF'][p] / data['shares'][period]), p[1], p[0],
-            '%.3f'%(data['PCF_5yr_avg_hist'][period] * data['operCF'][p] / data['shares'][period])))
+            '%.3f'%(data['operCF'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # P/FCF
     data['PFCF'] = (data['52WeekAvg'] * data['shares']) / data['FCF']
@@ -109,9 +153,10 @@ def historical_ratios(data, period):
     data['PFCF_fwd'] = (data['currentPrice'] * data['shares']) / data['FCF'].shift(1)
     data['PFCF_5yr_avg_hist'] = data['PFCF'].rolling(center=False,window=5).mean()
     for p in [next_per, pers_2]:
+        final_val = '%.3f'%(data['PFCF_5yr_avg_hist'][period] * data['FCF'][p] / data['shares'][period])
+        ests.append(("PFCF", p[1], p[0], final_val))
         print("Hist avg PFCF: {}  Fwd FCF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PFCF_5yr_avg_hist'][period]), 
-            '%.3f'%(data['FCF'][p] / data['shares'][period]), p[1], p[0],
-            '%.3f'%(data['PFCF_5yr_avg_hist'][period] * data['FCF'][p] / data['shares'][period])))
+            '%.3f'%(data['FCF'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # Relative P/E
     # NEED THE EARNIGNS OF THE SNP500
@@ -130,7 +175,7 @@ def historical_ratios(data, period):
     data['divYield'] = data['dividendPerShare'] / data['52WeekAvg']
     data['PEGY'] = data['PE_avg_hist'] / ((data['netIncome'].pct_change() + data['divYield']) * 100)
     data['PEGY_5yr_avg'] = data['PEGY'].rolling(center=False,window=5).mean()
-    return data
+    return data, ests
     
 
 def ratios_and_valuation(data):
@@ -442,6 +487,28 @@ def histAdjustments(hist, data_is):
     return hist
 
 
+def analyze_ests(data, period, ests):
+    print("Tick: {}   Date: {} {}".format(period[1], period[0], period[2]))
+    print("Current Price: {}".format(data['currentPrice'][period]))
+    est_dict = {}
+    for e in ests:
+        try:
+            est_dict[(e[1], e[2])].append(e[3])
+        except:
+            est_dict[(e[1], e[2])] = [e[3]]
+        print("Model: {}  tick: {}  year: {}  EST: {}".format(e[0], e[1], e[2], e[3]))
+    
+    for k,v in est_dict.items():
+        v = [float(vs) for vs in v]
+        avg_est = sum(v) / len(v)
+        print("tick: {}  year: {} # Models: {}   AVG EST: {}".format(k[0], k[1], str(len(v)), '%.3f'%avg_est))
+        
+        prem_disc = (avg_est / data['currentPrice'][period]) - 1
+        # Divide by beta
+        risk_adj = ((avg_est / data['currentPrice'][period]) - 1) / data['beta'][period] 
+        print("Prem/Disc: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
+    
+
 def income_state_model(ticks, mode='db'):
     if mode == 'api':
         data = makeAPICall(ticks[0], 'is')
@@ -461,18 +528,19 @@ def income_state_model(ticks, mode='db'):
     
     data_hist = histAdjustments(data_hist, data)
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
-    data_ols = modelEstOLS(5, data_cum, data_hist, data_chg, data_margin, [], [])
+    data_ols = modelEstOLS(10, data_cum, data_hist, data_chg, data_margin, [], [])
     ratios = ratios_and_valuation(data_ols)
     period = [i for i in ratios.index.values if "E" not in i[2]][-1]
-    hist_rats = historical_ratios(ratios, period)
-    dfcf = discountFCF(hist_rats,period)
+    hist_rats, ests = historical_ratios(ratios, period)
+    dfcf, ests = discountFCF(hist_rats,period, ests)
+    
+    
+    analyze_ests(dfcf, period, ests)
     
     # data = prune_columns(data)
     # data = clean_add_columns(data)
     # data_chg = period_chg(data)
     # data = data.join(data_chg.set_index(idx), how='inner')
-    pdb.set_trace()
-    print()
 
 
 if __name__ == '__main__':

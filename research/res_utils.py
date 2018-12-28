@@ -346,7 +346,6 @@ pfcf = ['PFCF', 'PFCF_curr', 'PFCF_fwd', 'PFCF_5yr_avg_hist']
 peg = ['PEG', 'PEG_5yr_avg', 'PEGY', 'PEGY_5yr_avg', 'divYield']
 dfcf = ['constGrowthRate', 'proj_calc_g', '1st_5yr_lt_g', '2nd_5yr_lt_g']
 
-
 def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
     # Use this for quarterly info
     # Period can be 3 or 12 for quarterly vs annual
