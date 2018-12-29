@@ -6,6 +6,9 @@ import pdb, time, requests, csv
 import numpy as np
 import pandas as pd
 import datetime as dt
+import quandl
+quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
+import pandas_datareader as dr
 
 from res_utils import *
 from utils.db_utils import DBHelper
@@ -22,6 +25,11 @@ hist_quarterly_map = {
     'netInterestOtherMargin' : 'otherInc'
 }
 
+def price_perf_anal(data, period, ests, api=False):
+    px = getPriceData(data, period, ests, api)
+    pdb.set_trace()
+    print()
+    
 
 def discountFCF(data, period, ests):
     cost_debt = 0.07  # should be pulled off debt issued by company, hard coded for now
@@ -365,15 +373,6 @@ def getNextYear(index):
     return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E",""))))+"E"]
 
 
-def clean_add_columns(df):
-    # Edit the margin based columns
-    for c in ['cogs', 'sga', 'rd']:
-        df[c] = (df[c] / 100) * df['revenue']
-    df['operatingCost'] = df['sga'] + df['rd']
-    df['Taxes'] = df['EBT'] - df['netIncome']
-    return df
-    
-
 def get_ticker_info(ticks, table, dates=None):
     # Temp to make testing quicker
     t0 = time.time()
@@ -390,12 +389,6 @@ def get_ticker_info(ticks, table, dates=None):
     t1 = time.time()
     print("Done Retrieving data, took {0} seconds".format(t1-t0))
     return df.set_index(['date', 'ticker', 'month'])
-
-
-def prune_columns(df):
-    desired_cols = ['revenue', 'cogs', 'grossProfit', 'sga', 'rd', 'operatingIncome', 'netInterestOtherMargin', 'other',
-                    'EBTMargin', 'taxRate', 'taxesPayable', 'netIncome', 'shares', 'dividendPerShare', 'trailingEPS', 'EBT']
-    return df[desired_cols]
 
 
 def period_chg(df):
@@ -455,11 +448,6 @@ def dataCumColumns(data):
 
 
 
-def reorgCols(cums, chgs):
-    # just orders the columsn for use, VERY rigid
-    return cums.append(chgs).reset_index().reindex([0, 1, 8, 2, 9, 3, 4, 10, 5, 6, 11, 7, 12]).set_index(idx)
-    
-
 def ols_calc(xs, ys, n_idx=None):
     xs = [dt.datetime(int(x[0]), int(float(str(x[1]).replace("E",""))), 1).date() for x in xs.values]
     start = xs[0]
@@ -507,7 +495,29 @@ def analyze_ests(data, period, ests):
         # Divide by beta
         risk_adj = ((avg_est / data['currentPrice'][period]) - 1) / data['beta'][period] 
         print("Prem/Disc: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
-    
+
+
+def getPriceData(data, period, ests, api=False):
+    # Cant find an API I can trust for EOD stock data
+    if api:
+        start = dt.date(int(data.index.values[0][0]), int(data.index.values[0][2]), 1).strftime("%Y-%m-%d")
+        end = dt.datetime.today().date().strftime("%Y-%m-%d")
+        try:
+            # df = dr.data.DataReader(period[1], 'google', start, end)
+            # data = quandl.get_table('WIKI/PRICES', ticker = [period[1]], 
+            #                 qopts = { 'columns': ['ticker', 'date', 'adj_close'] }, 
+            #                 date = { 'gte': start, 'lte': end }, paginate=True)
+            url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(period[1], start, end)
+            qr = pd.read_csv(url)
+            qr['Date'] = qr['Date'].astype('datetime64[ns]')
+        except:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print("Could not read time series data for {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, period[1]))
+            raise
+    else:
+        qr = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/MSFT.csv")
+    return qr
+
 
 def income_state_model(ticks, mode='db'):
     if mode == 'api':
@@ -526,22 +536,24 @@ def income_state_model(ticks, mode='db'):
     data_chg = period_chg(data)
     data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
     
+    # Add some necessary columns and adjustemnts
     data_hist = histAdjustments(data_hist, data)
+    # project out data based on historicals using OLS regression
     # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
     data_ols = modelEstOLS(10, data_cum, data_hist, data_chg, data_margin, [], [])
+    # Calculate Ratios for Use later
     ratios = ratios_and_valuation(data_ols)
     period = [i for i in ratios.index.values if "E" not in i[2]][-1]
+    # Get Historical Ratios for valuation
     hist_rats, ests = historical_ratios(ratios, period)
-    dfcf, ests = discountFCF(hist_rats,period, ests)
+    # Discounted Free Cash Flow Valuation
+    dfcf, ests = discountFCF(hist_rats, period, ests)
+    # calculate performance metrics based on price
+    price_perf_anal(dfcf, period, ests)
     
-    
+    # Analysis of all valuations
     analyze_ests(dfcf, period, ests)
     
-    # data = prune_columns(data)
-    # data = clean_add_columns(data)
-    # data_chg = period_chg(data)
-    # data = data.join(data_chg.set_index(idx), how='inner')
-
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
