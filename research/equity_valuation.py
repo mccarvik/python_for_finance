@@ -501,6 +501,7 @@ def getPriceData(data, period, ests, api=False):
     # Cant find an API I can trust for EOD stock data
     if api:
         start = dt.date(int(data.index.values[0][0]), int(data.index.values[0][2]), 1).strftime("%Y-%m-%d")
+        pdb.set_trace()
         end = dt.datetime.today().date().strftime("%Y-%m-%d")
         try:
             # df = dr.data.DataReader(period[1], 'google', start, end)
@@ -515,11 +516,11 @@ def getPriceData(data, period, ests, api=False):
             print("Could not read time series data for {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, period[1]))
             raise
     else:
-        qr = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/MSFT.csv")
+        qr = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/{}.csv".format(period[1]))
     return qr
 
 
-def income_state_model(ticks, mode='db'):
+def valuation_model(ticks, mode='db'):
     if mode == 'api':
         data = makeAPICall(ticks[0], 'is')
         # reorganizing columns
@@ -557,9 +558,6 @@ def income_state_model(ticks, mode='db'):
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
-    income_state_model(['MSFT'])
-    # income_state_model(['MCD'])
-    # income_state_model(['CSCO'])
-    # income_state_model(['FLWS'], mode='db')
-    # income_state_model(['FLWS'], mode='api')
+    valuation_model(['MSFT'])
+    # valuation_model(['CSCO'])
     
