@@ -25,7 +25,8 @@ hist_quarterly_map = {
     'netInterestOtherMargin' : 'otherInc'
 }
 
-def price_perf_anal(data, period, mkt, ind, hist_px, ests):
+
+def price_perf_anal(period, mkt, ind, hist_px, ests):
     px_df = pd.DataFrame()
     mkt_px = hist_px[mkt].reset_index()
     ind_px = hist_px[ind].reset_index()
@@ -509,18 +510,16 @@ def analyze_ests(data, period, ests):
         print("Prem/Disc: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
 
 
-def getPriceData(data, comps, period, ests, api=False):
+def getPriceData(ticks, comps, period, ests, api=False):
     pxs = pd.DataFrame()
-    
     # Cant find an API I can trust for EOD stock data
-    for t in [period[1]] + comps:
+    for t in ticks + comps:
         if api:
             start = dt.date(int(data.index.values[0][0]), int(data.index.values[0][2]), 1).strftime("%Y-%m-%d")
             end = dt.datetime.today().date().strftime("%Y-%m-%d")
             try:
                 # df = dr.data.DataReader(period[1], 'google', start, end)
                 # data = quandl.get_table('WIKI/PRICES', ticker = [period[1]], qopts = { 'columns': ['ticker', 'date', 'adj_close'] }, date = { 'gte': start, 'lte': end }, paginate=True)
-                pdb.set_trace()
                 url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(period[1], start, end)
                 qr = pd.read_csv(url)
                 qr['Date'] = qr['Date'].astype('datetime64[ns]')
@@ -539,49 +538,55 @@ def getPriceData(data, comps, period, ests, api=False):
 
 
 def valuation_model(ticks, mode='db'):
-    if mode == 'api':
-        data = makeAPICall(ticks[0], 'is')
-        # reorganizing columns
-        # data = reorgCols(data_cum, data_chg)
-    else:
-        data = get_ticker_info(ticks, 'morningstar_monthly_is')
-        data_bs = get_ticker_info(ticks, 'morningstar_monthly_bs')[['totalCash', 'totalLiab']]
-        data_hist = get_ticker_info(ticks, 'morningstar')
-        # join on whatever data you need
-        data = data.join(data_bs)
-
-    comps = ['CSCO', 'AAPL']
+    full_data = {}
+    for t in ticks:
+        if mode == 'api':
+            data = makeAPICall(t, 'is')
+            # reorganizing columns
+            # data = reorgCols(data_cum, data_chg)
+        else:
+            data = get_ticker_info([t], 'morningstar_monthly_is')
+            data_bs = get_ticker_info([t], 'morningstar_monthly_bs')[['totalCash', 'totalLiab']]
+            data_hist = get_ticker_info([t], 'morningstar')
+            # join on whatever data you need
+            data = data.join(data_bs)
+    
+        data = removeEmptyCols(data)
+        data_cum = dataCumColumns(data)
+        data_chg = period_chg(data)
+        data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
+        
+        # Add some necessary columns and adjustemnts
+        data_hist = histAdjustments(data_hist, data)
+        # project out data based on historicals using OLS regression
+        # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
+        data_ols = modelEstOLS(10, data_cum, data_hist, data_chg, data_margin, [], [])
+        # Calculate Ratios for Use later
+        ratios = ratios_and_valuation(data_ols)
+        period = [i for i in ratios.index.values if "E" not in i[2]][-1]
+        # Get Historical Ratios for valuation
+        hist_rats, ests = historical_ratios(ratios, period)
+        # Discounted Free Cash Flow Valuation
+        dfcf, ests = discountFCF(hist_rats, period, ests)
+        full_data[t] = [dfcf, ests]
+    
     ind = 'XLK'
     mkt = 'SPY'
-    other = comps + [ind] + [mkt]
-
-    data = removeEmptyCols(data)
-    data_cum = dataCumColumns(data)
-    data_chg = period_chg(data)
-    data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
-    
-    # Add some necessary columns and adjustemnts
-    data_hist = histAdjustments(data_hist, data)
-    # project out data based on historicals using OLS regression
-    # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
-    data_ols = modelEstOLS(10, data_cum, data_hist, data_chg, data_margin, [], [])
-    # Calculate Ratios for Use later
-    ratios = ratios_and_valuation(data_ols)
-    period = [i for i in ratios.index.values if "E" not in i[2]][-1]
-    # Get Historical Ratios for valuation
-    hist_rats, ests = historical_ratios(ratios, period)
-    # Discounted Free Cash Flow Valuation
-    dfcf, ests = discountFCF(hist_rats, period, ests)
+    other = [mkt, ind]
     # Get Historical Price data
-    hist_px = getPriceData(data, other, period, ests, False)
+    hist_px = getPriceData(ticks, other, period, ests, False)
     # calculate performance metrics based on price
-    price_perf_anal(dfcf, period, mkt, ind, hist_px, ests)
+    px_df = price_perf_anal(period, mkt, ind, hist_px, ests)
+    
+    pdb.set_trace()
+    # Comaprisons
+    comp_anal = comparison_anal(full_data, ests)
     
     # Analysis of all valuations
-    analyze_ests(dfcf, period, ests)
+    analyze_ests(full_data, period, ests)
     
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
-    valuation_model(['MSFT'])
+    valuation_model(['MSFT', 'AAPL', 'CSCO'])
     
