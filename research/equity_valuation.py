@@ -25,23 +25,22 @@ hist_quarterly_map = {
     'netInterestOtherMargin' : 'otherInc'
 }
 
-def price_perf_anal(data, period, hist_px, ests):
+def price_perf_anal(data, period, mkt, ind, hist_px, ests):
     px_df = pd.DataFrame()
+    mkt_px = hist_px[mkt].reset_index()
+    ind_px = hist_px[ind].reset_index()
     for t in hist_px.columns:
-        
-        t_df = pd.DataFrame([t], columns=['tick'], index=['tick'])
-        t_px = hist_px[t].reset_index()
+        t_df = pd.DataFrame([t], columns=['tick'])
+        t_px = hist_px[t].dropna().reset_index()
         t_df['cur_px'] = t_px[t].values[-1]
         t_df['y_px'] = t_px[t_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][t].values[0]
         t_df['ytd_chg'] = (t_df['cur_px'] / t_df['y_px']) - 1
         t_df['ytd_high'] = max(t_px[t_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][t].values)
         t_df['ytd_low'] = min(t_px[t_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][t].values)
-        # Download XLK and SPY and figure out realtive performance here
-        t_df['mkt_rel_perf']
-        t_df['ind_rel_perf']
-    pdb.set_trace()
-    return px_df    
-        
+        t_df['mkt_rel_perf'] = t_df['ytd_chg'] - (mkt_px[mkt].values[-1] / mkt_px[mkt_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][mkt].values[0] - 1)
+        t_df['ind_rel_perf'] = t_df['ytd_chg'] - (ind_px[ind].values[-1] / ind_px[ind_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][ind].values[0] - 1)
+        px_df = px_df.append(t_df)
+    return px_df.set_index('tick')    
     
 
 def discountFCF(data, period, ests):
@@ -517,13 +516,11 @@ def getPriceData(data, comps, period, ests, api=False):
     for t in [period[1]] + comps:
         if api:
             start = dt.date(int(data.index.values[0][0]), int(data.index.values[0][2]), 1).strftime("%Y-%m-%d")
-            pdb.set_trace()
             end = dt.datetime.today().date().strftime("%Y-%m-%d")
             try:
                 # df = dr.data.DataReader(period[1], 'google', start, end)
-                # data = quandl.get_table('WIKI/PRICES', ticker = [period[1]], 
-                #                 qopts = { 'columns': ['ticker', 'date', 'adj_close'] }, 
-                #                 date = { 'gte': start, 'lte': end }, paginate=True)
+                # data = quandl.get_table('WIKI/PRICES', ticker = [period[1]], qopts = { 'columns': ['ticker', 'date', 'adj_close'] }, date = { 'gte': start, 'lte': end }, paginate=True)
+                pdb.set_trace()
                 url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(period[1], start, end)
                 qr = pd.read_csv(url)
                 qr['Date'] = qr['Date'].astype('datetime64[ns]')
@@ -533,11 +530,11 @@ def getPriceData(data, comps, period, ests, api=False):
                 raise
         else:
             qr = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/{}.csv".format(t))
-            qr = qr.rename(columns={'Close': t, 'Date': 'date'}).set_index(['date'])
+            qr = qr.rename(columns={'close': t}).set_index(['date'])
             if pxs.empty:
                 pxs = qr
             else:
-                pxs = pd.merge(pxs, qr, left_index=True, right_index=True)
+                pxs = pd.merge(pxs, qr, how='left', left_index=True, right_index=True)
     return pxs
 
 
@@ -552,6 +549,11 @@ def valuation_model(ticks, mode='db'):
         data_hist = get_ticker_info(ticks, 'morningstar')
         # join on whatever data you need
         data = data.join(data_bs)
+
+    comps = ['CSCO', 'AAPL']
+    ind = 'XLK'
+    mkt = 'SPY'
+    other = comps + [ind] + [mkt]
 
     data = removeEmptyCols(data)
     data_cum = dataCumColumns(data)
@@ -571,9 +573,9 @@ def valuation_model(ticks, mode='db'):
     # Discounted Free Cash Flow Valuation
     dfcf, ests = discountFCF(hist_rats, period, ests)
     # Get Historical Price data
-    hist_px = getPriceData(data,['CSCO', 'AAPL'], period, ests, False)
+    hist_px = getPriceData(data, other, period, ests, False)
     # calculate performance metrics based on price
-    price_perf_anal(dfcf, period, hist_px, ests)
+    price_perf_anal(dfcf, period, mkt, ind, hist_px, ests)
     
     # Analysis of all valuations
     analyze_ests(dfcf, period, ests)
