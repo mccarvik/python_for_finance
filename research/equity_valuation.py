@@ -26,7 +26,44 @@ hist_quarterly_map = {
 }
 
 
-def price_perf_anal(period, mkt, ind, hist_px, ests):
+def comparison_anal(data, period):
+    comp_df = pd.DataFrame()
+    years_back = 5
+    years_fwd = 2
+    cols = ['netIncome', 'revenue', 'grossMargin', 'pretaxMargin', 'netMargin', 'PE_avg_hist']
+    cagr = ['netIncome', 'revenue']
+    for tick, df in data.items():
+        indices = [d for d in list(df[0].index.values) if int(d[0]) > int(period[0]) - years_back and int(d[0]) <= int(period[0])+years_fwd]
+        df = df[0].ix[indices]
+        if comp_df.empty:
+            comp_df = pd.DataFrame(columns=setup_comp_cols(indices))
+        for cc in cols:
+            if cc in cagr:
+                # cagr = compound annual growth rate
+                avg = (df[cc][years_back-1] / df[cc][0])**(1/5) - 1
+                row = [tick, cc] + list(df[cc].values)
+                row.insert(2+years_back, avg)
+                comp_df.loc[len(comp_df)] = row
+                
+                # standard avg of growth rate
+                avg = df[cc].pct_change()[1:years_back].mean()
+                row = [tick, cc+"_g"] + list(df[cc].pct_change().values)
+                row.insert(2+years_back, avg)
+                comp_df.loc[len(comp_df)] = row
+            else:
+                # standard avg
+                avg = df[cc][:years_back].mean()
+                row = [tick, cc] + list(df[cc].values)
+                row.insert(2+years_back, avg)
+                comp_df.loc[len(comp_df)] = row
+            
+                
+    print(comp_df.set_index(['ticker', 'cat']))
+    pdb.set_trace()
+    return comp_df.set_index(['ticker', 'cat'])
+
+
+def price_perf_anal(period, mkt, ind, hist_px):
     px_df = pd.DataFrame()
     mkt_px = hist_px[mkt].reset_index()
     ind_px = hist_px[ind].reset_index()
@@ -537,6 +574,12 @@ def getPriceData(ticks, comps, period, ests, api=False):
     return pxs
 
 
+def setup_comp_cols(indices):
+    cols = ['ticker', 'cat'] + [i[0] for i in indices]
+    cols.insert(7, 'avg_5y')
+    return cols
+
+
 def valuation_model(ticks, mode='db'):
     full_data = {}
     for t in ticks:
@@ -576,14 +619,14 @@ def valuation_model(ticks, mode='db'):
     # Get Historical Price data
     hist_px = getPriceData(ticks, other, period, ests, False)
     # calculate performance metrics based on price
-    px_df = price_perf_anal(period, mkt, ind, hist_px, ests)
+    px_df = price_perf_anal(period, mkt, ind, hist_px)
     
-    pdb.set_trace()
     # Comaprisons
-    comp_anal = comparison_anal(full_data, ests)
+    comp_anal = comparison_anal(full_data, period)
     
     # Analysis of all valuations
-    analyze_ests(full_data, period, ests)
+    pdb.set_trace()
+    analyze_ests(full_data, period)
     
 
 if __name__ == '__main__':
