@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 
+from utils.db_utils import DBHelper
+
 idx = ['date', 'ticker', 'month']
 
 IS_COLS = {
@@ -440,3 +442,96 @@ def is_replacements(headers):
                 else:
                     new_headers.append(h)
     return new_headers
+
+
+def getNextQuarter(index):
+    tick = index[1]
+    y = int(index[0])
+    m = int(index[2].replace("E","")) + 3
+    if m > 12:
+        m -= 12
+        y += 1
+    if m < 10:
+        m = "0" + str(m)
+    return [str(y), tick, str(m)+"E"]
+
+
+def getNextYear(index):
+    return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E",""))))+"E"]
+
+
+def get_ticker_info(ticks, table, dates=None):
+    # Temp to make testing quicker
+    t0 = time.time()
+    # tickers = pd.read_csv('/home/ubuntu/workspace/ml_dev_work/utils/dow_ticks.csv', header=None)
+    with DBHelper() as db:
+        db.connect()
+        # df = db.select('morningstar', where = 'date in ("2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016")')
+        lis = ''
+        for t in ticks:
+            lis += "'" + t + "', "
+        df = db.select(table, where = 'ticker in (' + lis[:-2] + ')')
+        
+    # Getting Dataframe
+    t1 = time.time()
+    print("Done Retrieving data, took {0} seconds".format(t1-t0))
+    return df.set_index(['date', 'ticker', 'month'])
+
+
+def dataCumColumns(data):
+    tick = data.reset_index()['ticker'][0]
+    try:
+        data = data.drop([('TTM', tick, '')])
+    except:
+        # no TTM included
+        pass
+    H1 = data.iloc[-4] + data.iloc[-3]
+    M9 = H1 + data.iloc[-2]
+    Y1 = M9 + data.iloc[-1]
+    data = data.reset_index()
+    data.loc[len(data)] = ['H1', tick, ''] + list(H1.values)
+    data.loc[len(data)] = ['M9', tick, ''] + list(M9.values)
+    data.loc[len(data)] = ['Y1', tick, ''] + list(Y1.values)
+    data = data.reindex([0,1,2,5,3,6,4,7])
+    data = data.set_index(idx)
+    return data
+
+
+def removeEmptyCols(df):
+    return df.dropna(axis='columns', how='all')
+
+    
+def period_chg(df):
+    df_y = df.reset_index()
+    df_y = df_y[df_y.date != 'TTM']
+    years = list(df_y['date'] + df_y['month'])
+    # df_y = df_y.set_index(['date', 'ticker', 'month'])
+    df_chg = pd.DataFrame(columns=idx + list(df.columns))
+    for y in years:
+        if y == min(years):
+            last_y = y
+            continue
+        year_df = df_y[(df_y.date==y[:4]) & (df_y.month==y[4:])].drop(idx, axis=1).values
+        last_y_df = df_y[(df_y.date==last_y[:4]) & (df_y.month==last_y[4:])].drop(idx, axis=1).values
+        yoy = (year_df / last_y_df - 1) * 100
+        yoy[abs(yoy) == np.inf] = 0
+        where_are_NaNs = np.isnan(yoy)
+        yoy[where_are_NaNs] = 0
+        data = list(df_y[(df_y.date==y[:4]) & (df_y.month==y[4:])].iloc[0][idx]) + list(yoy[0])
+        df_chg.loc[len(df_chg)] = data
+        last_y = y
+    
+    # need this to add year over year for single year model
+    yoy = (df_y.drop(idx, axis=1).loc[len(df_y)-1].values / df_y.drop(idx, axis=1).loc[0].values - 1) * 100
+    yoy[abs(yoy) == np.inf] = 0
+    where_are_NaNs = np.isnan(yoy)
+    yoy[where_are_NaNs] = 0
+    data = ['YoY', df.reset_index().ticker[0], ''] + list(yoy)
+    df_chg.loc[len(df_chg)] = data
+    df_chg = df_chg.set_index(idx)
+    return df_chg
+
+def setup_comp_cols(indices):
+    cols = ['ticker', 'cat'] + [i[0] for i in indices]
+    cols.insert(7, 'avg_5y')
+    return cols

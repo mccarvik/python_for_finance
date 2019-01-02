@@ -11,7 +11,6 @@ quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
 import pandas_datareader as dr
 
 from res_utils import *
-from utils.db_utils import DBHelper
 from dx.frame import get_year_deltas
 
 # NOTES:
@@ -24,6 +23,31 @@ hist_quarterly_map = {
     'cashAndShortTermInv' : 'totalCash',
     'netInterestOtherMargin' : 'otherInc'
 }
+
+
+def peer_derived_value(data, comp_anal, period):
+    # get group values first
+    group_vals = {}
+    vals = ['PS', 'PE_avg_hist', 'PB', 'PCF']
+    ticks = list(data.keys())
+    
+    # get group market cap
+    group_mkt_cap = 0
+    for k,v in data.items():
+        per = tuple([period[0], k, data[k][0].index.values[0][2]])
+        group_mkt_cap += v[0]['shares'][per] * v[0]['currentPrice'][per]
+    for v in vals:
+        group_vals[v] = 0
+        group_vals[v+"_w_avg"] = 0
+        for t in ticks:
+            per = tuple([period[0], t, data[t][0].index.values[0][2]])
+            # 5yr avgs
+            group_vals[v] += data[t][0][v].rolling(center=False,window=5).mean()[per] / len(ticks)
+            group_vals[v+"_w_avg"] += data[t][0][v].rolling(center=False,window=5).mean()[per] * ((data[t][0]['shares'][per] * data[t][0]['currentPrice'][per]) / group_mkt_cap)
+    print(group_vals)
+    pdb.set_trace()
+    print()
+    
 
 
 def comparison_anal(data, period):
@@ -56,10 +80,6 @@ def comparison_anal(data, period):
                 row = [tick, cc] + list(df[cc].values)
                 row.insert(2+years_back, avg)
                 comp_df.loc[len(comp_df)] = row
-            
-                
-    print(comp_df.set_index(['ticker', 'cat']))
-    pdb.set_trace()
     return comp_df.set_index(['ticker', 'cat'])
 
 
@@ -81,7 +101,7 @@ def price_perf_anal(period, mkt, ind, hist_px):
     return px_df.set_index('tick')    
     
 
-def discountFCF(data, period, ests):
+def discount_fcf(data, period, ests):
     cost_debt = 0.07  # should be pulled off debt issued by company, hard coded for now
     
     rf = 0.028 # rate on 10yr tsy
@@ -288,7 +308,7 @@ def ratios_and_valuation(data):
     return data
 
 
-def modelEstOLS(years, cum, hist, chg, margin, avg_cols=[], use_last=[]):
+def model_est_ols(years, cum, hist, chg, margin, avg_cols=[], use_last=[]):
     df_est = pd.DataFrame()
     # some cleanup
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(idx)
@@ -350,7 +370,7 @@ def modelEstOLS(years, cum, hist, chg, margin, avg_cols=[], use_last=[]):
     return hist
 
 
-def modelEst(cum, hist, chg, margin):
+def model_est(cum, hist, chg, margin):
     df_est = pd.DataFrame()
     # some cleanup
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(idx)
@@ -407,95 +427,10 @@ def modelEst(cum, hist, chg, margin):
     return cum
 
 
-def getNextQuarter(index):
-    tick = index[1]
-    y = int(index[0])
-    m = int(index[2].replace("E","")) + 3
-    if m > 12:
-        m -= 12
-        y += 1
-    if m < 10:
-        m = "0" + str(m)
-    return [str(y), tick, str(m)+"E"]
-
-
-def getNextYear(index):
-    return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E",""))))+"E"]
-
-
-def get_ticker_info(ticks, table, dates=None):
-    # Temp to make testing quicker
-    t0 = time.time()
-    # tickers = pd.read_csv('/home/ubuntu/workspace/ml_dev_work/utils/dow_ticks.csv', header=None)
-    with DBHelper() as db:
-        db.connect()
-        # df = db.select('morningstar', where = 'date in ("2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016")')
-        lis = ''
-        for t in ticks:
-            lis += "'" + t + "', "
-        df = db.select(table, where = 'ticker in (' + lis[:-2] + ')')
-        
-    # Getting Dataframe
-    t1 = time.time()
-    print("Done Retrieving data, took {0} seconds".format(t1-t0))
-    return df.set_index(['date', 'ticker', 'month'])
-
-
-def period_chg(df):
-    df_y = df.reset_index()
-    df_y = df_y[df_y.date != 'TTM']
-    years = list(df_y['date'] + df_y['month'])
-    # df_y = df_y.set_index(['date', 'ticker', 'month'])
-    df_chg = pd.DataFrame(columns=idx + list(df.columns))
-    for y in years:
-        if y == min(years):
-            last_y = y
-            continue
-        year_df = df_y[(df_y.date==y[:4]) & (df_y.month==y[4:])].drop(idx, axis=1).values
-        last_y_df = df_y[(df_y.date==last_y[:4]) & (df_y.month==last_y[4:])].drop(idx, axis=1).values
-        yoy = (year_df / last_y_df - 1) * 100
-        yoy[abs(yoy) == np.inf] = 0
-        where_are_NaNs = np.isnan(yoy)
-        yoy[where_are_NaNs] = 0
-        data = list(df_y[(df_y.date==y[:4]) & (df_y.month==y[4:])].iloc[0][idx]) + list(yoy[0])
-        df_chg.loc[len(df_chg)] = data
-        last_y = y
-    
-    # need this to add year over year for single year model
-    yoy = (df_y.drop(idx, axis=1).loc[len(df_y)-1].values / df_y.drop(idx, axis=1).loc[0].values - 1) * 100
-    yoy[abs(yoy) == np.inf] = 0
-    where_are_NaNs = np.isnan(yoy)
-    yoy[where_are_NaNs] = 0
-    data = ['YoY', df.reset_index().ticker[0], ''] + list(yoy)
-    df_chg.loc[len(df_chg)] = data
-    df_chg = df_chg.set_index(idx)
-    return df_chg
-
-
 def margin_df(df):
     data = df.apply(lambda x: x / x['revenue'], axis=1)
     data['taxes'] = df['taxes'] / df['EBT']     # tax rate presented as percentage of pre tax income
     return data
-
-
-def dataCumColumns(data):
-    tick = data.reset_index()['ticker'][0]
-    try:
-        data = data.drop([('TTM', tick, '')])
-    except:
-        # no TTM included
-        pass
-    H1 = data.iloc[-4] + data.iloc[-3]
-    M9 = H1 + data.iloc[-2]
-    Y1 = M9 + data.iloc[-1]
-    data = data.reset_index()
-    data.loc[len(data)] = ['H1', tick, ''] + list(H1.values)
-    data.loc[len(data)] = ['M9', tick, ''] + list(M9.values)
-    data.loc[len(data)] = ['Y1', tick, ''] + list(Y1.values)
-    data = data.reindex([0,1,2,5,3,6,4,7])
-    data = data.set_index(idx)
-    return data
-
 
 
 def ols_calc(xs, ys, n_idx=None):
@@ -508,11 +443,7 @@ def ols_calc(xs, ys, n_idx=None):
     return (slope, yint)
 
 
-def removeEmptyCols(df):
-    return df.dropna(axis='columns', how='all')
-
-
-def histAdjustments(hist, data_is):
+def hist_adjustments(hist, data_is):
     # assume sum of last 4 quarters as annual
     hist['depAndAmort'] = data_is['depAndAmort'].mean() * 4
     hist['EBITDA'] = data_is['EBITDA'][-4:].mean() * 4
@@ -547,7 +478,7 @@ def analyze_ests(data, period, ests):
         print("Prem/Disc: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
 
 
-def getPriceData(ticks, comps, period, ests, api=False):
+def get_price_data(ticks, comps, period, ests, api=False):
     pxs = pd.DataFrame()
     # Cant find an API I can trust for EOD stock data
     for t in ticks + comps:
@@ -574,12 +505,6 @@ def getPriceData(ticks, comps, period, ests, api=False):
     return pxs
 
 
-def setup_comp_cols(indices):
-    cols = ['ticker', 'cat'] + [i[0] for i in indices]
-    cols.insert(7, 'avg_5y')
-    return cols
-
-
 def valuation_model(ticks, mode='db'):
     full_data = {}
     for t in ticks:
@@ -600,29 +525,33 @@ def valuation_model(ticks, mode='db'):
         data_margin = margin_df(data)[['grossProfit', 'cogs', 'rd', 'sga', 'mna', 'otherExp']]
         
         # Add some necessary columns and adjustemnts
-        data_hist = histAdjustments(data_hist, data)
+        data_hist = hist_adjustments(data_hist, data)
         # project out data based on historicals using OLS regression
-        # data_est = modelEst(data_cum, data_hist, data_chg, data_margin)
-        data_ols = modelEstOLS(10, data_cum, data_hist, data_chg, data_margin, [], [])
+        # data_est = model_est(data_cum, data_hist, data_chg, data_margin)
+        data_ols = model_est_ols(10, data_cum, data_hist, data_chg, data_margin, [], [])
         # Calculate Ratios for Use later
         ratios = ratios_and_valuation(data_ols)
         period = [i for i in ratios.index.values if "E" not in i[2]][-1]
         # Get Historical Ratios for valuation
         hist_rats, ests = historical_ratios(ratios, period)
         # Discounted Free Cash Flow Valuation
-        dfcf, ests = discountFCF(hist_rats, period, ests)
+        dfcf, ests = discount_fcf(hist_rats, period, ests)
         full_data[t] = [dfcf, ests]
     
     ind = 'XLK'
     mkt = 'SPY'
     other = [mkt, ind]
     # Get Historical Price data
-    hist_px = getPriceData(ticks, other, period, ests, False)
+    hist_px = get_price_data(ticks, other, period, ests, False)
+    
     # calculate performance metrics based on price
     px_df = price_perf_anal(period, mkt, ind, hist_px)
     
     # Comaprisons
     comp_anal = comparison_anal(full_data, period)
+    
+    # Peer Derived Value
+    pdv = peer_derived_value(full_data, comp_anal, period)
     
     # Analysis of all valuations
     pdb.set_trace()
