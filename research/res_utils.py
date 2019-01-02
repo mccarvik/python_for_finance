@@ -348,6 +348,14 @@ pfcf = ['PFCF', 'PFCF_curr', 'PFCF_fwd', 'PFCF_5yr_avg_hist']
 peg = ['PEG', 'PEG_5yr_avg', 'PEGY', 'PEGY_5yr_avg', 'divYield']
 dfcf = ['constGrowthRate', 'proj_calc_g', '1st_5yr_lt_g', '2nd_5yr_lt_g']
 
+# valuation
+valuations = {
+    'Hist Comps': ['PE', 'PS', 'PB', 'PCF', 'PFCF'],
+    'DFCF': ['2stage', '3stage', 'Component Anal'],
+    'PDV': ['pdv_PE_avg_hist', 'pdv_PS', 'pdv_PB', 'pdv_PCF']
+}
+
+
 def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
     # Use this for quarterly info
     # Period can be 3 or 12 for quarterly vs annual
@@ -474,7 +482,7 @@ def get_ticker_info(ticks, table, dates=None):
         
     # Getting Dataframe
     t1 = time.time()
-    print("Done Retrieving data, took {0} seconds".format(t1-t0))
+    # print("Done Retrieving data, took {0} seconds".format(t1-t0))
     return df.set_index(['date', 'ticker', 'month'])
 
 
@@ -531,7 +539,13 @@ def period_chg(df):
     df_chg = df_chg.set_index(idx)
     return df_chg
 
+
 def setup_comp_cols(indices):
     cols = ['ticker', 'cat'] + [i[0] for i in indices]
     cols.insert(7, 'avg_5y')
     return cols
+    
+    
+def setup_pdv_cols():
+    return ['ticker', 'cat', '5y_avg', 'hist_var_v_weight_avg', '2yr_fwd_mult', 'cur_var_v_weight_avg', 'prem_disc', 'pdv_price']
+    

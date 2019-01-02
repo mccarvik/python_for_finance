@@ -24,10 +24,12 @@ hist_quarterly_map = {
     'netInterestOtherMargin' : 'otherInc'
 }
 
+DEBUG = False
 
-def peer_derived_value(data, comp_anal, period):
+def peer_derived_value(data, comp_anal, period, hist_px):
     # get group values first
     group_vals = {}
+    years_fwd = 2
     vals = ['PS', 'PE_avg_hist', 'PB', 'PCF']
     ticks = list(data.keys())
     
@@ -35,20 +37,75 @@ def peer_derived_value(data, comp_anal, period):
     group_mkt_cap = 0
     for k,v in data.items():
         per = tuple([period[0], k, data[k][0].index.values[0][2]])
-        group_mkt_cap += v[0]['shares'][per] * v[0]['currentPrice'][per]
+        try:
+            group_mkt_cap += v[0]['shares'][per] * hist_px[k].dropna().values[-1]
+        except:
+            # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
+            per = tuple([str(int(period[0])-1), k, data[k][0].index.values[0][2]])
+            group_mkt_cap += v[0]['shares'][per] * float(hist_px[k].dropna().values[-1])
+            per = tuple([period[0], k, data[k][0].index.values[0][2]])
+        # Need to project out vals
+        for val in vals:
+            xs = data[k][0][val].dropna().reset_index()[['date','month']]
+            slope, yint = ols_calc(xs, data[k][0][val].dropna())
+            for fwd in range(1,years_fwd+1):
+                start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
+                per = tuple([str(int(period[0])+fwd), v[0].index.values[0][1], v[0].index.values[0][2]+"E"])
+                new_x = get_year_deltas([start, dt.datetime(int(per[0]), int(per[2][:-1]), 1).date()])[-1]
+                data[k][0].at[per, val] = (yint + new_x * slope)                
+
     for v in vals:
         group_vals[v] = 0
         group_vals[v+"_w_avg"] = 0
+        group_vals[v+"_fwd"] = 0
+        group_vals[v+"_fwd_w_avg"] = 0
         for t in ticks:
             per = tuple([period[0], t, data[t][0].index.values[0][2]])
-            # 5yr avgs
-            group_vals[v] += data[t][0][v].rolling(center=False,window=5).mean()[per] / len(ticks)
-            group_vals[v+"_w_avg"] += data[t][0][v].rolling(center=False,window=5).mean()[per] * ((data[t][0]['shares'][per] * data[t][0]['currentPrice'][per]) / group_mkt_cap)
-    print(group_vals)
-    pdb.set_trace()
-    print()
+            fwd = tuple([str(int(period[0])+years_fwd), t, data[t][0].index.values[0][2]+"E"])
+            
+            # 5yr avgs, simple and weighted
+            try:
+                group_vals[v] += data[t][0][v].rolling(center=False,window=5).mean()[per] / len(ticks)
+                group_vals[v+"_w_avg"] += data[t][0][v].rolling(center=False,window=5).mean()[per] * ((data[t][0]['shares'][per] * float(hist_px[t].values[-1])) / group_mkt_cap)
+            except:
+                # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
+                per = tuple([str(int(period[0])-1), t, data[t][0].index.values[0][2]])
+                group_vals[v] += data[t][0][v].rolling(center=False,window=5).mean()[per] / len(ticks)
+                group_vals[v+"_w_avg"] += data[t][0][v].rolling(center=False,window=5).mean()[per] * ((data[t][0]['shares'][per] * float(hist_px[t].values[-1])) / group_mkt_cap)
     
-
+            # 5yr avgs, simpel and weighted
+            group_vals[v+"_fwd"] += data[t][0][v].rolling(center=False,window=years_fwd).mean()[fwd] / len(ticks)
+            group_vals[v+"_fwd_w_avg"] += data[t][0][v].rolling(center=False,window=years_fwd).mean()[fwd] * ((data[t][0]['shares'][per] * float(hist_px[t].values[-1])) / group_mkt_cap)
+        if DEBUG:
+            print("{} 5Y simple avg: {}".format(v, '%.3f'%group_vals[v]))
+            print("{} 5Y weighted avg: {}".format(v, '%.3f'%group_vals[v+"_w_avg"]))
+            print("{} 2Y fwd avg: {}".format(v, '%.3f'%group_vals[v+"_fwd"]))
+            print("{} 2Y fwd weighted avg: {}".format(v, '%.3f'%group_vals[v+"_fwd_w_avg"]))
+    comp_df = pd.DataFrame()
+    for k,v in data.items():
+        per = tuple([period[0], k, data[k][0].index.values[0][2]])
+        for val in vals:
+            if comp_df.empty:
+                comp_df = pd.DataFrame(columns=setup_pdv_cols())
+            row = [k, val]
+            try:
+                row.append(v[0][val].rolling(center=False,window=5).mean()[per])
+            except:
+                # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
+                per = tuple([str(int(period[0])-1), k, data[k][0].index.values[0][2]])
+                row.append(v[0][val].rolling(center=False,window=5).mean()[per])
+            row.append(row[-1] / group_vals[val+"_w_avg"])
+            # end of fwd estimate year
+            fwd = tuple([str(int(period[0])+years_fwd), k, data[k][0].index.values[0][2]+"E"])
+            row.append(v[0][val].rolling(center=False,window=years_fwd).mean()[fwd])
+            row.append(row[-1] / group_vals[val+"_fwd_w_avg"])
+            row.append(row[3] / row[5])
+            row.append(float(hist_px[k].dropna().values[-1]) * row[-1])
+            data[k][1].append(tuple(["pdv_"+val, per[1], str(int(per[0])+years_fwd),'%.3f'%row[-1]]))
+            # pdb.set_trace()
+            comp_df.loc[len(comp_df)] = row
+    return data, comp_df.set_index(['ticker', 'cat'])
+    
 
 def comparison_anal(data, period):
     comp_df = pd.DataFrame()
@@ -80,6 +137,8 @@ def comparison_anal(data, period):
                 row = [tick, cc] + list(df[cc].values)
                 row.insert(2+years_back, avg)
                 comp_df.loc[len(comp_df)] = row
+    if DEBUG:
+        print(comp_df.set_index(['ticker', 'cat']))
     return comp_df.set_index(['ticker', 'cat'])
 
 
@@ -90,8 +149,8 @@ def price_perf_anal(period, mkt, ind, hist_px):
     for t in hist_px.columns:
         t_df = pd.DataFrame([t], columns=['tick'])
         t_px = hist_px[t].dropna().reset_index()
-        t_df['cur_px'] = t_px[t].values[-1]
-        t_df['y_px'] = t_px[t_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][t].values[0]
+        t_df['cur_px'] = float(t_px[t].values[-1])
+        t_df['y_px'] = float(t_px[t_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][t].values[0])
         t_df['ytd_chg'] = (t_df['cur_px'] / t_df['y_px']) - 1
         t_df['ytd_high'] = max(t_px[t_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][t].values)
         t_df['ytd_low'] = min(t_px[t_px['date'] >= dt.date(int(period[0]),1,1).strftime("%Y-%m-%d")][t].values)
@@ -101,7 +160,7 @@ def price_perf_anal(period, mkt, ind, hist_px):
     return px_df.set_index('tick')    
     
 
-def discount_fcf(data, period, ests):
+def discount_fcf(data, period, ests, hist_px):
     cost_debt = 0.07  # should be pulled off debt issued by company, hard coded for now
     
     rf = 0.028 # rate on 10yr tsy
@@ -111,7 +170,7 @@ def discount_fcf(data, period, ests):
     # CAPM
     cost_equity = rf + beta * market_risk_prem
     
-    mv_eq = data['currentPrice'][period] * data['shares'][period]
+    mv_eq = float(hist_px[period[1]].values[-1]) * data['shares'][period]
     # mv_debt = HARD TO GET
     bv_debt = data['shortTermDebt'][period] + data['longTermDebt'][period]
     total_capital = bv_debt + mv_eq
@@ -136,7 +195,8 @@ def discount_fcf(data, period, ests):
     term_val = (data['FCF_min_twc'][indices[-1]] / data['shares'][period]) / (cost_equity - term_growth)
     final_val = term_val + sum_of_disc_CF
     ests.append(("2stage", indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
-    print("2 Stage Val Est {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
+    if DEBUG:
+        print("2 Stage Val Est {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
     
     # 3 Stage DFCF
     years_phase1 = 1
@@ -154,7 +214,8 @@ def discount_fcf(data, period, ests):
     term_val = (data['FCF_min_twc'][indices[-1]] / data['shares'][period]) / (cost_equity - term_growth)
     final_val = term_val + sum_of_disc_CF
     ests.append(("3stage", indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
-    print("3 Stage Val Est {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
+    if DEBUG:
+        print("3 Stage Val Est {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
     
     # Component DFCF
     years_to_terminal = 2
@@ -166,18 +227,19 @@ def discount_fcf(data, period, ests):
     term_val = (data['FCF_min_twc'][indices[-1]] / data['shares'][period]) / (cost_equity - term_growth)
     final_val = term_val + sum_of_disc_CF
     ests.append(("Component Anal", indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
-    print("Component Val {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
+    if DEBUG:
+        print("Component Val {} {}: {}".format(indices[-1][1], indices[-1][0], '%.3f'%(final_val)))
 
     return data, ests
 
 
-def historical_ratios(data, period):
+def historical_ratios(data, period, hist_px):
     ests = []
     next_per = tuple(getNextYear(period))
     pers_2 = tuple(getNextYear(next_per))
     
     # fill current price with latest measurement
-    data['currentPrice'] = data['currentPrice'].fillna(data['currentPrice'].dropna()[-1])
+    data['currentPrice'] = data['currentPrice'].fillna(float(hist_px[period[1]].values[-1]))
     
     # PE Ratios
     data['PE_low_hist'] = (data['52WeekLow'] * data['shares']) / data['netIncome']
@@ -189,8 +251,9 @@ def historical_ratios(data, period):
     for p in [next_per, pers_2]:
         final_val = '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][p])
         ests.append(("PE", p[1], p[0], final_val))
-        print("Hist avg PE: {}  Fwd EPS: {}  DV Est {} {}: {}".format('%.3f'%(data['PE_5yr_avg_hist'][period]), 
-            '%.3f'%(data['EPS'][p]), p[1], p[0], final_val))
+        if DEBUG:
+            print("Hist avg PE: {}  Fwd EPS: {}  DV Est {} {}: {}".format('%.3f'%(data['PE_5yr_avg_hist'][period]), 
+                '%.3f'%(data['EPS'][p]), p[1], p[0], final_val))
     
     # P/S
     data['PS'] = (data['52WeekAvg'] * data['shares']) / data['revenue']
@@ -200,8 +263,9 @@ def historical_ratios(data, period):
     for p in [next_per, pers_2]: 
         final_val = '%.3f'%(data['PS_5yr_avg_hist'][period] * data['revenue'][p] / data['shares'][period])
         ests.append(("PS", p[1], p[0], final_val))
-        print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PS_5yr_avg_hist'][period]), 
-            '%.3f'%(data['revenue'][p] / data['shares'][period]), p[1], p[0], final_val))
+        if DEBUG:
+            print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PS_5yr_avg_hist'][period]), 
+                '%.3f'%(data['revenue'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # P/B
     data['PB'] = (data['52WeekAvg'] * data['shares']) / data['totalEquity']
@@ -211,8 +275,9 @@ def historical_ratios(data, period):
     for p in [next_per, pers_2]:
         final_val = '%.3f'%(data['PB_5yr_avg_hist'][period] * data['totalEquity'][p] / data['shares'][period])
         ests.append(("PB", p[1], p[0], final_val))
-        print("Hist avg PB: {}  Fwd equity/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PB_5yr_avg_hist'][period]), 
-            '%.3f'%(data['totalEquity'][p] / data['shares'][period]), p[1], p[0], final_val))
+        if DEBUG:
+            print("Hist avg PB: {}  Fwd equity/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PB_5yr_avg_hist'][period]), 
+                '%.3f'%(data['totalEquity'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # P/CF
     data['PCF'] = (data['52WeekAvg'] * data['shares']) / data['operCF']
@@ -222,8 +287,9 @@ def historical_ratios(data, period):
     for p in [next_per, pers_2]:
         final_val = '%.3f'%(data['PCF_5yr_avg_hist'][period] * data['operCF'][p] / data['shares'][period])
         ests.append(("PCF", p[1], p[0], final_val))
-        print("Hist avg PCF: {}  Fwd CF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PCF_5yr_avg_hist'][period]), 
-            '%.3f'%(data['operCF'][p] / data['shares'][period]), p[1], p[0], final_val))
+        if DEBUG:
+            print("Hist avg PCF: {}  Fwd CF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PCF_5yr_avg_hist'][period]), 
+                '%.3f'%(data['operCF'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # P/FCF
     data['PFCF'] = (data['52WeekAvg'] * data['shares']) / data['FCF']
@@ -233,8 +299,9 @@ def historical_ratios(data, period):
     for p in [next_per, pers_2]:
         final_val = '%.3f'%(data['PFCF_5yr_avg_hist'][period] * data['FCF'][p] / data['shares'][period])
         ests.append(("PFCF", p[1], p[0], final_val))
-        print("Hist avg PFCF: {}  Fwd FCF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PFCF_5yr_avg_hist'][period]), 
-            '%.3f'%(data['FCF'][p] / data['shares'][period]), p[1], p[0], final_val))
+        if DEBUG:
+            print("Hist avg PFCF: {}  Fwd FCF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PFCF_5yr_avg_hist'][period]), 
+                '%.3f'%(data['FCF'][p] / data['shares'][period]), p[1], p[0], final_val))
     
     # Relative P/E
     # NEED THE EARNIGNS OF THE SNP500
@@ -366,7 +433,6 @@ def model_est_ols(years, cum, hist, chg, margin, avg_cols=[], use_last=[]):
         # t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(idx)
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(idx)
         hist = hist.append(t_df)
-    # print(hist[sum_cols])
     return hist
 
 
@@ -456,29 +522,7 @@ def hist_adjustments(hist, data_is):
     return hist
 
 
-def analyze_ests(data, period, ests):
-    print("Tick: {}   Date: {} {}".format(period[1], period[0], period[2]))
-    print("Current Price: {}".format(data['currentPrice'][period]))
-    est_dict = {}
-    for e in ests:
-        try:
-            est_dict[(e[1], e[2])].append(e[3])
-        except:
-            est_dict[(e[1], e[2])] = [e[3]]
-        print("Model: {}  tick: {}  year: {}  EST: {}".format(e[0], e[1], e[2], e[3]))
-    
-    for k,v in est_dict.items():
-        v = [float(vs) for vs in v]
-        avg_est = sum(v) / len(v)
-        print("tick: {}  year: {} # Models: {}   AVG EST: {}".format(k[0], k[1], str(len(v)), '%.3f'%avg_est))
-        
-        prem_disc = (avg_est / data['currentPrice'][period]) - 1
-        # Divide by beta
-        risk_adj = ((avg_est / data['currentPrice'][period]) - 1) / data['beta'][period] 
-        print("Prem/Disc: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
-
-
-def get_price_data(ticks, comps, period, ests, api=False):
+def get_price_data(ticks, comps, api=False):
     pxs = pd.DataFrame()
     # Cant find an API I can trust for EOD stock data
     for t in ticks + comps:
@@ -488,12 +532,12 @@ def get_price_data(ticks, comps, period, ests, api=False):
             try:
                 # df = dr.data.DataReader(period[1], 'google', start, end)
                 # data = quandl.get_table('WIKI/PRICES', ticker = [period[1]], qopts = { 'columns': ['ticker', 'date', 'adj_close'] }, date = { 'gte': start, 'lte': end }, paginate=True)
-                url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(period[1], start, end)
+                url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(t, start, end)
                 qr = pd.read_csv(url)
                 qr['Date'] = qr['Date'].astype('datetime64[ns]')
             except:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                print("Could not read time series data for {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, period[1]))
+                print("Could not read time series data for {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, t))
                 raise
         else:
             qr = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/{}.csv".format(t))
@@ -505,8 +549,68 @@ def get_price_data(ticks, comps, period, ests, api=False):
     return pxs
 
 
+def analyze_ests(data, period, hist_px, years_fwd=2):
+    val_models = ['Hist Comps', 'DFCF', 'PDV']
+    val_weights = {
+        'Hist Comps': 0.35,
+        'DFCF': 0.5,
+        'PDV': 0.15
+    }
+    for k, v in data.items():
+        per = tuple([period[0], k, v[0].index.values[0][2]])
+        print("Tick: {}   Date: {} {}".format(k, per[0], per[2]))
+        print("Current Price: {}".format(hist_px[k].dropna().values[-1]))
+        try:
+            v[0]['beta'][per]
+        except:
+            # Company may havent reported yet in current year
+            per = tuple([str(int(period[0])-1), k, v[0].index.values[0][2]])
+        
+        for y in range(1, years_fwd+1):
+            year = str(int(per[0])+y)
+            year_est = {}
+            for mod in val_models:
+                mod_est = []
+                for val in valuations[mod]:
+                    try:
+                        e = [float(est[3]) for est in v[1] if est[0]==val and est[1]==k and est[2]==year][0]
+                    except:
+                        # Might not have this model for this year
+                        continue
+                    mod_est.append(e)
+                    print("Model: {}  tick: {}  year: {}  EST: {}".format(val, k, year, e))
+                if len(mod_est) == 0:
+                    continue
+                year_est[mod] = sum(mod_est)/len(mod_est)
+                print("Models AVG: {}  tick: {}  year: {}  EST: {}".format(mod, k, year, '%.4f'%year_est[mod]))
+                prem_disc = (year_est[mod] / float(hist_px[k].dropna().values[-1])) - 1
+                # Divide by beta
+                risk_adj = ((year_est[mod] / float(hist_px[k].dropna().values[-1])) - 1) / v[0]['beta'][per] 
+                print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
+            # Assume 50% for DFCF, 35% for Hist comparables, 15% for peer derived
+            year_avg_est = 0
+            if len(list(year_est.keys())) < 3:
+                # dont have values for all models
+                continue
+            for key, estimate in year_est.items():
+                year_avg_est += estimate * val_weights[key]
+            print("Current Price: {}".format(hist_px[k].dropna().values[-1]))
+            print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}".format(k, year, '%.4f'%year_avg_est))
+            prem_disc = (year_avg_est / float(hist_px[k].dropna().values[-1])) - 1
+            # Divide by beta
+            risk_adj = ((year_avg_est / float(hist_px[k].dropna().values[-1])) - 1) / v[0]['beta'][per] 
+            print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
+        
+
 def valuation_model(ticks, mode='db'):
     full_data = {}
+    
+    ind = 'XLK'
+    mkt = 'SPY'
+    other = [mkt, ind]
+    # Get Historical Price data
+    hist_px = get_price_data(ticks, other, False)
+    
     for t in ticks:
         if mode == 'api':
             data = makeAPICall(t, 'is')
@@ -533,16 +637,10 @@ def valuation_model(ticks, mode='db'):
         ratios = ratios_and_valuation(data_ols)
         period = [i for i in ratios.index.values if "E" not in i[2]][-1]
         # Get Historical Ratios for valuation
-        hist_rats, ests = historical_ratios(ratios, period)
+        hist_rats, ests = historical_ratios(ratios, period, hist_px)
         # Discounted Free Cash Flow Valuation
-        dfcf, ests = discount_fcf(hist_rats, period, ests)
+        dfcf, ests = discount_fcf(hist_rats, period, ests, hist_px)
         full_data[t] = [dfcf, ests]
-    
-    ind = 'XLK'
-    mkt = 'SPY'
-    other = [mkt, ind]
-    # Get Historical Price data
-    hist_px = get_price_data(ticks, other, period, ests, False)
     
     # calculate performance metrics based on price
     px_df = price_perf_anal(period, mkt, ind, hist_px)
@@ -551,14 +649,13 @@ def valuation_model(ticks, mode='db'):
     comp_anal = comparison_anal(full_data, period)
     
     # Peer Derived Value
-    pdv = peer_derived_value(full_data, comp_anal, period)
+    full_data, pdv = peer_derived_value(full_data, comp_anal, period, hist_px)
     
     # Analysis of all valuations
-    pdb.set_trace()
-    analyze_ests(full_data, period)
+    analyze_ests(full_data, period, hist_px)
     
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
-    valuation_model(['MSFT', 'AAPL', 'CSCO'])
+    valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
     
