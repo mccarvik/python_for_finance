@@ -1,10 +1,3 @@
-""""
-README
-======
-This file contains Python codes.
-======
-"""
-
 """ An incremental search algorithm """
 import pdb
 import numpy as np
