@@ -11,8 +11,7 @@ class BinomialEuropeanOption(StockOption):
         self.M = self.N + 1  # Number of terminal nodes of tree
         self.u = 1 + self.pu  # Expected value in the up state
         self.d = 1 - self.pd  # Expected value in the down state
-        self.qu = (math.exp((self.r-self.div)*self.dt) -
-                   self.d) / (self.u-self.d)
+        self.qu = (math.exp((self.r-self.div)*self.dt) - self.d) / (self.u-self.d)
         self.qd = 1-self.qu
 
     def _initialize_stock_price_tree_(self):
@@ -28,16 +27,16 @@ class BinomialEuropeanOption(StockOption):
         payoffs = np.maximum(
             0, (self.STs-self.K) if self.is_call
             else (self.K-self.STs))
-
         return payoffs
 
     def _traverse_tree_(self, payoffs):
         # Starting from the time the option expires, traverse
         # backwards and calculate discounted payoffs at each node
+        pdb.set_trace()
         for i in range(self.N):
-            payoffs = (payoffs[:-1] * self.qu +
-                       payoffs[1:] * self.qd) * self.df
-
+            # Cut down the number of leaves by 1 each time
+            # backtracking as we add up and down moves and multiply by discount factor
+            payoffs = (payoffs[:-1] * self.qu + payoffs[1:] * self.qd) * self.df
         return payoffs
 
     def __begin_tree_traversal__(self):
@@ -46,7 +45,6 @@ class BinomialEuropeanOption(StockOption):
 
     def price(self):
         """ The pricing implementation """
-        pdb.set_trace()
         self._setup_parameters_()
         self._initialize_stock_price_tree_()
         payoffs = self.__begin_tree_traversal__()
