@@ -11,8 +11,8 @@ class BinomialEuropeanOption(StockOption):
         self.M = self.N + 1  # Number of terminal nodes of tree
         self.u = 1 + self.pu  # Expected value in the up state
         self.d = 1 - self.pd  # Expected value in the down state
-        self.qu = (math.exp((self.r-self.div)*self.dt) - self.d) / (self.u-self.d)
-        self.qd = 1-self.qu
+        self.qu = (math.exp((self.r-self.div)*self.dt) - self.d) / (self.u-self.d) # chance of up state
+        self.qd = 1-self.qu # chance of down state
 
     def _initialize_stock_price_tree_(self):
         # Initialize terminal price nodes to zeros
