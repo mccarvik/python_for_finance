@@ -8,30 +8,19 @@ class FDExplicitEu(FiniteDifferences):
 
     def _setup_boundary_conditions_(self):
         if self.is_call:
-            self.grid[:, -1] = np.maximum(
-                self.boundary_conds - self.K, 0)
+            self.grid[:, -1] = np.maximum(self.boundary_conds - self.K, 0)
             self.grid[-1, :-1] = (self.Smax - self.K) * \
-                                 np.exp(-self.r *
-                                        self.dt *
-                                        (self.N-self.j_values))
+                                 np.exp(-self.r * self.dt * (self.N-self.j_values))
         else:
-            self.grid[:, -1] = \
-                np.maximum(self.K-self.boundary_conds, 0)
+            self.grid[:, -1] = np.maximum(self.K-self.boundary_conds, 0)
             self.grid[0, :-1] = (self.K - self.Smax) * \
-                               np.exp(-self.r *
-                                      self.dt *
-                                      (self.N-self.j_values))
+                               np.exp(-self.r * self.dt * (self.N-self.j_values))
 
     def _setup_coefficients_(self):
-        self.a = 0.5*self.dt*((self.sigma**2) *
-                              (self.i_values**2) -
-                              self.r*self.i_values)
-        self.b = 1 - self.dt*((self.sigma**2) *
-                              (self.i_values**2) +
-                              self.r)
-        self.c = 0.5*self.dt*((self.sigma**2) *
-                              (self.i_values**2) +
-                              self.r*self.i_values)
+        # coeffecients used for traversing the grid, created from rearranging the terms 
+        self.a = 0.5*self.dt*((self.sigma**2) * (self.i_values**2) - self.r*self.i_values)
+        self.b = 1 - self.dt*((self.sigma**2) * (self.i_values**2) + self.r)
+        self.c = 0.5*self.dt*((self.sigma**2) * (self.i_values**2) + self.r*self.i_values)
 
     def _traverse_grid_(self):
         for j in reversed(self.j_values):
@@ -43,10 +32,8 @@ class FDExplicitEu(FiniteDifferences):
 
 if __name__ == "__main__":
     from FDExplicitEu import FDExplicitEu
-    option = FDExplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100,
-                                  1000, False)
-    print option.price()
+    option = FDExplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100, 1000, False)
+    print(option.price())
 
-    option = FDExplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100,
-                          100, False)
-    print option.price()
+    option = FDExplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100, 100, False)
+    print(option.price())

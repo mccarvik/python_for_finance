@@ -1,6 +1,11 @@
 """ Shared attributes and functions of FD """
 import numpy as np
 
+# Wikipedia describing the method
+# https://en.wikipedia.org/wiki/Black%E2%80%93Scholes_model#The_Black%E2%80%93Scholes_equation
+
+# Applies the Black-Scholes Partial Differential Equation (PDE) framework
+# Uses the partial derivatives to give a theoretical estimate of the option price
 
 class FiniteDifferences(object):
 
@@ -19,7 +24,9 @@ class FiniteDifferences(object):
         self.dt = T / float(self.N)
         self.i_values = np.arange(self.M)
         self.j_values = np.arange(self.N)
+        # Create M x N grid
         self.grid = np.zeros(shape=(self.M+1, self.N+1))
+        # set up boundary conditions at the extreme ends of the nodes
         self.boundary_conds = np.linspace(0, Smax, self.M+1)
 
     def _setup_boundary_conditions_(self):

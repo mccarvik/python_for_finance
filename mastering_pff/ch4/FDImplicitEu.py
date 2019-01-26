@@ -11,6 +11,8 @@ from FDExplicitEu import FDExplicitEu
 class FDImplicitEu(FDExplicitEu):
 
     def _setup_coefficients_(self):
+        # slightly different calc than the explicit method
+        # first term uses j+1 - j instead of j - j-1
         self.a = 0.5*(self.r*self.dt*self.i_values -
                       (self.sigma**2)*self.dt*(self.i_values**2))
         self.b = 1 + \
@@ -34,11 +36,8 @@ class FDImplicitEu(FDExplicitEu):
             self.grid[1:self.M, j] = x2
 
 if __name__ == "__main__":
-    from FDImplicitEu import FDImplicitEu
-    option = FDImplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100,
-                          100, False)
-    print option.price()
+    option = FDImplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100, 100, False)
+    print(option.price())
 
-    option = FDImplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100,
-                          10000, False)
-    print option.price()
+    option = FDImplicitEu(50, 50, 0.1, 5./12., 0.4, 100, 100, 10000, False)
+    print(option.price())

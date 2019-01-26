@@ -8,6 +8,8 @@ from FDExplicitEu import FDExplicitEu
 class FDCnEu(FDExplicitEu):
 
     def _setup_coefficients_(self):
+        # converges much quicker using a combination of explicit and implicit methods
+        # takes the average of both
         self.alpha = 0.25*self.dt*(
             (self.sigma**2)*(self.i_values**2) -
             self.r*self.i_values)
@@ -36,11 +38,8 @@ class FDCnEu(FDExplicitEu):
             self.grid[1:self.M, j] = x2
 
 if __name__ == "__main__":
-    from FDCnEu import FDCnEu
-    option = FDCnEu(50, 50, 0.1, 5./12., 0.4, 100, 100,
-                    100, False)
-    print option.price()
+    option = FDCnEu(50, 50, 0.1, 5./12., 0.4, 100, 100, 100, False)
+    print(option.price())
 
-    option = FDCnEu(50, 50, 0.1, 5./12., 0.4, 100, 100,
-                    1000, False)
-    print option.price()
+    option = FDCnEu(50, 50, 0.1, 5./12., 0.4, 100, 100, 1000, False)
+    print(option.price())

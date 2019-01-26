@@ -34,7 +34,6 @@ class BinomialLROption(BinomialTreeOption):
         self.qd = 1-self.p
 
 if __name__ == "__main__":
-    from BinomialLROption import BinomialLROption
     eu_option = BinomialLROption(
         50, 50, 0.05, 0.5, 3,
         {"sigma": 0.3, "is_call": False})
