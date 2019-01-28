@@ -11,8 +11,9 @@ def rendleman_bartter(r0, theta, sigma, T=1.,N=10,seed=777):
     dt = T/float(N)    
     rates = [r0]
     for i in range(N):
-        dr = theta*rates[-1]*dt + \
-             sigma*rates[-1]*np.random.normal()
+        # theta = mean rate, sigma = stdev, rand = wiener process rand val
+        # no drift and no mean reversion --. similar to simple brownian motion
+        dr = theta*rates[-1]*dt + sigma*rates[-1]*np.random.normal()
         rates.append(rates[-1] + dr)
     return range(N+1), rates
 

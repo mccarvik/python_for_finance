@@ -11,6 +11,10 @@ def vasicek(r0, K, theta, sigma, T=1., N=10, seed=777):
     dt = T/float(N)    
     rates = [r0]
     for i in range(N):
+        # theta = mean rate, kappa = mean reversion coeff, sigma = stdev, rand = wiener process rand val
+        # takes the previous rate as a starting point
+        # no drift, just bounces around the mean
+        # Can be negative
         dr = K*(theta-rates[-1])*dt + sigma*np.random.normal()
         rates.append(rates[-1] + dr)
     return range(N+1), rates

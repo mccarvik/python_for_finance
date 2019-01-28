@@ -12,8 +12,10 @@ def cir(r0, K, theta, sigma, T=1., N=10,seed=777):
     dt = T/float(N)    
     rates = [r0]
     for i in range(N):
-        dr = K*(theta-rates[-1])*dt + \
-            sigma*math.sqrt(rates[-1])*np.random.normal()
+        # theta = mean rate, kappa = mean reversion coeff, sigma = stdev, rand = wiener process rand val
+        # no drift, just bounces around the mean
+        # square root of previous rate, prevents negative rates
+        dr = K*(theta-rates[-1])*dt + sigma*math.sqrt(rates[-1])*np.random.normal()
         rates.append(rates[-1] + dr)
     return range(N+1), rates
 
