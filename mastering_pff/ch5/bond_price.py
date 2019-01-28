@@ -1,0 +1,17 @@
+""" Get bond price from YTM """
+from bond_ytm import bond_ytm
+
+def bond_price(par, T, ytm, coup, freq=2):
+    freq = float(freq)
+    periods = T*freq
+    coupon = coup/100.*par/freq
+    dt = [(i+1)/freq for i in range(int(periods))]
+    # closed form equation
+    price = sum([coupon/(1+ytm/freq)**(freq*t) for t in dt]) + \
+            par/(1+ytm/freq)**(freq*T)
+    return price
+
+
+if __name__ == "__main__":
+    ytm = bond_ytm(95.0428, 100, 1.5, 5.75, 2)
+    print(bond_price(100, 1.5, ytm, 5.75, 2))

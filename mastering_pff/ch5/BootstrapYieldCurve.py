@@ -21,7 +21,7 @@ class BootstrapYieldCurve(object):
         self.__bootstrap_zero_coupons__()
         self.__get_bond_spot_rates__()
         return [self.zero_rates[T] for T in self.get_maturities()]
-        
+
     def get_maturities(self):
         """ Return sorted maturities from added instruments. """
         return sorted(self.instruments.keys())
