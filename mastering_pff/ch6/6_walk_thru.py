@@ -57,6 +57,7 @@ vstoxx = pd.read_csv(vstoxx_filepath,
                  parse_dates=True, 
                  dayfirst=True,
                  header=2)
+vstoxx.to_csv(data_folder+ 'vstoxx.csv')
 vstoxx.info()
 
 # setting the cutoff dates to the same date
@@ -87,7 +88,7 @@ log_returns = np.log(data / data.shift(1)).dropna()
 # plt.close()
 
 # negative correlation between underlying log returns and volatility
-print(log_returns.corr())
+# print(log_returns.corr())
 # log_returns.plot(figsize=(10,8), x="EUROSTOXX", y="VSTOXX", kind='scatter')
 # ols_fit = sm.OLS(log_returns['VSTOXX'].values, log_returns['EUROSTOXX'].values).fit()
 # plt.plot(log_returns['EUROSTOXX'], ols_fit.fittedvalues, 'r')
@@ -95,7 +96,7 @@ print(log_returns.corr())
 # plt.close()
 
 # rolling correlation
-pd.rolling_corr(log_returns['EUROSTOXX'], log_returns['VSTOXX'], window=252).plot(figsize=(10,8))
-plt.ylabel('Rolling Annual Correlation')
-plt.savefig(IMG_PATH + 'rolling_corr.png', dpi=300)
-plt.close()
+# log_returns['EUROSTOXX'].rolling(window=252).corr(log_returns['VSTOXX']).plot(figsize=(10,8))
+# plt.ylabel('Rolling Annual Correlation')
+# plt.savefig(IMG_PATH + 'rolling_corr.png', dpi=300)
+# plt.close()
