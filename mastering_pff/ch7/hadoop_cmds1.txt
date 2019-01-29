@@ -1,0 +1,68 @@
+hadoop fs -copyFromLocal /home/cloudera/Downloads/pg4300.txt pg4300.txt 
+
+hadoop fs -ls  
+
+
+
+chmod +x /home/cloudera/word_count/mapper.py
+
+
+
+chmod +x /home/cloudera/word_count/reduce.py
+
+
+
+echo "foo foo quux labs foo bar quux" | /home/cloudera/word_count/mapper.py 
+
+echo "foo foo quux labs foo bar quux" | /home/cloudera/word_count/mapper.py | sort -k1,1 | /home/cloudera/word_count/reduce.py 
+
+hadoop jar \
+/usr/lib/hadoop-0.20-mapreduce/contrib/streaming/hadoop-streaming-2.5.0-mr1-cdh5.3.0.jar \
+-file /home/cloudera/word_count/mapper.py \
+-mapper /home/cloudera/word_count/mapper.py \
+-file /home/cloudera/word_count/reduce.py \
+-reducer /home/cloudera/word_count/reduce.py \
+-input pg4300.txt \
+-output pg4300-output
+
+hadoop fs -ls 
+
+hadoop fs -ls pg4300-output 
+
+hadoop fs -cat pg4300-output/part-00000 
+
+
+
+hadoop fs -copyFromLocal /home/cloudera/Downloads/ibm.csv ibm.csv 
+
+hadoop fs -ls 
+
+
+
+chmod +x /home/cloudera/stock/mapper.py
+chmod +x /home/cloudera/stock/reduce.py
+
+hadoop jar \
+/usr/lib/hadoop-0.20-mapreduce/contrib/streaming/hadoop-streaming-2.5.0-mr1-cdh5.3.0.jar \
+-file /home/cloudera/stock/mapper.py \
+-mapper /home/cloudera/stock/mapper.py \
+-file /home/cloudera/stock/reduce.py \
+-reducer /home/cloudera/stock/reduce.py \
+-input ibm.csv \
+-output stock-output
+
+hadoop fs -copyToLocal  stock-output/part-00000 /home/cloudera/stock/ 
+
+
+
+sudo yum install python-matplotlib
+
+
+
+python /home/cloudera/stock/analysis.py
+
+
+
+mkdir -p data/db
+
+mongod –dbpath data/db
