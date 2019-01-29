@@ -5,6 +5,7 @@ import scipy.stats as st
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 import math
 
 IMG_PATH = "/home/ubuntu/workspace/python_for_finance/mastering_pff/png/"
