@@ -80,16 +80,21 @@ def CRR_option_valuation(otype, M=500):
     S = S0 * mu * md
 
     # Valuation by Backwards Induction
-    pdb.set_trace()
+    # Checking max of intrinsic value and exercising at each step
     h = inner_value(S, otype)  # innver value matrix
     V = inner_value(S, otype)  # value matrix
     C = np.zeros((M + 1, M + 1), dtype=np.float)  # continuation values
     ex = np.zeros((M + 1, M + 1), dtype=np.float)  # exercise matrix
 
     z = 0
+    # Step backward from possible end values of S and calculate values at each node
     for i in range(M - 1, -1, -1):
+        # C = continuation value, aka value of not xercising the option at this date
+        # q is chance of up move --> (chance of up * up value in V + chance of down (1-q) * down value of V) * discount factor
         C[0:M - z, i] = (q * V[0:M - z, i + 1] + (1 - q) * V[1:M - z + 1, i + 1]) * df
+        # V = present value of american derivative, max of C value and h where h is value of immediate exercise
         V[0:M - z, i] = np.where(h[0:M - z, i] > C[0:M - z, i], h[0:M - z, i], C[0:M - z, i])
+        # ex simply states whether we exercise at each point or not
         ex[0:M - z, i] = np.where(h[0:M - z, i] > C[0:M - z, i], 1, 0)
         z += 1
     return V[0, 0]
