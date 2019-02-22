@@ -60,8 +60,7 @@ def generate_paths(I):
     S[0] = S0  # initial values
     for t in range(1, M + 1, 1):  # stock price paths
         ran = generate_random_numbers(I)
-        S[t] = S[t - 1] * np.exp((r - sigma ** 2 / 2) * dt +
-                                 sigma * ran * math.sqrt(dt))
+        S[t] = S[t - 1] * np.exp((r - sigma ** 2 / 2) * dt + sigma * ran * math.sqrt(dt))
     return S
 
 

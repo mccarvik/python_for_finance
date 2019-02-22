@@ -60,8 +60,8 @@ def generate_paths(I):
     S[0] = S0  # initial values
     for t in range(1, M + 1, 1):  # stock price paths
         ran = generate_random_numbers(I)
-        S[t] = S[t - 1] * np.exp((r - sigma ** 2 / 2) * dt
-                                 + sigma * ran * math.sqrt(dt))
+        # brownian motion
+        S[t] = S[t - 1] * np.exp((r - sigma ** 2 / 2) * dt + sigma * ran * math.sqrt(dt))
     return S
 
 
@@ -70,8 +70,7 @@ def inner_values(S):
     if otype == 1:
         return np.maximum(40. - S, 0)
     else:
-        return np.minimum(40., np.maximum(90. - S, 0)
-                          + np.maximum(S - 110., 0))
+        return np.minimum(40., np.maximum(90. - S, 0) + np.maximum(S - 110., 0))
 
 
 def nested_monte_carlo(St, J):
@@ -88,8 +87,8 @@ def nested_monte_carlo(St, J):
         simulated nested paths
     '''
     ran = generate_random_numbers(J)
-    paths = St * np.exp((r - sigma ** 2 / 2) * dt +
-                        sigma * ran * math.sqrt(dt))
+    # brownian motion
+    paths = St * np.exp((r - sigma ** 2 / 2) * dt + sigma * ran * math.sqrt(dt))
     return paths
 
 
@@ -126,6 +125,7 @@ for pa in para:
         rg = np.zeros((M + 1, reg + 1), dtype=np.float)
         # regression parameter matrix
 
+        import pdb; pdb.set_trace()
         itm = np.greater(h, 0)  # ITM paths
         for t in range(M - 1, 0, -1):
             if ITM:
@@ -151,12 +151,14 @@ for pa in para:
 
         # Primal Valuation
         for t in range(M - 1, 0, -1):
+            # Regression technique from primal valuation
             C = np.polyval(rg[t], S[t])  # continuation values
             V[t] = np.where(h[t] > C, h[t], V[t + 1] * df)
             # exercise decision
         V0 = df * np.sum(V[1]) / I2  # LSM estimator
 
         # Dual Valuation
+        import pdb; pdb.set_trace()
         for t in range(1, M + 1):
             for i in range(I2):
                 Vt = max(h[t, i], np.polyval(rg[t], S[t, i]))
@@ -170,8 +172,7 @@ for pa in para:
                 U[t, i] = max(U[t - 1, i] / df, h[t, i] - Q[t, i])
                 # high estimator values
                 if t == M:
-                    U[t, i] = np.maximum(U[t - 1, i] / df,
-                                         np.mean(ht) - Q[t, i])
+                    U[t, i] = np.maximum(U[t - 1, i] / df, np.mean(ht) - Q[t, i])
         U0 = np.sum(U[M]) / I2 * df ** M  # DUAL estimator
         AV = (V0 + U0) / 2  # average of LSM and DUAL estimator
 
@@ -189,7 +190,6 @@ t1 = time()
 print("Total time in min %s" % ((t1 - t0) / 60))
 
 if write:
-    h5 = pd.HDFStore('results_%s_%s.h5' % (datetime.now().date(),
-                                    str(datetime.now().time())[:8]), 'w')
+    h5 = pd.HDFStore('results_%s_%s.h5' % (datetime.now().date(), str(datetime.now().time())[:8]), 'w')
     h5['results'] = results
     h5.close()
