@@ -125,7 +125,6 @@ for pa in para:
         rg = np.zeros((M + 1, reg + 1), dtype=np.float)
         # regression parameter matrix
 
-        import pdb; pdb.set_trace()
         itm = np.greater(h, 0)  # ITM paths
         for t in range(M - 1, 0, -1):
             if ITM:
@@ -136,11 +135,14 @@ for pa in para:
                 else:
                     rg[t] = np.polyfit(S_itm, V_itm * df, reg)
             else:
+                # uses the final payoff as the x in the regression equation
+                # and the value at t-1 as the y
+                # and finds the regression using x and x^2 as indep variable
+                # And repeat this for each time step
                 rg[t] = np.polyfit(S[t], V[t + 1] * df, reg)
                 # regression at time t
             C = np.polyval(rg[t], S[t])  # continuation values
-            V[t] = np.where(h[t] > C, h[t], V[t + 1] * df)
-            # exercise decision
+            V[t] = np.where(h[t] > C, h[t], V[t + 1] * df) # exercise decision
 
         # Simulation
         Q = np.zeros((M + 1, I2), dtype=np.float)  # martingale matrix
@@ -158,7 +160,6 @@ for pa in para:
         V0 = df * np.sum(V[1]) / I2  # LSM estimator
 
         # Dual Valuation
-        import pdb; pdb.set_trace()
         for t in range(1, M + 1):
             for i in range(I2):
                 Vt = max(h[t, i], np.polyval(rg[t], S[t, i]))
@@ -167,6 +168,7 @@ for pa in para:
                 Ct = np.polyval(rg[t], St)  # cv from nested MCS
                 ht = inner_values(St)  # iv from nested MCS
                 VtJ = np.sum(np.where(ht > Ct, ht, Ct)) / len(St)
+                # Adds a nested martingale and averages it with the results found from the LSM approach
                 # average of V(t,i,j)
                 Q[t, i] = Q[t - 1, i] / df + (Vt - VtJ)  # "optimal" martingale
                 U[t, i] = max(U[t - 1, i] / df, h[t, i] - Q[t, i])

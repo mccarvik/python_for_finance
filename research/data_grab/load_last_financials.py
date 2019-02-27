@@ -6,7 +6,7 @@ import pdb, time, requests, csv
 import numpy as np
 import pandas as pd
 import datetime as dt
-from research.res_utils import *
+from research.eq_analysis_kelleher.res_utils import *
 from utils.db_utils import DBHelper, restart
 
 success = []
@@ -18,7 +18,7 @@ def getData(tickers=None):
     tasks = []
     if not tickers:
         # with open("/home/ubuntu/workspace//ml_dev_work/utils/snp_ticks_2018_02_13.txt", "r") as f:
-        with open("/home/ubuntu/workspace//ml_dev_work/utils/memb_list.txt", "r") as f:
+        with open("/home/ubuntu/workspace/python_for_finance/research/utils/iex_available_stocks_2019_02_25.txt", "r") as f:
             for line in f:
                 tasks.append(line.strip())
     else:
@@ -28,9 +28,10 @@ def getData(tickers=None):
     # tasks = [t for t in tasks if t not in ms_dg_helper.remove_ticks_ms]
     # tasks = [t for t in tasks if t not in ms_dg_helper.remove_ticks_dr]
     
-    with DBHelper() as db:
-        db.connect()
-        already = db.select('morningstar_monthly_cf')['ticker'].values
+    already = []
+    # with DBHelper() as db:
+    #     db.connect()
+    #     already = db.select('morningstar_monthly_cf')['ticker'].values
     
     try:
         ct = 0
@@ -41,12 +42,12 @@ def getData(tickers=None):
                 print(str(ct) + " stocks completed so far")
             try:
                 succ = True
-                # data = makeAPICall(t, 'is')
-                # if len(data) != 0:
-                #     sendToDB(data, 'morningstar_monthly_is')
-                # else:
-                #     succ = False
-                #     failure.append(t)
+                data = makeAPICall(t, 'is')
+                if len(data) != 0:
+                    sendToDB(data, 'morningstar_monthly_is')
+                else:
+                    succ = False
+                    failure.append(t)
                 
                 # data = makeAPICall(t, 'bs')
                 # if len(data) != 0:
@@ -55,12 +56,12 @@ def getData(tickers=None):
                 #     succ = False
                 #     failure.append(t)
                 
-                data = makeAPICall(t, 'cf')
-                if len(data) != 0:
-                    sendToDB(data, 'morningstar_monthly_cf')
-                else:
-                    succ = False
-                    failure.append(t)
+                # data = makeAPICall(t, 'cf')
+                # if len(data) != 0:
+                #     sendToDB(data, 'morningstar_monthly_cf')
+                # else:
+                #     succ = False
+                #     failure.append(t)
                 
                 if succ:
                     success.append(t)
