@@ -55,6 +55,7 @@ def M76_value_call_INT(S0, K, T, r, sigma, lamb, mu, delta):
     call_value: float
         European call option present value
     '''
+    # integrates using quad function
     int_value = quad(lambda u: M76_integration_function(u, S0, K, T, r,
                      sigma, lamb, mu, delta), 0, 50, limit=250)[0]
     call_value = S0 - np.exp(-r * T) * math.sqrt(S0 * K) / math.pi * int_value
