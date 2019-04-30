@@ -19,6 +19,7 @@ from dawp.ch10.CIR_zcb_val_gen import B
 from dawp.ch3.bsm_imp_vol import call_option
 from dawp.ch11.h93_calibration import S0, r0, kappa_r, theta_r, sigma_r
 
+PNG_PATH = '../png/11ch/'
 mpl.rcParams['font.family'] = 'serif'
 
 #
@@ -66,5 +67,10 @@ def plot_implied_volatilities(options, model):
         yma = max(diffs) + (max(diffs) - min(diffs)) * 0.1
         plt.axis([min(opts.Strike) - 10, max(opts.Strike) + 10, ymi, yma])
         plt.tight_layout()
-        plt.savefig('../images/11_cal/%s_calibration_iv_%s.pdf' % (model, str(mat)[:10]))
+        plt.savefig(PNG_PATH + 'implied_vols.png', dpi=300)
+        plt.close()
+
+if __name__ == '__main__':
+    opts = calculate_implied_volatilities("../data/cal_results_full.h5")
+    plot_implied_volatilities(opts, 'h93')
 

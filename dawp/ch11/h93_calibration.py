@@ -63,6 +63,8 @@ for row, option in options.iterrows():
 #
 # Calibration Functions
 #
+# only use 5 options to speed up calcs
+options = options[:5]
 i = 0
 min_MSE = 500
 
@@ -129,7 +131,7 @@ def H93_calibration_full():
     return opt
 
 
-def c(p0):
+def H93_calculate_model_values(p0):
     ''' Calculates all model values given parameter vector p0. '''
     kappa_v, theta_v, sigma_v, rho, v0 = p0
     values = []
@@ -142,7 +144,6 @@ def c(p0):
     
     
 if __name__ == '__main__':
-    pdb.set_trace()
     opt = H93_calibration_full()
-    results = opt = H93_calibration_full()(opt)
+    print(H93_calculate_model_values(opt))
     
