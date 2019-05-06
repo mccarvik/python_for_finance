@@ -6,8 +6,6 @@ from research.eq_analysis_kelleher.res_utils import get_ticker_info
 from research.utils.eod_px_util import FILE_PATH, FILE_NAME
 
 
-
-
 def get_bs_info(ticks=[]):
     if not ticks:
         with open(FILE_PATH + FILE_NAME, "r") as file:
