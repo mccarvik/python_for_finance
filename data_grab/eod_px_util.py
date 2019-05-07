@@ -169,8 +169,8 @@ if __name__ == '__main__':
     # S_DT = dt.datetime(2013, 1, 1)
     # E_DT = dt.datetime(2019, 2, 22)
     # get_time_series('F')
-    # get_list_of_symbols('cs')
-    load_db()
+    get_list_of_symbols('cs')
+    # load_db()
     # quandl_load()
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)

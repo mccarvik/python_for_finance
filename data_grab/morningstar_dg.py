@@ -1,22 +1,102 @@
-import sys, time
-sys.path.append("/home/ubuntu/workspace/ml_dev_work")
-sys.path.append("/usr/local/lib/python2.7/dist-packages")
-sys.path.append("/usr/local/lib/python3.4/dist-packages")
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.finance as mpf
+import pdb
+import sys
+import time
+import requests
+import io
+import json
 import pandas as pd
-# Gets rid of annoying "A value is trying to be set on a copy of a slice from a DataFrame." Warning
-pd.options.mode.chained_assignment = None
 import numpy as np
-import os, csv, requests, asyncio, time, json, io, datetime, scipy.stats, pdb
+import datetime as dt
 from threading import Thread
-from pandas_datareader.data import DataReader
+sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from data_grab import ms_dg_helper
 from utils.db_utils import DBHelper, restart
 
 success = []
 failure = []
+
+FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
+FILE_NAME = 'fmp_available_stocks_{}.txt'
+
+# quora: https://www.quora.com/Is-there-a-free-API-for-financial-statement-information-for-all-public-companies
+# fmp inf0 --> https://financialmodelingprep.com/developer/docs#Financial-Ratios
+fmp_financial_ratios_url = "https://financialmodelingprep.com/api/financial-ratios/{}?period=quarter&datatype=csv"
+
+def get_available_ticks():
+    url = "https://financialmodelingprep.com/api/stock/list/all?datatype=json"
+    raw = requests.get(url).content
+    data = json.loads(raw)
+    data = pd.DataFrame(data)['Ticker'].values
+    pdb.set_trace()
+    tod = dt.datetime.today().strftime("%Y%m%d")
+    with open(FILE_PATH + FILE_NAME.format(tod), 'w') as file:
+        for item in data:
+            file.write("%s\n" % item)
+
+
+def get_fin_ratios(tickers=None):
+    tasks = []
+    if not tickers:
+        with open("/home/ec2-user/environment/python_for_finance/data_grab/fmp_available_stocks_20190507.txt", "r") as f:
+            for line in f:
+                tasks.append(line.strip())
+    else:
+        tasks = tickers
+    t0 = time.time()
+    threads = []
+    print("total stocks: {}".format(len(tasks)))
+    
+    try:
+        ct = 0
+        start = False
+        starter = 'SPY'
+        for t in tasks:
+            if not start and t != starter:
+                continue
+            else:
+                start = True
+            
+            if ct % 25 == 0:
+                print(str(ct) + " stocks completed so far")
+            try:
+                fin_ratios_api(t)
+                success.append(t)
+            except:
+                # pdb.set_trace()
+                failure.append(t)
+                print("Failed " + t + "\t")
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                print("Error in task loop: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
+            ct+=1
+    except Exception as e:
+        # pdb.set_trace()
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        print("Error in getData: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
+    
+    t1 = time.time()
+    text_file = open("Failures.txt", "w")
+    text_file.write(("\t").join(failure))
+    print("\t".join(success))
+    print("Done Retrieving data, took {0} seconds".format(t1-t0))
+
+
+def fin_ratios_api(tick):
+    url = fmp_financial_ratios_url.format(tick)
+    raw = requests.get(url).content
+    data = pd.read_csv(io.StringIO(raw.decode('utf-8')))
+    try:
+        data = data.drop('TTM', axis=1)
+    except Exception as exc:
+        print(exc)
+        print("May be an etf where this isnt applicable")
+    data = data.set_index('Ratios').transpose().reset_index()
+    data['month'] = data['index'].str.slice(5)
+    data['year'] = data['index'].str.slice(0,4)
+    data['tick'] = tick
+    data = data.drop('index', axis=1)
+    data = data.set_index(['tick', 'year', 'month'])
+    sendToDB(data, 'fin_ratios', ['tick', 'year', 'month'])
+    
 
 def getData(tickers=None):
     # Getting all the tickers from text file
@@ -77,8 +157,10 @@ def getData(tickers=None):
     print("\t".join(success))
     print("Done Retrieving data, took {0} seconds".format(t1-t0))
 
+
 def makeAPICall(tick):
-    # print("Trying " + tick + "\t")
+    pdb.set_trace()
+    print("Trying " + tick + "\t")
     try:
         url = 'http://financials.morningstar.com/ajax/exportKR2CSV.html?t=' + tick
         urlData = requests.get(url).content.decode('utf-8')
@@ -372,12 +454,9 @@ def addGrowthCustomCols(df, qr):
     return df
 
 
-def sendToDB(df):
-    pdb.set_trace()
+def sendToDB(df, table, prim_keys):
     with DBHelper() as db:
         db.connect()
-        table = 'morningstar'
-        prim_keys = ['date', 'ticker', 'month']
         for ind, vals in df.reset_index().iterrows():
             val_dict = vals.to_dict()
             db.upsert(table, val_dict, prim_keys)
@@ -385,5 +464,6 @@ def sendToDB(df):
 
 if __name__ == "__main__":
     # getData(['MCD'])
-    # getData(['ALK'])
-    getData(['MSFT'])
+    # get_fin_ratios(['MSFT'])
+    get_fin_ratios()
+    # get_available_ticks()
