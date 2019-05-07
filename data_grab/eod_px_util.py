@@ -1,18 +1,19 @@
 """
 This util will grab data to and from the db with eod prices
 """
+import pdb
 import sys
 import json
 import datetime as dt
 import pandas as pd
 import requests
+from pandas_datareader import data as pd_dr
 from dateutil.relativedelta import relativedelta
-import pandas_datareader as dr
-sys.path.append("/home/ubuntu/workspace/python_for_finance")
-sys.path.append("/home/ubuntu/workspace/ml_dev_work")
+# import pandas_datareader as dr
+sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper
 
-FILE_PATH = '/home/ubuntu/workspace/python_for_finance/research/utils/'
+FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
 FILE_NAME = 'iex_available_stocks_2019_02_25.txt'
 
 # px = HBIO
@@ -20,13 +21,16 @@ FILE_NAME = 'iex_available_stocks_2019_02_25.txt'
 # is = TR
 
 def quandl_load():
+    """
+    Load eod data from quandl
+    """
     ticks = []
     start = dt.date(1999, 12, 1)
     end = dt.date(2019, 2, 26)
     with open(FILE_PATH + FILE_NAME, "r") as file:
         for line in file:
             ticks.append(line.strip())
-    
+
     count = 0
     for ind_t in ticks:
         if ind_t < 'ACC':
@@ -56,7 +60,7 @@ def get_time_series(tick, start=None, end=dt.datetime.today()):
     """
     if not start:
         start = dt.datetime.today() - relativedelta(years=5)
-    data = dr.DataReader(tick, 'iex', start, end)['close']
+    data = pd_dr.DataReader(tick, 'iex', start, end)['close']
     return data
 
 
@@ -86,10 +90,10 @@ def load_db():
 
     count = 0
     for ind_t in ticks:
-        if ind_t < 'FGEN':
-            count += 1
-            print("skipping {}  already have data".format(ind_t))
-            continue
+        # if ind_t < 'FGEN':
+        #     count += 1
+        #     print("skipping {}  already have data".format(ind_t))
+        #     continue
 
         print("starting load for {}".format(ind_t))
         try:
@@ -166,8 +170,8 @@ if __name__ == '__main__':
     # E_DT = dt.datetime(2019, 2, 22)
     # get_time_series('F')
     # get_list_of_symbols('cs')
-    # load_db()
-    quandl_load()
+    load_db()
+    # quandl_load()
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)
     # print(get_db_pxs(["A", "MSFT"]))
