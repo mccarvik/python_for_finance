@@ -1,104 +1,11 @@
-import pdb
-import sys
-import time
-import requests
-import io
-import json
-import pandas as pd
-import numpy as np
-import datetime as dt
-from threading import Thread
-sys.path.append("/home/ec2-user/environment/python_for_finance/")
-from data_grab import ms_dg_helper
-from utils.db_utils import DBHelper, restart
-
-success = []
-failure = []
-
-FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
-FILE_NAME = 'fmp_available_stocks_{}.txt'
-
-# quora: https://www.quora.com/Is-there-a-free-API-for-financial-statement-information-for-all-public-companies
-# fmp inf0 --> https://financialmodelingprep.com/developer/docs#Financial-Ratios
-fmp_financial_ratios_url = "https://financialmodelingprep.com/api/financial-ratios/{}?period=quarter&datatype=csv"
-
-def get_available_ticks():
-    url = "https://financialmodelingprep.com/api/stock/list/all?datatype=json"
-    raw = requests.get(url).content
-    data = json.loads(raw)
-    data = pd.DataFrame(data)['Ticker'].values
-    pdb.set_trace()
-    tod = dt.datetime.today().strftime("%Y%m%d")
-    with open(FILE_PATH + FILE_NAME.format(tod), 'w') as file:
-        for item in data:
-            file.write("%s\n" % item)
-
-
-def get_fin_ratios(tickers=None):
-    tasks = []
-    if not tickers:
-        with open("/home/ec2-user/environment/python_for_finance/data_grab/fmp_available_stocks_20190507.txt", "r") as f:
-            for line in f:
-                tasks.append(line.strip())
-    else:
-        tasks = tickers
-    t0 = time.time()
-    threads = []
-    print("total stocks: {}".format(len(tasks)))
-    
-    try:
-        ct = 0
-        start = False
-        starter = 'SPY'
-        for t in tasks:
-            if not start and t != starter:
-                continue
-            else:
-                start = True
-            
-            if ct % 25 == 0:
-                print(str(ct) + " stocks completed so far")
-            try:
-                fin_ratios_api(t)
-                success.append(t)
-            except:
-                # pdb.set_trace()
-                failure.append(t)
-                print("Failed " + t + "\t")
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                print("Error in task loop: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
-            ct+=1
-    except Exception as e:
-        # pdb.set_trace()
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        print("Error in getData: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
-    
-    t1 = time.time()
-    text_file = open("Failures.txt", "w")
-    text_file.write(("\t").join(failure))
-    print("\t".join(success))
-    print("Done Retrieving data, took {0} seconds".format(t1-t0))
-
-
-def fin_ratios_api(tick):
-    url = fmp_financial_ratios_url.format(tick)
-    raw = requests.get(url).content
-    data = pd.read_csv(io.StringIO(raw.decode('utf-8')))
-    try:
-        data = data.drop('TTM', axis=1)
-    except Exception as exc:
-        print(exc)
-        print("May be an etf where this isnt applicable")
-    data = data.set_index('Ratios').transpose().reset_index()
-    data['month'] = data['index'].str.slice(5)
-    data['year'] = data['index'].str.slice(0,4)
-    data['tick'] = tick
-    data = data.drop('index', axis=1)
-    data = data.set_index(['tick', 'year', 'month'])
-    sendToDB(data, 'fin_ratios', ['tick', 'year', 'month'])
-    
+# 
+# Artifact of a defunct API, might still be some useful code tho
+# 
 
 def getData(tickers=None):
+    """
+    Main function function for making API call
+    """
     # Getting all the tickers from text file
     tasks = []
     if not tickers:
@@ -138,10 +45,10 @@ def getData(tickers=None):
                 print(str(ct) + " stocks completed so far")
             try:
                 makeAPICall(t)
-                success.append(t)
+                SUCCESS.append(t)
             except:
                 # pdb.set_trace()
-                failure.append(t)
+                FAILURE.append(t)
                 print("Failed " + t + "\t")
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 print("Error in task loop: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
@@ -153,8 +60,8 @@ def getData(tickers=None):
     
     t1 = time.time()
     text_file = open("Failures.txt", "w")
-    text_file.write(("\t").join(failure))
-    print("\t".join(success))
+    text_file.write(("\t").join(FAILURE))
+    print("\t".join(SUCCESS))
     print("Done Retrieving data, took {0} seconds".format(t1-t0))
 
 
@@ -190,10 +97,13 @@ def makeAPICall(tick):
         raise
         
     print("Succeeded " + tick + "\t")
-    success.append(tick)
+    SUCCESS.append(tick)
 
     
 def pruneData(df, dates, tick):
+    """
+    Prune data based on time frame, formatting, etc.
+    """
     df = df.set_index(0)
     df = df.transpose()
     # if tick == "AHS":
@@ -208,8 +118,8 @@ def pruneData(df, dates, tick):
         print("Error with column mapping for {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, tick))
     
     # The TTM data may be off as that last column has different time windows
-    years = [d.split("-")[0] for d in dates[:-1]] + [str(datetime.date.today().year)]
-    months = [d.split("-")[1] for d in dates[:-1]] + [str(datetime.date.today().month)]
+    years = [d.split("-")[0] for d in dates[:-1]] + [str(dt.date.today().year)]
+    months = [d.split("-")[1] for d in dates[:-1]] + [str(dt.date.today().month)]
     df['date'] = years
     df['month'] = months
     df['ticker'] = tick
@@ -217,7 +127,7 @@ def pruneData(df, dates, tick):
     df = cleanData(df)
     try:
         df = addCustomColumns(df)
-        sendToDB(df)
+        send_to_db(df)
     except:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         print("Did not load data for {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, tick))
@@ -225,6 +135,9 @@ def pruneData(df, dates, tick):
 
 
 def cleanData(df):
+    """
+    removes commas and NA's as well as other cleaning
+    """
     # Need this for commas
     df = df.apply(lambda x: pd.to_numeric(x.astype(str).str.replace(',',''), errors='ignore'))
     df = df.fillna(0)
@@ -236,12 +149,15 @@ def cleanData(df):
 
 
 def addCustomColumns(df, market_upd=False):
+    """
+    Adds custom columns in addition to ones provided
+    """
     if df.reset_index()['ticker'][0] == 'ATVI':
         # pdb.set_trace()
         print()
-    start = datetime.date(int(df.index.get_level_values('date')[0])-10, int(df['month'].values[0]), 1)
-    end_date_ls = [int(d) for d in datetime.date.today().strftime('%Y-%m-%d').split("-")]
-    end = datetime.date(end_date_ls[0], end_date_ls[1], end_date_ls[2])
+    start = dt.date(int(df.index.get_level_values('date')[0])-10, int(df['month'].values[0]), 1)
+    end_date_ls = [int(d) for d in dt.date.today().strftime('%Y-%m-%d').split("-")]
+    end = dt.date(end_date_ls[0], end_date_ls[1], end_date_ls[2])
     try:
         url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(df.index.get_level_values('ticker')[0], start, end)
         qr = pd.read_csv(url)
@@ -289,6 +205,9 @@ def addCustomColumns(df, market_upd=False):
 
 
 def addTimelineCustomCols(df, qr, vol_window=252):
+    """
+    Adding time series related columns
+    """
     quotes = qr.reset_index()
     
     quotes['mv_avg_50'] = quotes['Close'].rolling(center=False,window=50).mean()
@@ -304,19 +223,19 @@ def addTimelineCustomCols(df, qr, vol_window=252):
     df = df.reset_index().set_index(['date', 'month'])
     for ix, row in df.iterrows():
         try:
-            df.at[ix, 'last_day'] =  quotes[quotes['Date'] >= datetime.date(int(ix[0]),int(ix[1]),1)].iloc[0]['Date']
-            df.at[ix, '50DayMvgAvg'] =  float(quotes[quotes['Date'] == df.ix[ix].last_day]['mv_avg_50'])
-            df.at[ix, '200DayMvgAvg'] =  float(quotes[quotes['Date'] == df.ix[ix].last_day]['mv_avg_200'])
-            df.at[ix, 'mv_avg_for_vol'] =  float(quotes[quotes['Date'] == df.ix[ix].last_day]['mv_avg_for_vol'])
+            df.at[ix, 'last_day'] = quotes[quotes['Date'] >= dt.date(int(ix[0]),int(ix[1]),1)].iloc[0]['Date']
+            df.at[ix, '50DayMvgAvg'] = float(quotes[quotes['Date'] == df.ix[ix].last_day]['mv_avg_50'])
+            df.at[ix, '200DayMvgAvg'] = float(quotes[quotes['Date'] == df.ix[ix].last_day]['mv_avg_200'])
+            df.at[ix, 'mv_avg_for_vol'] = float(quotes[quotes['Date'] == df.ix[ix].last_day]['mv_avg_for_vol'])
             df.at[ix, 'volatility'] = float(quotes[quotes['Date'] == df.ix[ix].last_day]['vol_stdev']) / float(quotes[quotes['Date'] == df.ix[ix].last_day]['mv_avg_for_vol']) * 100
         except Exception as e:
-            df.at[ix, 'last_day'] =  np.nan
-            df.at[ix, '50DayMvgAvg'] =  np.nan
-            df.at[ix, '200DayMvgAvg'] =  np.nan
-            df.at[ix, 'mv_avg_for_vol'] =  np.nan
+            df.at[ix, 'last_day'] = np.nan
+            df.at[ix, '50DayMvgAvg'] = np.nan
+            df.at[ix, '200DayMvgAvg'] = np.nan
+            df.at[ix, 'mv_avg_for_vol'] = np.nan
             df.at[ix, 'volatility'] = np.nan
             print("May not have the quote data necessary for these calcs")
-    
+
     df['sharpeRatio'] = df['3yrReturn'] / df['volatility']
     df['downsideVol'] = downside_vol(df, qr, vol_window) / df['mv_avg_for_vol'] * 100 
     df['sortinoRatio'] = df['3yrReturn'] / df['downsideVol']
@@ -325,6 +244,9 @@ def addTimelineCustomCols(df, qr, vol_window=252):
 
 
 def calcBetas(df, quotes, years_hist=3):
+    """
+    Calculate the beta of the scecurity
+    """
     # TODO: Need to pick a smaller volatility range to fine tune the beta here
     qs = quotes.dropna().reset_index()
     qs = qs.drop('change', axis=1)
@@ -332,7 +254,7 @@ def calcBetas(df, quotes, years_hist=3):
     for ind, vals in df.iterrows():
         try:
             # default 3 year history
-            np_array = qs[(qs['Date'] >= datetime.date(int(ind[1])-years_hist,int(vals['month']),1)) & (qs['Date'] <= datetime.date(int(ind[1]),int(vals['month']),1))].values
+            np_array = qs[(qs['Date'] >= dt.date(int(ind[1])-years_hist,int(vals['month']),1)) & (qs['Date'] <= dt.date(int(ind[1]),int(vals['month']),1))].values
             market = np_array[:,1]                      # market returns are column zero from numpy array
             stock = np_array[:,2]                       # stock returns are column one from numpy array
             corr = scipy.stats.pearsonr(stock, market)[0]
@@ -365,10 +287,13 @@ def downside_vol(df, qr, vol_window):
 
 
 def addBasicCustomCols(df, qr):
+    """
+    Adding some basic columns to the dataframe
+    """
     # Need this for times where no prices available
     curPrices = []
     for ind, x in df.iterrows():
-        y = qr[qr['Date'] <= datetime.date(int(x.name[1]),int(x['month']),1)]
+        y = qr[qr['Date'] <= dt.date(int(x.name[1]),int(x['month']),1)]
         if not y.empty:
             curPrices.append(y.iloc[-1]['Close'])
         else:
@@ -392,7 +317,11 @@ def addBasicCustomCols(df, qr):
 
     
 def addGrowthCustomCols(df, qr):
-    rev_growth = []; eps_growth = []
+    """
+    Adding growth columns
+    """
+    rev_growth = []
+    eps_growth = []
     for ind, vals in df.iterrows():
         try:
             last = df.loc[(df.index.get_level_values('date') == str(int(ind[1])-1))]
@@ -413,33 +342,33 @@ def addGrowthCustomCols(df, qr):
     yr1_ret = []; yr3_ret = []; yr5_ret = []; yr10_ret = []; ytd_ret =[]; min52 = []; max52 = []
     for ind, vals in df.iterrows():
         try:
-            yr1q = qr[qr['Date'] >= datetime.date(int(ind[1])-1,int(vals['month']),1)].iloc[0]['Close']
+            yr1q = qr[qr['Date'] >= dt.date(int(ind[1])-1,int(vals['month']),1)].iloc[0]['Close']
             yr1_ret.append(((vals['currentPrice'] / yr1q) - 1) * 100)
         except:
             yr1_ret.append(0)
         try:
-            yr3q = qr[qr['Date'] >= datetime.date(int(ind[1])-3,int(vals['month']),1)].iloc[0]['Close']
+            yr3q = qr[qr['Date'] >= dt.date(int(ind[1])-3,int(vals['month']),1)].iloc[0]['Close']
             yr3_ret.append(((vals['currentPrice'] / yr3q)**(1/3) - 1) * 100)
         except:
             yr3_ret.append(0)
         try:
-            yr5q = qr[qr['Date'] >= datetime.date(int(ind[1])-5,int(vals['month']),1)].iloc[0]['Close']
+            yr5q = qr[qr['Date'] >= dt.date(int(ind[1])-5,int(vals['month']),1)].iloc[0]['Close']
             yr5_ret.append(((vals['currentPrice'] / yr5q)**(1/5) - 1) * 100)
         except:
             yr5_ret.append(0)
         try:
-            yr10q = qr[qr['Date'] >= datetime.date(int(ind[1])-10,int(vals['month']),1)].iloc[0]['Close']
+            yr10q = qr[qr['Date'] >= dt.date(int(ind[1])-10,int(vals['month']),1)].iloc[0]['Close']
             yr10_ret.append(((vals['currentPrice'] / yr10q)**(1/10) - 1) * 100)
         except:
             yr10_ret.append(0)
         try:
-            yrytd = qr[qr['Date'] >= datetime.date(int(ind[1])-10,1,1)].iloc[0]['Close']
+            yrytd = qr[qr['Date'] >= dt.date(int(ind[1])-10,1,1)].iloc[0]['Close']
             ytd_ret.append(((vals['currentPrice'] / yrytd - 1) * 100))
         except:
             ytd_ret.append(0)
         try:
-            min52.append(min(qr[(qr['Date'] >= datetime.date(int(ind[1])-1,int(vals['month']),1)) & (qr['Date'] <= datetime.date(int(ind[1]),int(vals['month']),1))]['Close']))
-            max52.append(max(qr[(qr['Date'] >= datetime.date(int(ind[1])-1,int(vals['month']),1)) & (qr['Date'] <= datetime.date(int(ind[1]),int(vals['month']),1))]['Close']))
+            min52.append(min(qr[(qr['Date'] >= dt.date(int(ind[1])-1,int(vals['month']),1)) & (qr['Date'] <= dt.date(int(ind[1]),int(vals['month']),1))]['Close']))
+            max52.append(max(qr[(qr['Date'] >= dt.date(int(ind[1])-1,int(vals['month']),1)) & (qr['Date'] <= dt.date(int(ind[1]),int(vals['month']),1))]['Close']))
         except:
             min52.append(0)
             max52.append(0)
@@ -452,18 +381,3 @@ def addGrowthCustomCols(df, qr):
     df['52WeekLow'] = min52
     df['52WeekHigh'] = max52
     return df
-
-
-def sendToDB(df, table, prim_keys):
-    with DBHelper() as db:
-        db.connect()
-        for ind, vals in df.reset_index().iterrows():
-            val_dict = vals.to_dict()
-            db.upsert(table, val_dict, prim_keys)
-
-
-if __name__ == "__main__":
-    # getData(['MCD'])
-    # get_fin_ratios(['MSFT'])
-    get_fin_ratios()
-    # get_available_ticks()
