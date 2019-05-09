@@ -2,8 +2,10 @@ import pymysql
 import datetime, sys, pdb
 import pandas as pd
 # from app import app
+sys.path.append("/home/ec2-user/environment/python_for_finance/")
 sys.path.append("/home/ec2-user/environment/python_for_finance/utils/")
 from helper_funcs import stringify
+from data_grab.fmp_helper import COL_MAPS
 
 # https://docs.c9.io/docs/setup-a-database
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-LAMP.html
@@ -200,6 +202,27 @@ def create_fin_ratios_table():
     create_table_if_not_exists('finance', 'fin_ratios', columns_sql, prim_keys)
 
 
+def create_bal_sheet_table():
+    columns_sql = {}
+    columns_sql['year'] = 'varchar(16)'
+    columns_sql['month'] = 'varchar(16)'
+    columns_sql['tick'] = 'varchar(16)'
+    for val in COL_MAPS['bal_sheet'].values():
+        columns_sql[val] = 'float'
+    prim_keys = ['year', 'month', 'tick']
+    create_table_if_not_exists('finance', 'bal_sheet', columns_sql, prim_keys)
+
+def create_inc_statement_table():
+    columns_sql = {}
+    columns_sql['year'] = 'varchar(16)'
+    columns_sql['month'] = 'varchar(16)'
+    columns_sql['tick'] = 'varchar(16)'
+    for val in COL_MAPS['inc_statement'].values():
+        columns_sql[val] = 'float'
+    prim_keys = ['year', 'month', 'tick']
+    create_table_if_not_exists('finance', 'inc_statement', columns_sql, prim_keys)
+
+
 def create_table_if_not_exists(schema, table, columns_dict, prim_keys):
     columns_list = []
     for name, dtype in columns_dict.items():
@@ -219,7 +242,7 @@ if __name__ == '__main__':
     # a.connect(db_host='localhost')
     # restart()
     try:
-        create_fin_ratios_table()
+        create_inc_statement_table()
     except Exception as e:
         pdb.set_trace()
         print()
