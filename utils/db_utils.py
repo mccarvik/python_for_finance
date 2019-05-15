@@ -212,6 +212,7 @@ def create_bal_sheet_table():
     prim_keys = ['year', 'month', 'tick']
     create_table_if_not_exists('finance', 'bal_sheet', columns_sql, prim_keys)
 
+
 def create_inc_statement_table():
     columns_sql = {}
     columns_sql['year'] = 'varchar(16)'
@@ -221,6 +222,16 @@ def create_inc_statement_table():
         columns_sql[val] = 'float'
     prim_keys = ['year', 'month', 'tick']
     create_table_if_not_exists('finance', 'inc_statement', columns_sql, prim_keys)
+    
+def create_cf_statement_table():
+    columns_sql = {}
+    columns_sql['year'] = 'varchar(16)'
+    columns_sql['month'] = 'varchar(16)'
+    columns_sql['tick'] = 'varchar(16)'
+    for val in COL_MAPS['cf_statement'].values():
+        columns_sql[val] = 'float'
+    prim_keys = ['year', 'month', 'tick']
+    create_table_if_not_exists('finance', 'cf_statement', columns_sql, prim_keys)
 
 
 def create_table_if_not_exists(schema, table, columns_dict, prim_keys):
@@ -242,7 +253,7 @@ if __name__ == '__main__':
     # a.connect(db_host='localhost')
     # restart()
     try:
-        create_inc_statement_table()
+        create_cf_statement_table()
     except Exception as e:
         pdb.set_trace()
         print()

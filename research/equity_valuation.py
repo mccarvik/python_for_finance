@@ -1,15 +1,15 @@
 import sys
-sys.path.append("/home/ubuntu/workspace/python_for_finance")
-sys.path.append("/home/ubuntu/workspace/ml_dev_work")
-sys.path.append("/usr/local/lib/python3.4/dist-packages")
-import pdb, time, requests, csv
+import pdb
+import time
+import csv
+import datetime as dt
 import numpy as np
 import pandas as pd
-import datetime as dt
+import requests
 import quandl
 quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
-import pandas_datareader as dr
 
+sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from res_utils import *
 from dx.frame import get_year_deltas
 
@@ -32,23 +32,24 @@ def peer_derived_value(data, comp_anal, period, hist_px):
     years_fwd = 2
     vals = ['PS', 'PE_avg_hist', 'PB', 'PCF']
     ticks = list(data.keys())
-    
+
     # get group market cap
     group_mkt_cap = 0
-    for k,v in data.items():
+    for k, v in data.items():
         per = tuple([period[0], k, data[k][0].index.values[0][2]])
         try:
             group_mkt_cap += v[0]['shares'][per] * hist_px[k].dropna().values[-1]
         except:
-            # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
+            # May not have reported yet for this year, if this also fails, 
+            # raise exception as may have bigger problem
             per = tuple([str(int(period[0])-1), k, data[k][0].index.values[0][2]])
             group_mkt_cap += v[0]['shares'][per] * float(hist_px[k].dropna().values[-1])
             per = tuple([period[0], k, data[k][0].index.values[0][2]])
         # Need to project out vals
         for val in vals:
-            xs = data[k][0][val].dropna().reset_index()[['date','month']]
+            xs = data[k][0][val].dropna().reset_index()[['date', 'month']]
             slope, yint = ols_calc(xs, data[k][0][val].dropna())
-            for fwd in range(1,years_fwd+1):
+            for fwd in range(1, years_fwd+1):
                 start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
                 per = tuple([str(int(period[0])+fwd), v[0].index.values[0][1], v[0].index.values[0][2]+"E"])
                 new_x = get_year_deltas([start, dt.datetime(int(per[0]), int(per[2][:-1]), 1).date()])[-1]
@@ -522,11 +523,11 @@ def hist_adjustments(hist, data_is):
     return hist
 
 
-def get_price_data(ticks, comps, api=False):
+def get_price_data(ticks, comps, method='db'):
     pxs = pd.DataFrame()
     # Cant find an API I can trust for EOD stock data
     for t in ticks + comps:
-        if api:
+        if method == 'api':
             start = dt.date(int(data.index.values[0][0]), int(data.index.values[0][2]), 1).strftime("%Y-%m-%d")
             end = dt.datetime.today().date().strftime("%Y-%m-%d")
             try:
@@ -539,13 +540,17 @@ def get_price_data(ticks, comps, api=False):
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 print("Could not read time series data for {3}: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj, t))
                 raise
-        else:
+        elif method == 'file':
             qr = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/{}.csv".format(t))
             qr = qr.rename(columns={'close': t}).set_index(['date'])
             if pxs.empty:
                 pxs = qr
             else:
                 pxs = pd.merge(pxs, qr, how='left', left_index=True, right_index=True)
+        else:
+            # TODO Grab data from db
+            pdb.set_trace()
+            print()
     return pxs
 
 
@@ -609,7 +614,8 @@ def valuation_model(ticks, mode='db'):
     mkt = 'SPY'
     other = [mkt, ind]
     # Get Historical Price data
-    hist_px = get_price_data(ticks, other, False)
+    pdb.set_trace()
+    hist_px = get_price_data(ticks, other, mode)
     
     for t in ticks:
         if mode == 'api':
@@ -657,5 +663,6 @@ def valuation_model(ticks, mode='db'):
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
+    # valuation_model(['MSFT'])
     valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
     

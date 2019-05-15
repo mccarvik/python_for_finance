@@ -160,7 +160,7 @@ def cf_statement_api(tick):
     data['tick'] = tick
     data = data.set_index(['tick', 'year', 'month'])
     data.columns = map_columns("cf_statement", list(data.columns.values))
-    # send_to_db(data, 'cf_statement', ['tick', 'year', 'month'])
+    send_to_db(data, 'cf_statement', ['tick', 'year', 'month'])
 
 
 def send_to_db(data_df, table, prim_keys):
