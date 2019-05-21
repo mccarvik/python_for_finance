@@ -373,11 +373,11 @@ def ratios_and_valuation(data):
     return data
 
 
-def model_est_ols(years, cum, hist, chg, margin, avg_cols=[], use_last=[]):
+def model_est_ols(years, hist, chg, margin, avg_cols=[], use_last=[]):
+    pdb.set_trace()
     df_est = pd.DataFrame()
     # some cleanup
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(IDX)
-    cum = cum.reset_index()[cum.reset_index().month != ''].set_index(IDX)
 
     # need to convert from margin to gross
     for cc in margin_cols:
@@ -631,10 +631,10 @@ def valuation_model(ticks, mode='db'):
                                     'restruct_mna', 'prov_inc_tax', 'other_oper_exp']]
 
         # Add some necessary columns and adjustemnts
-        data_hist = hist_adjustments(data)
+        data = hist_adjustments(data)
         # project out data based on historicals using OLS regression
         pdb.set_trace()
-        data_ols = model_est_ols(10, data_cum, data_hist, data_chg, data_margin, [], [])
+        data_ols = model_est_ols(10, data, data_chg, data_margin, [], [])
         # Calculate Ratios for Use later
         ratios = ratios_and_valuation(data_ols)
         period = [i for i in ratios.index.values if "E" not in i[2]][-1]
