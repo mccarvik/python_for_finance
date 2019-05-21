@@ -6,7 +6,7 @@ import datetime as dt
 sys.path.append("/home/ubuntu/workspace/ml_dev_work")
 from utils.db_utils import DBHelper
 
-idx = ['date', 'ticker', 'month']
+IDX = ['year', 'tick', 'month']
 
 IS_COLS = {
     'Revenue' : 'revenue',
@@ -423,7 +423,7 @@ def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
     for i in columns.values():
         if i not in data.columns:
             data[i] = 0
-    data = data.set_index(idx)
+    data = data.set_index(IDX)
     return data
     
 
@@ -467,7 +467,7 @@ def getNextYear(index):
     return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E",""))))+"E"]
 
 
-def get_ticker_info(ticks, table, dates=None):
+def get_ticker_info(ticks, table, idx=None, dates=None):
     # Temp to make testing quicker
     t0 = time.time()
     # tickers = pd.read_csv('/home/ubuntu/workspace/ml_dev_work/utils/dow_ticks.csv', header=None)
@@ -477,18 +477,21 @@ def get_ticker_info(ticks, table, dates=None):
         lis = ''
         for t in ticks:
             lis += "'" + t + "', "
-        df = db.select(table, where = 'ticker in (' + lis[:-2] + ')')
+        df = db.select(table, where = 'tick in (' + lis[:-2] + ')')
         
     # Getting Dataframe
     t1 = time.time()
     # print("Done Retrieving data, took {0} seconds".format(t1-t0))
-    return df.set_index(['date', 'ticker', 'month'])
+    if idx:
+        return df.set_index(idx)
+    else:
+        return df
 
 
 def dataCumColumns(data):
-    tick = data.reset_index()['ticker'][0]
+    tick = data.reset_index()['tick'][0]
     try:
-        data = data.drop([('TTM', tick, '')])
+        data = data.drop([('TTM', '', tick)])
     except:
         # no TTM included
         pass
@@ -500,42 +503,47 @@ def dataCumColumns(data):
     data.loc[len(data)] = ['M9', tick, ''] + list(M9.values)
     data.loc[len(data)] = ['Y1', tick, ''] + list(Y1.values)
     data = data.reindex([0,1,2,5,3,6,4,7])
-    data = data.set_index(idx)
+    data = data.set_index(IDX)
     return data
 
 
-def removeEmptyCols(df):
-    return df.dropna(axis='columns', how='all')
+def removeEmptyCols(data):
+    for key in data.keys():
+        data[key] = data[key].dropna(axis='columns', how='all')
+    return data
 
     
-def period_chg(df):
-    df_y = df.reset_index()
-    df_y = df_y[df_y.date != 'TTM']
-    years = list(df_y['date'] + df_y['month'])
-    # df_y = df_y.set_index(['date', 'ticker', 'month'])
-    df_chg = pd.DataFrame(columns=idx + list(df.columns))
+def period_chg(data_df):
+    """
+    Calculate the change fom one year to the next
+    """
+    data_df = data_df['is']
+    df_y = data_df.reset_index()
+    df_y = df_y[df_y.year != 'TTM']
+    years = list(df_y['year'] + df_y['month'])
+    df_chg = pd.DataFrame(columns=IDX + list(data_df.columns))
     for y in years:
         if y == min(years):
             last_y = y
             continue
-        year_df = df_y[(df_y.date==y[:4]) & (df_y.month==y[4:])].drop(idx, axis=1).values
-        last_y_df = df_y[(df_y.date==last_y[:4]) & (df_y.month==last_y[4:])].drop(idx, axis=1).values
+        year_df = df_y[(df_y.year==y[:4]) & (df_y.month==y[4:])].drop(IDX, axis=1).values
+        last_y_df = df_y[(df_y.year==last_y[:4]) & (df_y.month==last_y[4:])].drop(IDX, axis=1).values
         yoy = (year_df / last_y_df - 1) * 100
         yoy[abs(yoy) == np.inf] = 0
         where_are_NaNs = np.isnan(yoy)
         yoy[where_are_NaNs] = 0
-        data = list(df_y[(df_y.date==y[:4]) & (df_y.month==y[4:])].iloc[0][idx]) + list(yoy[0])
+        data = list(df_y[(df_y.year==y[:4]) & (df_y.month==y[4:])].iloc[0][IDX]) + list(yoy[0])
         df_chg.loc[len(df_chg)] = data
         last_y = y
     
     # need this to add year over year for single year model
-    yoy = (df_y.drop(idx, axis=1).loc[len(df_y)-1].values / df_y.drop(idx, axis=1).loc[0].values - 1) * 100
+    yoy = (df_y.drop(IDX, axis=1).loc[len(df_y)-1].values / df_y.drop(IDX, axis=1).loc[0].values - 1) * 100
     yoy[abs(yoy) == np.inf] = 0
     where_are_NaNs = np.isnan(yoy)
     yoy[where_are_NaNs] = 0
-    data = ['YoY', df.reset_index().ticker[0], ''] + list(yoy)
+    data = ['YoY', data_df.reset_index().tick[0], ''] + list(yoy)
     df_chg.loc[len(df_chg)] = data
-    df_chg = df_chg.set_index(idx)
+    df_chg = df_chg.set_index(IDX)
     return df_chg
 
 
@@ -547,4 +555,5 @@ def setup_comp_cols(indices):
     
 def setup_pdv_cols():
     return ['ticker', 'cat', '5y_avg', 'hist_var_v_weight_avg', '2yr_fwd_mult', 'cur_var_v_weight_avg', 'prem_disc', 'pdv_price']
-    
+
+
