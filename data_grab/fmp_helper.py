@@ -41,7 +41,7 @@ BAL_SHEET_MAP = {
     'Taxes payable': 'tax_payable',
     'Income taxes payable': 'tax_payable',
     'Total assets': 'total_assets',
-    'Total cash': 'total_cash',
+    'Total cash': 'cash',
     'Total current assets': 'total_cur_assets',
     'Total current liabilities': 'total_cur_liabs',
     'Total liabilities': 'total_liabs',

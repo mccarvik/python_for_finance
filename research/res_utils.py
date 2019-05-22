@@ -325,11 +325,11 @@ CF_COLS = {
 
 
 # input cols
-margin_cols = ['cogs', 'rd', 'sga', 'netInterestOtherMargin']
-bal_sheet_cols = ['totalLiabilities', 'totalCurrentLiabilities', 'totalCurrentAssets', 'accountsRecievable', 'inventory',
-                 'accountsPayable', 'cashAndShortTermInv', 'netPPE', 'totalEquity']
-gross_cols = ['workingCapital', 'totalAssets', 'enterpriseValue', 'EBITDA', 'nopat', 'dividendPerShare', 'capSpending', 'operCF', 'FCF',
-              'totalEquity']
+MARGIN_COLS = ['cogs', 'rnd', 'sga', 'net_int_inc']
+BAL_SHEET_COLS = ['total_liabs', 'total_cur_liabs', 'total_cur_assets', 'cash'
+                  'receivables', 'inv', 'accounts_payable', 
+                  'net_ppe', 'total_equity']
+GROSS_COLS = ['workingCapital', 'total_assets', 'enterpriseValue', 'ebitda', 'nopat', 'dividendPerShare', 'capSpending', 'operCF', 'FCF',]
 
 # output cols
 int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
