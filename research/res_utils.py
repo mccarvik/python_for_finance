@@ -325,11 +325,12 @@ CF_COLS = {
 
 
 # input cols
-MARGIN_COLS = ['cogs', 'rnd', 'sga', 'net_int_inc']
-BAL_SHEET_COLS = ['total_liabs', 'total_cur_liabs', 'total_cur_assets', 'cash'
-                  'receivables', 'inv', 'accounts_payable', 
-                  'net_ppe', 'total_equity']
-GROSS_COLS = ['workingCapital', 'total_assets', 'enterpriseValue', 'ebitda', 'nopat', 'dividendPerShare', 'capSpending', 'operCF', 'FCF',]
+OLS_COLS = ['total_liabs', 'total_cur_liabs', 'total_cur_assets', 'cash'
+            'receivables', 'inv', 'accounts_payable', 'net_ppe', 'total_equity',
+            'weight_avg_shares', 'working_cap', 'total_assets', 'ebitda', 
+            'enterprise_val', 'nopat', 'div_per_share', 'cap_exp', 'oper_cf', 
+            'revenue', 'oper_inc', 'prov_inc_tax', 'fcf', 'cogs', 'rnd', 'sga', 
+            'net_int_inc']
 
 # output cols
 int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
@@ -557,3 +558,28 @@ def setup_pdv_cols():
     return ['ticker', 'cat', '5y_avg', 'hist_var_v_weight_avg', '2yr_fwd_mult', 'cur_var_v_weight_avg', 'prem_disc', 'pdv_price']
 
 
+def match_px(data, eod_px):
+    """
+    Apply a price to each statement date
+    """
+    tick = data['bs'].iloc[0].name[2]
+    dates = data['bs'].reset_index()[['year', 'month']]
+    eod_px = eod_px.loc[tick]
+    data['bs']['date_px'] = None
+    
+    for _, vals in dates.iterrows():
+        day = 1
+        while True:
+            try:
+                date = dt.datetime(int(vals['year']), int(vals['month']), day)
+                px = eod_px.loc[date]['px']
+                data['bs'].at[(vals['year'], vals['month'], tick), 'date_px'] = px
+                break
+            except KeyError as exc:
+                # holiday or weekend probably
+                day += 1
+            if day > 10:
+                break
+    return data
+    
+    

@@ -11,8 +11,8 @@ import quandl
 quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
 
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
-from res_utils import get_ticker_info, removeEmptyCols, period_chg, getNextYear, \
-                      GROSS_COLS, MARGIN_COLS, BAL_SHEET_COLS
+from res_utils import get_ticker_info, removeEmptyCols, period_chg, \
+                      getNextYear, OLS_COLS, match_px, getNextQuarter
 from dx.frame import get_year_deltas
 
 # NOTES:
@@ -374,18 +374,19 @@ def ratios_and_valuation(data):
     return data
 
 
-def model_est_ols(years, data, margin, avg_cols=[], use_last=[]):
+def model_est_ols(years, data, avg_cols=None, use_last=None):
     """
     Create a model based on ordinary least squares regression
     """
+    hist = []
     # some cleanup
-    margin = margin.reset_index()[margin.reset_index().year != 'TTM'].set_index(IDX)
-    data_is = data['is'].reset_index()[data['is'].reset_index().year != 'TTM'].set_index(IDX)
+    for sheet in ['is', 'bs', 'cf', 'fr']:
+        data[sheet] = data[sheet].reset_index()[data[sheet].reset_index().year != 'TTM'].set_index(IDX)
 
     # next qurater est is equal to revenue * average est margin
     # over the last year
     for _ in range(years):
-        n_idx = list(data_is.iloc[-1].name)
+        n_idx = list(data['is'].iloc[-1].name)
         n_idx = getNextYear(n_idx)
 
         n_hist_dict = {k: v for k, v in zip(IDX, n_idx)}
@@ -393,67 +394,55 @@ def model_est_ols(years, data, margin, avg_cols=[], use_last=[]):
         #########
         # Use OLS to get projected values
         #########
-        loop_cols = (['revenue', 'oper_inc', 'prov_inc_tax']
-                     + MARGIN_COLS + GROSS_COLS + BAL_SHEET_COLS)
-        for cat in loop_cols:
+        for cat in OLS_COLS:
             # Need these for columns that are too eradic for OLS
-            if cat in avg_cols:
-                n_hist_dict[cat] = hist[cat].mean()
+            if avg_cols and cat in avg_cols:
+                n_hist_dict[cat] = data[cat].mean()
                 continue
-            if cat in use_last:
-                n_hist_dict[cat] = hist[cat].values[-1]
+            if use_last and cat in use_last:
+                n_hist_dict[cat] = data[cat].values[-1]
                 continue
-            xs = data_is.reset_index()[['year', 'month']]
-            try:
-                val = data_is[cat]
-            except KeyError as exc:
-                pdb.set_trace()
+            x_val = data['is'].reset_index()[['year', 'month']]
+            for sheet in ['is', 'bs', 'cf', 'fr']:
                 try:
-                    val = data['bs'][cat]
-                except KeyError as exc_2:
-                    n_hist_dict[cat] = 0
-                    continue
-
-            slope, yint = ols_calc(xs, val)
-            start = dt.datetime(int(xs.values[0][0]),
-                                int(xs.values[0][1]), 1).date()
+                    val = data[sheet][cat]
+                except KeyError as exc:
+                    if sheet == 'fr':
+                        n_hist_dict[cat] = 0
+                    else:
+                        continue
+            slope, yint = ols_calc(x_val, val)
+            start = dt.datetime(int(x_val.values[0][0]),
+                                int(x_val.values[0][1]), 1).date()
             new_x = get_year_deltas([start, dt.datetime(int(n_idx[0]),
                                                         int(n_idx[2][:-1]),
                                                         1).date()])[-1]
             # Need this to convert terminology for quarterly, also need to divide by four
             n_hist_dict[cat] = (yint + new_x * slope)
 
-        # 0.6 = about corp rate , 0.02 = about yield on cash, 
-        # 0.25 = 1/4 of the year
-        # n_cum_dict['intExp'] = total_debt * 0.25 * 0.6 
-        #                      - cash_and_inv * 0.25 * 0.02
-        # n_cum_dict['EBT'] = n_cum_dict['EBIT'] - n_cum_dict['intExp'] 
-        #                   + n_cum_dict['otherInc']
-
-        # Interest Expense included in other income
-        # n_hist_dict['intExp'] = total_debt * 0.06 - cash_and_inv * 0.02
-        pdb.set_trace()
         n_hist_dict['ebt'] = n_hist_dict['oper_inc'] + n_hist_dict['net_int_inc']
-        n_hist_dict['taxes'] = (n_hist_dict['taxRate'] / 100) * n_hist_dict['ebt']
-        n_hist_dict['netIncome'] = n_hist_dict['ebt'] - n_hist_dict['taxes']
-
-        n_hist_dict['shares'] = ((((cum.iloc[-1]['weight_avg_shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
-        n_hist_dict['eps'] = n_hist_dict['net_inc'] / n_hist_dict['shares']
-
-        # t_df = pd.DataFrame(n_cum_dict, index=[0]).set_index(IDX)
+        # assume average tax rate over last 5 years
+        n_hist_dict['taxes'] = (data['fr']['effectiveTaxRate'].mean()
+                                * n_hist_dict['ebt'])
+        n_hist_dict['net_inc'] = n_hist_dict['ebt'] - n_hist_dict['taxes']
+        n_hist_dict['eps'] = (n_hist_dict['net_inc'] 
+                              / n_hist_dict['weight_avg_shares'])
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(IDX)
-        hist = hist.append(t_df)
+        pdb.set_trace()
+        hist.append(t_df)
     return hist
 
 
-def model_est(cum, hist, chg, margin):
-    df_est = pd.DataFrame()
+def model_est(cum, margin):
+    """
+    Model based on quarterly estimats
+    """
     # some cleanup
     margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(IDX)
     cum = cum.reset_index()[cum.reset_index().month != ''].set_index(IDX)
 
     # next qurater est is equal to revenue * average est margin over the last year
-    for i in range(4):
+    for _ in range(4):
         n_idx = list(cum.iloc[-1].name)
         n_idx = getNextQuarter(n_idx)
         n_data = n_idx + list(margin[-5:-1].mean())
@@ -466,8 +455,8 @@ def model_est(cum, hist, chg, margin):
         #########
         # Use mean of previous few years to get there
         #########
-        for c in ['cogs', 'rd', 'sga', 'grossProfit', 'mna', 'otherExp']:
-            n_cum_dict[c] = margin.loc[tuple(n_idx)][c] * n_cum_dict['revenue']
+        for col in ['cogs', 'rd', 'sga', 'grossProfit', 'mna', 'otherExp']:
+            n_cum_dict[col] = margin.loc[tuple(n_idx)][col] * n_cum_dict['revenue']
         n_cum_dict['operatingCost'] = n_cum_dict['rd'] + n_cum_dict['sga'] + n_cum_dict['mna'] + n_cum_dict['otherExp']
         n_cum_dict['EBIT'] = n_cum_dict['revenue'] - n_cum_dict['operatingCost'] - n_cum_dict['cogs']   # operating income
         # Need to update these when we do balance sheet
@@ -509,37 +498,42 @@ def margin_df(marg_df):
     """
     data = marg_df.apply(lambda x: x / x['revenue'], axis=1)
     # tax rate presented as percentage of pre tax income
-    data['taxes'] = marg_df['prov_inc_tax'] / marg_df['ebt']     
+    data['taxes'] = marg_df['prov_inc_tax'] / marg_df['ebt']
     return data
 
 
-def ols_calc(xs, ys, n_idx=None):
+def ols_calc(xvals, yvals, n_idx=None):
     """
     ordinary least squares calculation
     """
-    xs = [dt.datetime(int(x[0]), int(float(str(x[1]).replace("E", ""))), 
-                      1).date() for x in xs.values]
-    start = xs[0]
-    xs = get_year_deltas(xs)
-    A = np.vstack([xs, np.ones(len(xs))]).T
-    slope, yint = np.linalg.lstsq(A, ys.values)[0]
+    xvals = [dt.datetime(int(x[0]), int(float(str(x[1]).replace("E", ""))),
+                      1).date() for x in xvals.values]
+    start = xvals[0]
+    xvals = get_year_deltas(xvals)
+    A_mat = np.vstack([xvals, np.ones(len(xvals))]).T
+    slope, yint = np.linalg.lstsq(A_mat, yvals.values)[0]
     return (slope, yint)
 
 
-def hist_adjustments(data):
+def added_columns(data, eod_px):
     """
     Add some necessary columns
     """
-    # assume sum of last 4 quarters as annual
-    # hist['depAndAmort'] = data_is['depAndAmort'].mean() * 4
-    # hist['EBITDA'] = data_is['EBITDA'][-4:].mean() * 4
+    data = match_px(data, eod_px)
 
     # Adding columns
     # Net Operatin Profit after tax
-    data['is']['nopat'] = (data['is']['oper_inc'] 
+    data['is']['nopat'] = (data['is']['oper_inc']
                            * (1 - data['fr']['effectiveTaxRate']))
-    # Free cash flow
-    data['cf']['fcf'] = data['cf']['oper_cf'] - data['cf']['cap_exp']
+    # Dividend per share
+    data['bs']['div_per_share'] = (data['cf']['divs_paid']
+                                   / data['is']['weight_avg_shares'])
+    # Working capital
+    data['bs']['working_cap'] = (data['bs']['total_cur_assets']
+                                 - data['bs']['total_cur_liabs'])
+    ev = ((data['is']['weight_avg_shares'] * data['bs']['date_px'])
+          + data['bs']['total_cur_liabs'] - data['bs']['cash'])
+    data['bs']['enterprise_val'] = pd.to_numeric(ev, errors='coerce')
     return data
 
 
@@ -560,7 +554,7 @@ def get_price_data(ticks, comps, method='db'):
             if pxs.empty:
                 pxs = qrd
             else:
-                pxs = pd.merge(pxs, qrd, how='left', 
+                pxs = pd.merge(pxs, qrd, how='left',
                                left_index=True, right_index=True)
         else:
             pxs = get_ticker_info(ticks + comps, 'eod_px', ['tick', 'date'])
@@ -592,7 +586,7 @@ def analyze_ests(data, period, hist_px, years_fwd=2):
                 mod_est = []
                 for val in valuations[mod]:
                     try:
-                        e = [float(est[3]) for est in v[1] if est[0] == val and 
+                        e = [float(est[3]) for est in v[1] if est[0] == val and
                              est[1] == k and est[2] == year][0]
                     except:
                         # Might not have this model for this year
@@ -616,7 +610,7 @@ def analyze_ests(data, period, hist_px, years_fwd=2):
                 year_avg_est += estimate * val_weights[key]
             print("Current Price: {}".format(hist_px[k].dropna().values[-1]))
             print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}".format(k, year, '%.4f'%year_avg_est))
-            prem_disc = (year_avg_est 
+            prem_disc = (year_avg_est
                          / float(hist_px[k].dropna().values[-1])) - 1
             # Divide by beta
             risk_adj = ((year_avg_est / float(hist_px[k].dropna().values[-1])) - 1) / v[0]['beta'][per]
@@ -657,9 +651,9 @@ def valuation_model(ticks, mode='db'):
                                              'prov_inc_tax', 'other_oper_exp']]
 
         # Add some necessary columns and adjustemnts
-        data = hist_adjustments(data)
+        data = added_columns(data, hist_px)
         # project out data based on historicals using OLS regression
-        data_ols = model_est_ols(10, data, data_chg, data_margin, [], [])
+        data_ols = model_est_ols(10, data)
         # Calculate Ratios for Use later
         ratios = ratios_and_valuation(data_ols)
         period = [i for i in ratios.index.values if "E" not in i[2]][-1]
