@@ -80,7 +80,8 @@ def fin_ratios_api(tick):
     """
     reach out to the fin_ratios API on FMP
     """
-    url = DATA_MAP['fin_ratios'][1].format(tick)
+    # get fin ratios
+    url = DATA_MAP['fin_ratios'][1][0].format(tick)
     raw = requests.get(url).content
     data = pd.read_csv(io.StringIO(raw.decode('utf-8')))
     try:
@@ -88,12 +89,32 @@ def fin_ratios_api(tick):
     except Exception as exc:
         print(exc)
         print("May be an etf where this isnt applicable")
+        return
     data = data.set_index('Ratios').transpose().reset_index()
     data['month'] = data['index'].str.slice(5)
     data['year'] = data['index'].str.slice(0, 4)
     data['tick'] = tick
     data = data.drop('index', axis=1)
     data = data.set_index(['tick', 'year', 'month'])
+    data.columns = map_columns("fin_ratios", list(data.columns.values))
+    
+    try:
+        url = DATA_MAP['fin_ratios'][1][1].format(tick)
+        raw = requests.get(url).content
+        data_cm = pd.DataFrame(json.loads(raw)['metrics'])
+        data_cm['year'] = data_cm['date'].str.slice(0, 4)
+        data_cm['month'] = data_cm['date'].str.slice(5, 7)
+        data_cm['tick'] = tick
+        data_cm = data_cm.drop('date', axis=1)
+        data_cm = data_cm.set_index(['tick', 'year', 'month'])
+        data_cm.columns = map_columns("fin_ratios", list(data_cm.columns.values))
+    except Exception as exc:
+        print(exc)
+        print("May be an etf where this isnt applicable")
+        return
+    data_cm = data_cm.drop(['curr_ratio', 'roe', 'debt_to_equity', 'pb_ratio',
+                           'pfcf_ratio', 'pe_ratio', 'div_yield'], axis=1)
+    data = pd.merge(data, data_cm, left_index=True, right_index=True)
     send_to_db(data, 'fin_ratios', ['tick', 'year', 'month'])
 
 
@@ -175,7 +196,8 @@ def send_to_db(data_df, table, prim_keys):
 
 
 DATA_MAP = {
-    'fin_ratios': [fin_ratios_api, "https://financialmodelingprep.com/api/financial-ratios/{}?period=quarter&datatype=csv"],
+    'fin_ratios': [fin_ratios_api, ["https://financialmodelingprep.com/api/financial-ratios/{}?datatype=csv",
+                                   "https://financialmodelingprep.com/api/v3/company-key-metrics/{}?datatype=json"]],
     'bal_sheet': [bal_sheet_api, "https://financialmodelingprep.com/api/v2/financials/balance-sheet-statement/{}?datatype=json"],
     'inc_statement': [inc_statement_api, "https://financialmodelingprep.com/api/v2/financials/income-statement/{}?datatype=json"],
     'cf_statement': [cf_statement_api, "https://financialmodelingprep.com/api/v2/financials/cash-flow-statement/{}?datatype=json"]
@@ -184,10 +206,11 @@ DATA_MAP = {
 
 if __name__ == "__main__":
     # get_available_ticks()
-    # get_fmp_data('fin_ratios')
+    get_fmp_data('fin_ratios')
+    # get_fmp_data('fin_ratios', ['AAPL'])
     # get_fmp_data('bal_sheet', ['AAPL'])
     # get_fmp_data('bal_sheet')
     # get_fmp_data('inc_statement', ['AAPL'])
     # get_fmp_data('inc_statement')
     # get_fmp_data('cf_statement', ['AAPL'])
-    get_fmp_data('cf_statement')
+    # get_fmp_data('cf_statement')

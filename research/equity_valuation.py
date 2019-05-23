@@ -233,26 +233,35 @@ def discount_fcf(data, period, ests, hist_px):
 
 
 def historical_ratios(data, period, hist_px):
+    """
+    Calculate historical ratios for valuation
+    """
     ests = []
     next_per = tuple(getNextYear(period))
     pers_2 = tuple(getNextYear(next_per))
 
     # fill current price with latest measurement
-    data['currentPrice'] = data['currentPrice'].fillna(float(hist_px[period[1]].values[-1]))
+    curr_px = hist_px.loc[period[1]].iloc[-1]['px']
 
     # PE Ratios
-    data['PE_low_hist'] = (data['52WeekLow'] * data['shares']) / data['netIncome']
-    data['PE_high_hist'] = (data['52WeekHigh'] * data['shares']) / data['netIncome']
-    data['PE_avg_hist'] = (data['52WeekAvg'] * data['shares']) / data['netIncome']
-    data['PE_curr_hist'] = (data['currentPrice'] * data['shares']) / data['netIncome']
-    data['PE_fwd'] = (data['currentPrice'] * data['shares']) / data['netIncome'].shift(1)
-    data['PE_5yr_avg_hist'] = data['PE_avg_hist'].rolling(center=False, window=5).mean()
-    for p in [next_per, pers_2]:
-        final_val = '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][p])
-        ests.append(("PE", p[1], p[0], final_val))
+    pdb.set_trace()
+    data['bs']['PE_low_hist'] = ((data['bs']['lo_52wk'] 
+                           * data['is']['weight_avg_shares']) / data['is']['net_inc'])
+    data['bs']['PE_high_hist'] = ((data['bs']['hi_52wk'] 
+                            * data['is']['weight_avg_shares']) / data['is']['net_inc'])
+    data['bs']['PE_avg_hist'] = ((data['bs']['avg_52wk'] 
+                            * data['is']['weight_avg_shares']) / data['is']['net_inc'])
+    data['bs']['PE_curr_hist'] = ((curr_px * data['is']['weight_avg_shares']) / data['is']['net_inc'])
+    data['bs']['PE_fwd'] = ((data['bs']['date_px'] * data['is']['weight_avg_shares']) 
+                       / data['is']['net_inc'].shift(1))
+    data['bs']['PE_5yr_avg_hist'] = data['bs']['PE_avg_hist'].rolling(center=False, window=5).mean()
+    pdb.set_trace()
+    for per in [next_per, pers_2]:
+        final_val = '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][per])
+        ests.append(("PE", per[1], per[0], final_val))
         if DEBUG:
             print("Hist avg PE: {}  Fwd EPS: {}  DV Est {} {}: {}".format('%.3f'%(data['PE_5yr_avg_hist'][period]),
-                '%.3f'%(data['EPS'][p]), p[1], p[0], final_val))
+                '%.3f'%(data['EPS'][per]), per[1], per[0], final_val))
 
     # P/S
     data['PS'] = (data['52WeekAvg'] * data['shares']) / data['revenue']
@@ -322,55 +331,46 @@ def historical_ratios(data, period, hist_px):
     return data, ests
 
 
-def ratios_and_valuation(data):
-    # Internal Liquidity
-    data['workingCapital'] = data['totalCurrentAssets'] - data['totalCurrentLiabilities']
-    data['tradeWorkingCapital'] = data['accountsRecievable'] + data['inventory'] - data['accountsPayable']
-    data['currentRatio'] = data['totalCurrentAssets'] / data['totalCurrentLiabilities']
-    data['quickRatio'] = (data['cashAndShortTermInv'] + data['accountsRecievable']) / data['totalCurrentLiabilities']
-    data['workingCap_v_Sales'] = data['workingCapital'] / data['revenue']
+def ratios_and_valuation(data, eod_px):
+    """
+    Add some necessary columns
+    """
+    # get price info
+    data = match_px(data, eod_px)
 
-    # Operating Efficiency
-    data['receivablesTurnover'] = data['revenue'] / data['accountsRecievable']
-    data['receivablesDaysOutstanding'] = 365 / data['receivablesTurnover']
-    data['totalAssetTurnover'] = data['revenue'] / data['totalAssets']
-    data['inventoryTurnover'] = data['cogs'] / data['inventory']
-    data['inventoryDaysOutstanding'] = 365 / data['inventoryTurnover']
-    data['daysSalesOutstanding'] = data['accountsRecievable'] / (data['revenue'] / 365)
-    data['fixedAssetTurnover'] = data['revenue'] / data['netPPE']
-    data['equityTurnover'] = data['revenue'] / data['totalEquity']
-    data['payablesTurnover'] = data['revenue'] / data['accountsPayable']
-    data['payablesDaysOutstanding'] = 365 / data['payablesTurnover']
-    data['cashConversionCycle'] = data['inventoryDaysOutstanding'] + data['receivablesDaysOutstanding'] - data['payablesDaysOutstanding']
+    # Balance Sheet Columns
+    data['bs']['div_per_share'] = (data['cf']['divs_paid']
+                                   / data['is']['weight_avg_shares'])
 
-    # margin ratios
-    data['grossMargin'] = (data['revenue'] - data['cogs']) / data['revenue']
-    data['operMargin'] = (data['operatingIncome']) / data['revenue']
-    data['pretaxMargin'] = data['EBT'] / data['revenue']
-    data['netMargin'] = data['netIncome'] / data['revenue']
-    data['EBITDAMargin'] = data['EBITDA'] / data['revenue']
-    data['EBITDA_v_EV'] = data['EBITDA'] / data['enterpriseValue']
-    data['EV_v_EBITDA'] = data['enterpriseValue'] / data['EBITDA']
+    # Income Statement columns
+    # Net Operatin Profit after tax
+    data['is']['nopat'] = (data['is']['oper_inc']
+                           * (1 - data['fr']['eff_tax_rate']))
+    data['is']['rtc'] = data['is']['nopat'] / data['bs']['total_assets']
 
-    # return ratios
-    data['ROIC'] = data['nopat'] / (data['totalAssets'] - data['cashAndShortTermInv'] - data['totalCurrentLiabilities'])
-    data['RTC'] = data['nopat'] / data['totalAssets']
-    data['ROA'] = data['netIncome'] / data['totalAssets']
-    data['ROE'] = data['netIncome'] / data['totalEquity']
-    data['ROE_dupont'] = (data['netIncome'] / data['revenue']) * (data['revenue'] / data['totalAssets']) * (data['totalAssets'] / data['totalEquity'])
+    # Financial Ratios
+    data['fr']['trade_work_cap'] = (data['bs']['receivables']
+                                    + data['bs']['inv']
+                                    - data['bs']['accounts_payable'])
+    data['fr']['ebitda_margin'] = data['is']['ebitda'] / data['is']['revenue']
+    data['fr']['ret_earn_ratio'] = (1 - data['fr']['div_payout_ratio'])
+    data['fr']['const_growth_rate'] = (data['fr']['roe'] 
+                                       * data['fr']['ret_earn_ratio'])
+    data['fr']['oper_lev'] = (data['is']['oper_inc'].pct_change()
+                              / data['is']['revenue'].pct_change())
+    data['fr']['roe_dupont'] = ((data['is']['net_inc'] / data['is']['revenue'])
+                                * (data['is']['revenue'] / data['bs']['total_assets'])
+                                * (data['bs']['total_assets'] / data['bs']['total_equity']))
 
-    # risk analysis
-    data['operLev'] = data['operatingIncome'].pct_change() / data['revenue'].pct_change()
-    data['intCov'] = data['operatingIncome'] / data['netInterestOtherMargin']
-    data['debtToEquity'] = data['totalLiabilities'] / data['totalEquity']
-    data['debtToCap'] = data['totalLiabilities'] / data['totalAssets']
-
-    # cash flow analysis
-    data['FCF_min_wc'] = data['FCF'] - data['workingCapital'].diff()
-    data['FCF_min_twc'] = data['FCF'] - data['tradeWorkingCapital'].diff()
-    data['divPayoutRatio'] = (data['dividendPerShare'] * data['shares']) / data['netIncome']
-    data['retEarnRatio'] = (1 - data['divPayoutRatio'])
-    data['constGrowthRate'] = data['ROE'] * data['retEarnRatio']
+    # Cash Flow Statement Columns
+    data['cf']['equity_turnover'] = (data['is']['revenue']
+                                    / data['bs']['total_equity'])
+    data['cf']['cash_conv_cycle'] = (data['fr']['days_of_inv_on_hand']
+                                     + data['fr']['days_sales_outstanding']
+                                     - data['fr']['days_payables_outstanding'])
+    data['cf']['fcf_min_wc'] = data['cf']['fcf'] - data['cf']['chg_working_cap']
+    data['cf']['fcf_min_twc'] = (data['cf']['fcf']
+                                 - data['fr']['trade_work_cap'].diff())
     return data
 
 
@@ -378,7 +378,7 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
     """
     Create a model based on ordinary least squares regression
     """
-    hist = []
+    hist = pd.DataFrame()
     # some cleanup
     for sheet in ['is', 'bs', 'cf', 'fr']:
         data[sheet] = data[sheet].reset_index()[data[sheet].reset_index().year != 'TTM'].set_index(IDX)
@@ -386,9 +386,11 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
     # next qurater est is equal to revenue * average est margin
     # over the last year
     for _ in range(years):
-        n_idx = list(data['is'].iloc[-1].name)
+        if hist.empty:
+            n_idx = list(data['is'].iloc[-1].name)
+        else:
+            n_idx = list(hist.iloc[-1].name)
         n_idx = getNextYear(n_idx)
-
         n_hist_dict = {k: v for k, v in zip(IDX, n_idx)}
 
         #########
@@ -420,16 +422,16 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
             # Need this to convert terminology for quarterly, also need to divide by four
             n_hist_dict[cat] = (yint + new_x * slope)
 
-        n_hist_dict['ebt'] = n_hist_dict['oper_inc'] + n_hist_dict['net_int_inc']
+        n_hist_dict['ebt'] = (n_hist_dict['oper_inc'] 
+                              + n_hist_dict['net_int_inc'])
         # assume average tax rate over last 5 years
-        n_hist_dict['taxes'] = (data['fr']['effectiveTaxRate'].mean()
+        n_hist_dict['taxes'] = (data['fr']['eff_tax_rate'].mean()
                                 * n_hist_dict['ebt'])
         n_hist_dict['net_inc'] = n_hist_dict['ebt'] - n_hist_dict['taxes']
-        n_hist_dict['eps'] = (n_hist_dict['net_inc'] 
+        n_hist_dict['eps'] = (n_hist_dict['net_inc']
                               / n_hist_dict['weight_avg_shares'])
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(IDX)
-        pdb.set_trace()
-        hist.append(t_df)
+        hist = hist.append(t_df)
     return hist
 
 
@@ -513,28 +515,6 @@ def ols_calc(xvals, yvals, n_idx=None):
     A_mat = np.vstack([xvals, np.ones(len(xvals))]).T
     slope, yint = np.linalg.lstsq(A_mat, yvals.values)[0]
     return (slope, yint)
-
-
-def added_columns(data, eod_px):
-    """
-    Add some necessary columns
-    """
-    data = match_px(data, eod_px)
-
-    # Adding columns
-    # Net Operatin Profit after tax
-    data['is']['nopat'] = (data['is']['oper_inc']
-                           * (1 - data['fr']['effectiveTaxRate']))
-    # Dividend per share
-    data['bs']['div_per_share'] = (data['cf']['divs_paid']
-                                   / data['is']['weight_avg_shares'])
-    # Working capital
-    data['bs']['working_cap'] = (data['bs']['total_cur_assets']
-                                 - data['bs']['total_cur_liabs'])
-    ev = ((data['is']['weight_avg_shares'] * data['bs']['date_px'])
-          + data['bs']['total_cur_liabs'] - data['bs']['cash'])
-    data['bs']['enterprise_val'] = pd.to_numeric(ev, errors='coerce')
-    return data
 
 
 def get_price_data(ticks, comps, method='db'):
@@ -650,16 +630,17 @@ def valuation_model(ticks, mode='db'):
                                              'sga', 'restruct_mna',
                                              'prov_inc_tax', 'other_oper_exp']]
 
-        # Add some necessary columns and adjustemnts
-        data = added_columns(data, hist_px)
         # project out data based on historicals using OLS regression
         data_ols = model_est_ols(10, data)
-        # Calculate Ratios for Use later
-        ratios = ratios_and_valuation(data_ols)
-        period = [i for i in ratios.index.values if "E" not in i[2]][-1]
+
+        # Add some columns and adjustemnts and calculate ratios for Use later
+        data = ratios_and_valuation(data, hist_px)
+
+        period = [i for i in data['is'].index.values if "E" not in i[2]][-1]
         # Get Historical Ratios for valuation
-        hist_rats, ests = historical_ratios(ratios, period, hist_px)
+        hist_rats, ests = historical_ratios(data, period, hist_px)
         # Discounted Free Cash Flow Valuation
+        pdb.set_trace()
         dfcf, ests = discount_fcf(hist_rats, period, ests, hist_px)
         full_data[t] = [dfcf, ests]
 

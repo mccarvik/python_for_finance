@@ -159,69 +159,16 @@ def create_eod_px_table():
 
 def create_fin_ratios_table():
     columns_sql = {}
+    columns_sql = {}
     columns_sql['year'] = 'varchar(16)'
     columns_sql['month'] = 'varchar(16)'
     columns_sql['tick'] = 'varchar(16)'
-    columns_sql['currentRatio'] = 'float'
-    columns_sql['grossProfitMargin'] = 'float'
-    columns_sql['operatingProfitMargin'] = 'float'
-    columns_sql['pretaxProfitMargin'] = 'float'
-    columns_sql['netProfitMargin'] = 'float'
-    columns_sql['effectiveTaxRate'] = 'float'
-    columns_sql['returnOnAssets'] = 'float'
-    columns_sql['returnOnEquity'] = 'float'
-    columns_sql['returnOnCapitalEmployed'] = 'float'
-    columns_sql['nIperEBT'] = 'float'
-    columns_sql['eBTperEBIT'] = 'float'
-    columns_sql['eBITperRevenue'] = 'float'
-    columns_sql['debtRatio'] = 'float'
-    columns_sql['debtEquityRatio'] = 'float'
-    columns_sql['longtermDebtToCapitalization'] = 'float'
-    columns_sql['totalDebtToCapitalization'] = 'float'
-    columns_sql['interestCoverageRatio'] = 'float'
-    columns_sql['cashFlowToDebtRatio'] = 'float'
-    columns_sql['companyEquityMultiplier'] = 'float'
-    columns_sql['fixedAssetTurnover'] = 'float'
-    columns_sql['assetTurnover'] = 'float'
-    columns_sql['operatingCashFlowSalesRatio'] = 'float'
-    columns_sql['freeCashFlowOperatingCashFlowRatio'] = 'float'
-    columns_sql['cashFlowCoverageRatios'] = 'float'
-    columns_sql['capitalExpenditureCoverageRatios'] = 'float'
-    columns_sql['shortTermCoverageRatios'] = 'float'
-    columns_sql['dividendPayoutRatio'] = 'float'
-    columns_sql['priceBookValueRatio'] = 'float'
-    columns_sql['priceCashFlowRatio'] = 'float'
-    columns_sql['priceEarningsRatio'] = 'float'
-    columns_sql['priceEarningsToGrowthRatio'] = 'float'
-    columns_sql['priceSalesRatio'] = 'float'
-    columns_sql['dividendYield'] = 'float'
-    columns_sql['enterpriseValueMultiple'] = 'float'
-    columns_sql['priceFairValue'] = 'float'
-    columns_sql['dividendpaidAndCapexCoverageRatios'] = 'float'
+    for val in COL_MAPS['fin_ratios'].values():
+        columns_sql[val] = 'float'
     prim_keys = ['year', 'month', 'tick']
+    pdb.set_trace()
     create_table_if_not_exists('finance', 'fin_ratios', columns_sql, prim_keys)
-
-
-def create_bal_sheet_table():
-    columns_sql = {}
-    columns_sql['year'] = 'varchar(16)'
-    columns_sql['month'] = 'varchar(16)'
-    columns_sql['tick'] = 'varchar(16)'
-    for val in COL_MAPS['bal_sheet'].values():
-        columns_sql[val] = 'float'
-    prim_keys = ['year', 'month', 'tick']
-    create_table_if_not_exists('finance', 'bal_sheet', columns_sql, prim_keys)
-
-
-def create_inc_statement_table():
-    columns_sql = {}
-    columns_sql['year'] = 'varchar(16)'
-    columns_sql['month'] = 'varchar(16)'
-    columns_sql['tick'] = 'varchar(16)'
-    for val in COL_MAPS['inc_statement'].values():
-        columns_sql[val] = 'float'
-    prim_keys = ['year', 'month', 'tick']
-    create_table_if_not_exists('finance', 'inc_statement', columns_sql, prim_keys)
+    
     
 def create_cf_statement_table():
     columns_sql = {}
@@ -253,7 +200,7 @@ if __name__ == '__main__':
     # a.connect(db_host='localhost')
     # restart()
     try:
-        create_cf_statement_table()
+        create_fin_ratios_table()
     except Exception as e:
         pdb.set_trace()
         print()
