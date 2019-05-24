@@ -254,6 +254,8 @@ def historical_ratios(data, period, hist_px):
     data['ols']['PE_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares']) 
                        / data['is']['net_inc'].shift(1))
     data['ols']['PE_5yr_avg_hist'] = data['ols']['PE_avg_hist'].rolling(center=False, window=5).mean()
+    
+    # TODO - format this output
     pdb.set_trace()
     for per in [next_per, pers_2]:
         final_val = '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][per])
@@ -378,6 +380,7 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
     Create a model based on ordinary least squares regression
     """
     hist = pd.DataFrame()
+    data_ols = pd.DataFrame()
     # some cleanup
     for sheet in ['is', 'bs', 'cf', 'fr']:
         data[sheet] = data[sheet].reset_index()[data[sheet].reset_index().year != 'TTM'].set_index(IDX)
@@ -396,10 +399,13 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
         # Use OLS to get projected values
         #########
         for cat in OLS_COLS:
-            # Need these for columns that are too eradic for OLS
+            # for columns that are all 0 for a particular security
+            skip = False
+            # Need this for columns that are too eradic for OLS
             if avg_cols and cat in avg_cols:
                 n_hist_dict[cat] = data[cat].mean()
                 continue
+            # Need this for columns where we just use most recent value
             if use_last and cat in use_last:
                 n_hist_dict[cat] = data[cat].values[-1]
                 continue
@@ -407,11 +413,18 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
             for sheet in ['is', 'bs', 'cf', 'fr']:
                 try:
                     val = data[sheet][cat]
+                    data_ols[cat] = val
+                    break
                 except KeyError as exc:
                     if sheet == 'fr':
                         n_hist_dict[cat] = 0
+                        data_ols[cat] = 0
+                        skip = True
                     else:
                         continue
+            # column is 0 for this security
+            if skip:
+                continue
             slope, yint = ols_calc(x_val, val)
             start = dt.datetime(int(x_val.values[0][0]),
                                 int(x_val.values[0][1]), 1).date()
@@ -432,7 +445,7 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(IDX)
         hist = hist.append(t_df)
         
-    # TODO - add the previous history into the OLS column
+    hist = pd.concat([data_ols, hist])
     return hist
 
 
@@ -530,8 +543,8 @@ def get_price_data(ticks, comps, method='db'):
             end = dt.datetime.today().date().strftime("%Y-%m-%d")
             url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(ind_t, start, end)
         elif method == 'file':
-            qrd = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/{}.csv".format(t))
-            qrd = qr.rename(columns={'close': ind_t}).set_index(['date'])
+            qrd = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/{}.csv".format(ind_t))
+            qrd = qrd.rename(columns={'close': ind_t}).set_index(['date'])
             if pxs.empty:
                 pxs = qrd
             else:
