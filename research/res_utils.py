@@ -565,10 +565,10 @@ def match_px(data, eod_px):
     tick = data['bs'].reset_index().iloc[0]['tick']
     dates = data['bs'].reset_index()[['year', 'month']]
     eod_px = eod_px.loc[tick]
-    data['bs']['date_px'] = None
-    data['bs']['hi_52wk'] = None
-    data['bs']['lo_52wk'] = None
-    data['bs']['avg_52wk'] = None
+    data['ols']['date_px'] = None
+    data['ols']['hi_52wk'] = None
+    data['ols']['lo_52wk'] = None
+    data['ols']['avg_52wk'] = None
     
     for _, vals in dates.iterrows():
         # get the closest price to the data date
@@ -579,7 +579,7 @@ def match_px(data, eod_px):
             try:
                 date = dt.datetime(int(vals['year']), int(vals['month']), day)
                 px = eod_px.loc[date]['px']
-                data['bs'].at[(vals['year'], tick, vals['month']), 'date_px'] = px
+                data['ols'].at[(vals['year'], tick, vals['month']), 'date_px'] = px
                 break
             except KeyError as exc:
                 # holiday or weekend probably
@@ -588,9 +588,9 @@ def match_px(data, eod_px):
                 break
         # 52 week high, low, and avg
         date_range = eod_px.loc[yr1_ago : data_date]
-        data['bs'].at[(vals['year'], tick, vals['month']), 'hi_52wk'] = date_range['px'].max()
-        data['bs'].at[(vals['year'], tick, vals['month']), 'lo_52wk'] = date_range['px'].min()
-        data['bs'].at[(vals['year'], tick, vals['month']), 'avg_52wk'] = date_range['px'].mean()
+        data['ols'].at[(vals['year'], tick, vals['month']), 'hi_52wk'] = date_range['px'].max()
+        data['ols'].at[(vals['year'], tick, vals['month']), 'lo_52wk'] = date_range['px'].min()
+        data['ols'].at[(vals['year'], tick, vals['month']), 'avg_52wk'] = date_range['px'].mean()
     return data
     
     

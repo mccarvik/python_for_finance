@@ -244,17 +244,16 @@ def historical_ratios(data, period, hist_px):
     curr_px = hist_px.loc[period[1]].iloc[-1]['px']
 
     # PE Ratios
-    pdb.set_trace()
-    data['bs']['PE_low_hist'] = ((data['bs']['lo_52wk'] 
+    data['ols']['PE_low_hist'] = ((data['ols']['lo_52wk'] 
                            * data['is']['weight_avg_shares']) / data['is']['net_inc'])
-    data['bs']['PE_high_hist'] = ((data['bs']['hi_52wk'] 
+    data['ols']['PE_high_hist'] = ((data['ols']['hi_52wk'] 
                             * data['is']['weight_avg_shares']) / data['is']['net_inc'])
-    data['bs']['PE_avg_hist'] = ((data['bs']['avg_52wk'] 
+    data['ols']['PE_avg_hist'] = ((data['ols']['avg_52wk'] 
                             * data['is']['weight_avg_shares']) / data['is']['net_inc'])
-    data['bs']['PE_curr_hist'] = ((curr_px * data['is']['weight_avg_shares']) / data['is']['net_inc'])
-    data['bs']['PE_fwd'] = ((data['bs']['date_px'] * data['is']['weight_avg_shares']) 
+    data['ols']['PE_curr_hist'] = ((curr_px * data['is']['weight_avg_shares']) / data['is']['net_inc'])
+    data['ols']['PE_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares']) 
                        / data['is']['net_inc'].shift(1))
-    data['bs']['PE_5yr_avg_hist'] = data['bs']['PE_avg_hist'].rolling(center=False, window=5).mean()
+    data['ols']['PE_5yr_avg_hist'] = data['ols']['PE_avg_hist'].rolling(center=False, window=5).mean()
     pdb.set_trace()
     for per in [next_per, pers_2]:
         final_val = '%.3f'%(data['PE_5yr_avg_hist'][period] * data['EPS'][per])
@@ -432,6 +431,8 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
                               / n_hist_dict['weight_avg_shares'])
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(IDX)
         hist = hist.append(t_df)
+        
+    # TODO - add the previous history into the OLS column
     return hist
 
 
@@ -631,7 +632,7 @@ def valuation_model(ticks, mode='db'):
                                              'prov_inc_tax', 'other_oper_exp']]
 
         # project out data based on historicals using OLS regression
-        data_ols = model_est_ols(10, data)
+        data['ols'] = model_est_ols(10, data)
 
         # Add some columns and adjustemnts and calculate ratios for Use later
         data = ratios_and_valuation(data, hist_px)
