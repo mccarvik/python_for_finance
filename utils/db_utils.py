@@ -136,7 +136,7 @@ class DBHelper:
 
 def restart():
     import os
-    os.system("sudo /etc/init.d/mysql restart")
+    os.system("sudo service mysqld start")
 
 
 def data_dump(table='morningstar'):
@@ -197,11 +197,10 @@ def create_table_if_not_exists(schema, table, columns_dict, prim_keys):
 
 if __name__ == '__main__':
     # a = DBHelper()
-    # a.connect(db_host='localhost')
-    # restart()
-    try:
-        create_fin_ratios_table()
-    except Exception as e:
-        pdb.set_trace()
-        print()
-        print(e)
+    restart()
+    # try:
+    #     create_fin_ratios_table()
+    # except Exception as e:
+    #     pdb.set_trace()
+    #     print()
+    #     print(e)
