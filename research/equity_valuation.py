@@ -244,18 +244,15 @@ def historical_ratios(data, period, hist_px):
     curr_px = hist_px.loc[period[1]].iloc[-1]['px']
 
     # PE Ratios
-    data['ols']['pe_low_hist'] = ((data['ols']['lo_52wk']
-                                   * data['is']['weight_avg_shares']) / data['is']['net_inc'])
-    data['ols']['pe_high_hist'] = ((data['ols']['hi_52wk']
-                                    * data['is']['weight_avg_shares']) / data['is']['net_inc'])
-    data['ols']['pe_avg_hist'] = ((data['ols']['avg_52wk']
-                                   * data['is']['weight_avg_shares']) / data['is']['net_inc'])
-    data['ols']['pe_curr_hist'] = ((curr_px * data['is']['weight_avg_shares'])
-                                   / data['is']['net_inc'])
+    net_inc = pd.concat([data['is']['net_inc'], data['ols']['net_inc'].dropna()])
+    data['ols']['eps'] = net_inc / data['ols']['weight_avg_shares']
+    data['ols']['pe_low_hist'] = data['ols']['lo_52wk'] / data['ols']['eps']
+    data['ols']['pe_low_hist'] = data['ols']['hi_52wk'] / data['ols']['eps']
+    data['ols']['pe_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['eps']
+    data['ols']['pe_curr_hist'] = curr_px / data['ols']['eps']
     data['ols']['pe_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
                              / data['is']['net_inc'].shift(1))
     data['ols']['pe_5yr_avg_hist'] = data['ols']['pe_avg_hist'].rolling(center=False, window=5).mean()
-    data['ols']['eps'] = data['ols']['net_inc'] / data['ols']['weight_avg_shares']
 
     for per in [next_per, pers_2]:
         final_val = '%.3f' % (data['ols']['pe_5yr_avg_hist'][period] * (data['ols']['eps'][per]))
@@ -265,19 +262,39 @@ def historical_ratios(data, period, hist_px):
                 '%.3f' % (data['ols']['eps'][per]), per[1], per[0], final_val))
 
     # P/S
-    pdb.set_trace()
-    data['PS'] = (data['52WeekAvg'] * data['shares']) / data['revenue']
-    data['PS_curr'] = (data['currentPrice'] * data['shares']) / data['revenue']
-    data['PS_fwd'] = (data['currentPrice'] * data['shares']) / data['revenue'].shift(1)
-    data['PS_5yr_avg_hist'] = data['PS'].rolling(center=False, window=5).mean()
-    for p in [next_per, pers_2]:
-        final_val = '%.3f'%(data['PS_5yr_avg_hist'][period] * data['revenue'][p] / data['shares'][period])
-        ests.append(("PS", p[1], p[0], final_val))
+    # Sales per share
+    data['ols']['sps'] = data['ols']['revenue'] / data['ols']['weight_avg_shares'] 
+    data['ols']['ps_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['sps']
+    data['ols']['ps_curr_hist'] = curr_px / data['ols']['sps']
+    data['ols']['ps_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
+                             / data['is']['revenue'].shift(1))
+    data['ols']['ps_5yr_avg_hist'] = data['ols']['ps_avg_hist'].rolling(center=False, window=5).mean()
+    
+    for per in [next_per, pers_2]:
+        final_val = '%.3f' % (data['ols']['ps_5yr_avg_hist'][period] * (data['ols']['sps'][per]))
+        ests.append(("PS", per[1], per[0], final_val))
         if DEBUG:
-            print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PS_5yr_avg_hist'][period]),
-                '%.3f'%(data['revenue'][p] / data['shares'][period]), p[1], p[0], final_val))
+            print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['ps_5yr_avg_hist'][period]),
+                '%.3f' % (data['ols']['sps'][per]), per[1], per[0], final_val))
 
+    pdb.set_trace()
     # P/B
+    data['ols']['pb_avg_hist'] = ((data['ols']['avg_52wk']
+                                   * data['is']['weight_avg_shares']) / data['is']['revenue'])
+    data['ols']['pb_curr_hist'] = ((curr_px * data['is']['weight_avg_shares'])
+                                   / data['is']['revenue'])
+    data['ols']['pb_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
+                             / data['is']['revenue'].shift(1))
+    data['ols']['pb_5yr_avg_hist'] = data['ols']['ps_avg_hist'].rolling(center=False, window=5).mean()
+    data['ols']['bvps'] = data['ols']['revenue'] / data['ols']['weight_avg_shares']  # Sales per share
+    
+    for per in [next_per, pers_2]:
+        final_val = '%.3f' % (data['ols']['ps_5yr_avg_hist'][period] * (data['ols']['sps'][per]))
+        ests.append(("PS", per[1], per[0], final_val))
+        if DEBUG:
+            print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['ps_5yr_avg_hist'][period]),
+                '%.3f' % (data['ols']['sps'][per]), per[1], per[0], final_val))
+                
     data['PB'] = (data['52WeekAvg'] * data['shares']) / data['totalEquity']
     data['PB_curr'] = (data['currentPrice'] * data['shares']) / data['totalEquity']
     data['PB_fwd'] = (data['currentPrice'] * data['shares']) / data['totalEquity'].shift(1)
@@ -325,9 +342,6 @@ def historical_ratios(data, period, hist_px):
         #     data['PE_rel__5yr_avg'][period] * data['revenue'][p] / data['shares'][period]))
 
     # PEG
-    data['PEG'] = data['PE_avg_hist'] / (data['netIncome'].pct_change() * 100)
-    data['PEG_5yr_avg'] = data['PEG'].rolling(center=False, window=5).mean()
-    data['divYield'] = data['dividendPerShare'] / data['52WeekAvg']
     data['PEGY'] = data['PE_avg_hist'] / ((data['netIncome'].pct_change() + data['divYield']) * 100)
     data['PEGY_5yr_avg'] = data['PEGY'].rolling(center=False, window=5).mean()
     return data, ests
