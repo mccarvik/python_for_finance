@@ -160,14 +160,22 @@ def price_perf_anal(period, mkt, ind, hist_px):
 
 
 def discount_fcf(data, period, ests, hist_px):
-    cost_debt = 0.07  # should be pulled off debt issued by company, hard coded for now
+    """
+    Calculate the value of the security based on
+    discounted free cash flow models
+    """
+    # should be pulled off debt issued by company, hard coded for now
+    cost_debt = 0.07
+    # rate on 10yr tsy
+    r_free = 0.028
+    # generally accepted market risk premium above risk free rate
+    market_risk_prem = 0.05
 
-    rf = 0.028 # rate on 10yr tsy
-    market_risk_prem = 0.05 # generally accepted market risk premium above risk free rate
     # 1 year beta, take the 3 year average
+    pdb.set_trace()
     beta = data['beta'].rolling(center=False, window=3).mean()[period]
     # CAPM
-    cost_equity = rf + beta * market_risk_prem
+    cost_equity = r_free + beta * market_risk_prem
 
     mv_eq = float(hist_px[period[1]].values[-1]) * data['shares'][period]
     # mv_debt = HARD TO GET
@@ -179,10 +187,15 @@ def discount_fcf(data, period, ests, hist_px):
     wacc = (cost_equity * eq_v_cap) + (cost_debt * debt_v_cap) * (1 - tax_rate / 100)
 
     eps_g_proj = 0.12 # analysts projected EPS growth
-    data['proj_calc_g'] = (data['constGrowthRate'] + eps_g_proj) / 2 # average of calc'd growth and analyst projection
-    data['1st_5yr_lt_g'] = data['constGrowthRate'].rolling(center=False, window=5).mean() # 5yr avg of constant growth calc
-    data['2nd_5yr_lt_g'] = data['1st_5yr_lt_g'] - 0.02 # slightly lower than 1st growth calc, usually 2 to 4%
-    term_growth = 0.05 # long term terminal growth rate - typically some average of gdp and the industry standard
+    # average of calc'd growth and analyst projection
+    data['proj_calc_g'] = (data['constGrowthRate'] + eps_g_proj) / 2
+    # 5yr avg of constant growth calc
+    data['1st_5yr_lt_g'] = data['constGrowthRate'].rolling(center=False, window=5).mean()
+    # slightly lower than 1st growth calc, usually 2 to 4%
+    data['2nd_5yr_lt_g'] = data['1st_5yr_lt_g'] - 0.02
+    # long term terminal growth rate
+    # typically some average of gdp and the industry standard
+    term_growth = 0.05
 
     # 2 Stage DFCF
     years_to_terminal = 2
@@ -277,58 +290,51 @@ def historical_ratios(data, period, hist_px):
             print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['ps_5yr_avg_hist'][period]),
                 '%.3f' % (data['ols']['sps'][per]), per[1], per[0], final_val))
 
-    pdb.set_trace()
     # P/B
-    data['ols']['pb_avg_hist'] = ((data['ols']['avg_52wk']
-                                   * data['is']['weight_avg_shares']) / data['is']['revenue'])
-    data['ols']['pb_curr_hist'] = ((curr_px * data['is']['weight_avg_shares'])
-                                   / data['is']['revenue'])
+    data['ols']['bvps'] = data['ols']['total_equity'] / data['ols']['weight_avg_shares'] 
+    data['ols']['pb_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['bvps']
+    data['ols']['pb_curr_hist'] = curr_px / data['ols']['bvps']
     data['ols']['pb_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
-                             / data['is']['revenue'].shift(1))
-    data['ols']['pb_5yr_avg_hist'] = data['ols']['ps_avg_hist'].rolling(center=False, window=5).mean()
-    data['ols']['bvps'] = data['ols']['revenue'] / data['ols']['weight_avg_shares']  # Sales per share
+                             / data['bs']['total_equity'].shift(1))
+    data['ols']['pb_5yr_avg_hist'] = data['ols']['pb_avg_hist'].rolling(center=False, window=5).mean()
     
     for per in [next_per, pers_2]:
-        final_val = '%.3f' % (data['ols']['ps_5yr_avg_hist'][period] * (data['ols']['sps'][per]))
+        final_val = '%.3f' % (data['ols']['pb_5yr_avg_hist'][period] * (data['ols']['bvps'][per]))
         ests.append(("PS", per[1], per[0], final_val))
         if DEBUG:
-            print("Hist avg PS: {}  Fwd Rev/share: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['ps_5yr_avg_hist'][period]),
-                '%.3f' % (data['ols']['sps'][per]), per[1], per[0], final_val))
-                
-    data['PB'] = (data['52WeekAvg'] * data['shares']) / data['totalEquity']
-    data['PB_curr'] = (data['currentPrice'] * data['shares']) / data['totalEquity']
-    data['PB_fwd'] = (data['currentPrice'] * data['shares']) / data['totalEquity'].shift(1)
-    data['PB_5yr_avg_hist'] = data['PB'].rolling(center=False, window=5).mean()
-    for p in [next_per, pers_2]:
-        final_val = '%.3f'%(data['PB_5yr_avg_hist'][period] * data['totalEquity'][p] / data['shares'][period])
-        ests.append(("PB", p[1], p[0], final_val))
-        if DEBUG:
-            print("Hist avg PB: {}  Fwd equity/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PB_5yr_avg_hist'][period]),
-                '%.3f'%(data['totalEquity'][p] / data['shares'][period]), p[1], p[0], final_val))
+            print("Hist avg PB: {}  Fwd BVPS: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['pb_5yr_avg_hist'][period]),
+                '%.3f' % (data['ols']['bvps'][per]), per[1], per[0], final_val))
 
     # P/CF
-    data['PCF'] = (data['52WeekAvg'] * data['shares']) / data['operCF']
-    data['PCF_curr'] = (data['currentPrice'] * data['shares']) / data['operCF']
-    data['PCF_fwd'] = (data['currentPrice'] * data['shares']) / data['operCF'].shift(1)
-    data['PCF_5yr_avg_hist'] = data['PCF'].rolling(center=False, window=5).mean()
+    # cash flow per share
+    data['ols']['cfps'] = data['ols']['oper_cf'] / data['ols']['weight_avg_shares'] 
+    data['ols']['pcf_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['cfps']
+    data['ols']['pcf_curr_hist'] = curr_px / data['ols']['cfps']
+    data['ols']['pcf_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
+                             / data['cf']['oper_cf'].shift(1))
+    data['ols']['pcf_5yr_avg_hist'] = data['ols']['pcf_avg_hist'].rolling(center=False, window=5).mean()
+
     for p in [next_per, pers_2]:
-        final_val = '%.3f'%(data['PCF_5yr_avg_hist'][period] * data['operCF'][p] / data['shares'][period])
-        ests.append(("PCF", p[1], p[0], final_val))
+        final_val = '%.3f' % (data['ols']['pcf_5yr_avg_hist'][period] * (data['ols']['cfps'][per]))
+        ests.append(("PCF", per[1], per[0], final_val))
         if DEBUG:
-            print("Hist avg PCF: {}  Fwd CF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PCF_5yr_avg_hist'][period]),
-                '%.3f'%(data['operCF'][p] / data['shares'][period]), p[1], p[0], final_val))
+            print("Hist avg PCF: {}  Fwd CF/share: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['pcf_5yr_avg_hist'][period]),
+                '%.3f' % (data['ols']['cfps'][per]), per[1], per[0], final_val))
 
     # P/FCF
-    data['PFCF'] = (data['52WeekAvg'] * data['shares']) / data['FCF']
-    data['PFCF_curr'] = (data['currentPrice'] * data['shares']) / data['FCF']
-    data['PFCF_fwd'] = (data['currentPrice'] * data['shares']) / data['FCF'].shift(1)
-    data['PFCF_5yr_avg_hist'] = data['PFCF'].rolling(center=False, window=5).mean()
+    # free cash flow per share
+    data['ols']['fcfps'] = data['ols']['fcf'] / data['ols']['weight_avg_shares'] 
+    data['ols']['pfcf_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['fcfps']
+    data['ols']['pfcf_curr_hist'] = curr_px / data['ols']['fcfps']
+    data['ols']['pfcf_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
+                             / data['cf']['fcf'].shift(1))
+    data['ols']['pfcf_5yr_avg_hist'] = data['ols']['pfcf_avg_hist'].rolling(center=False, window=5).mean()
     for p in [next_per, pers_2]:
-        final_val = '%.3f'%(data['PFCF_5yr_avg_hist'][period] * data['FCF'][p] / data['shares'][period])
+        final_val = '%.3f' % (data['ols']['pfcf_5yr_avg_hist'][period] * (data['ols']['fcfps'][per]))
         ests.append(("PFCF", p[1], p[0], final_val))
         if DEBUG:
-            print("Hist avg PFCF: {}  Fwd FCF/share: {}  DV Est {} {}: {}".format('%.3f'%(data['PFCF_5yr_avg_hist'][period]),
-                '%.3f'%(data['FCF'][p] / data['shares'][period]), p[1], p[0], final_val))
+            print("Hist avg PFCF: {}  Fwd FCF/share: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['pfcf_5yr_avg_hist'][period]),
+                '%.3f' % (data['ols']['fcfps'][per]), per[1], per[0], final_val))
 
     # Relative P/E
     # NEED THE EARNIGNS OF THE SNP500
@@ -342,8 +348,8 @@ def historical_ratios(data, period, hist_px):
         #     data['PE_rel__5yr_avg'][period] * data['revenue'][p] / data['shares'][period]))
 
     # PEG
-    data['PEGY'] = data['PE_avg_hist'] / ((data['netIncome'].pct_change() + data['divYield']) * 100)
-    data['PEGY_5yr_avg'] = data['PEGY'].rolling(center=False, window=5).mean()
+    # data['PEGY'] = data['PE_avg_hist'] / ((data['netIncome'].pct_change() + data['divYield']) * 100)
+    # data['PEGY_5yr_avg'] = data['PEGY'].rolling(center=False, window=5).mean()
     return data, ests
 
 
@@ -669,10 +675,10 @@ def valuation_model(ticks, mode='db'):
         # Get Historical Ratios for valuation
         hist_rats, ests = historical_ratios(data, period, hist_px)
         # Discounted Free Cash Flow Valuation
-        pdb.set_trace()
         dfcf, ests = discount_fcf(hist_rats, period, ests, hist_px)
         full_data[t] = [dfcf, ests]
 
+    pdb.set_trace()
     # calculate performance metrics based on price
     px_df = price_perf_anal(period, mkt, ind, hist_px)
 
