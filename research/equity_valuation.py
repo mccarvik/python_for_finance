@@ -12,7 +12,8 @@ quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
 
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from res_utils import get_ticker_info, removeEmptyCols, period_chg, \
-                      getNextYear, OLS_COLS, match_px, getNextQuarter
+                      getNextYear, OLS_COLS, match_px, getNextQuarter, \
+                      get_price_anals, setup_pdv_cols
 from dx.frame import get_year_deltas
 
 # NOTES:
@@ -22,7 +23,7 @@ IDX = ['year', 'tick', 'month']
 DEBUG = True
 
 
-def peer_derived_value(data, comp_anal, period, hist_px):
+def peer_derived_value(data, period, hist_px):
     """
     Get the value of the stock as compared to its peers
     """
@@ -34,79 +35,83 @@ def peer_derived_value(data, comp_anal, period, hist_px):
 
     # get group market cap
     group_mkt_cap = 0
-    for k, v in data.items():
-        per = tuple([period[0], k, data[k][0].index.values[0][2]])
+    for key, val in data.items():
+        per = tuple([period[0], key, data[key][0].index.values[0][2]])
         try:
-            group_mkt_cap += v[0]['shares'][per] * hist_px[k].dropna().values[-1]
+            group_mkt_cap += val[0]['shares'][per] * hist_px[key].dropna().values[-1]
         except:
             # May not have reported yet for this year, if this also fails,
             # raise exception as may have bigger problem
-            per = tuple([str(int(period[0])-1), k, data[k][0].index.values[0][2]])
-            group_mkt_cap += v[0]['shares'][per] * float(hist_px[k].dropna().values[-1])
-            per = tuple([period[0], k, data[k][0].index.values[0][2]])
+            per = tuple([str(int(period[0])-1), key, data[key][0].index.values[0][2]])
+            group_mkt_cap += val[0]['shares'][per] * float(hist_px[key].dropna().values[-1])
+            per = tuple([period[0], key, data[key][0].index.values[0][2]])
         # Need to project out vals
-        for val in vals:
-            xs = data[k][0][val].dropna().reset_index()[['date', 'month']]
-            slope, yint = ols_calc(xs, data[k][0][val].dropna())
+        for ind_val in vals:
+            xvals = data[key][0][ind_val].dropna().reset_index()[['date', 'month']]
+            slope, yint = ols_calc(xvals, data[key][0][ind_val].dropna())
             for fwd in range(1, years_fwd+1):
-                start = dt.datetime(int(xs.values[0][0]), int(xs.values[0][1]), 1).date()
-                per = tuple([str(int(period[0])+fwd), v[0].index.values[0][1], v[0].index.values[0][2]+"E"])
+                start = dt.datetime(int(xvals.values[0][0]), int(xvals.values[0][1]), 1).date()
+                per = tuple([str(int(period[0])+fwd), val[0].index.values[0][1], val[0].index.values[0][2]+"E"])
                 new_x = get_year_deltas([start, dt.datetime(int(per[0]), int(per[2][:-1]), 1).date()])[-1]
-                data[k][0].at[per, val] = (yint + new_x * slope)
+                data[key][0].at[per, ind_val] = (yint + new_x * slope)
 
-    for v in vals:
-        group_vals[v] = 0
-        group_vals[v+"_w_avg"] = 0
-        group_vals[v+"_fwd"] = 0
-        group_vals[v+"_fwd_w_avg"] = 0
-        for t in ticks:
-            per = tuple([period[0], t, data[t][0].index.values[0][2]])
-            fwd = tuple([str(int(period[0])+years_fwd), t, data[t][0].index.values[0][2]+"E"])
+    for ind_val in vals:
+        group_vals[ind_val] = 0
+        group_vals[ind_val + "_w_avg"] = 0
+        group_vals[ind_val + "_fwd"] = 0
+        group_vals[ind_val + "_fwd_w_avg"] = 0
+        for tick in ticks:
+            per = tuple([period[0], tick, data[tick][0].index.values[0][2]])
+            fwd = tuple([str(int(period[0])+years_fwd), tick, data[tick][0].index.values[0][2]+"E"])
 
             # 5yr avgs, simple and weighted
             try:
-                group_vals[v] += data[t][0][v].rolling(center=False, window=5).mean()[per] / len(ticks)
-                group_vals[v+"_w_avg"] += data[t][0][v].rolling(center=False, window=5).mean()[per] * ((data[t][0]['shares'][per] * float(hist_px[t].values[-1])) / group_mkt_cap)
+                group_vals[ind_val] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] / len(ticks)
+                group_vals[ind_val + "_w_avg"] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] * ((data[tick][0]['shares'][per] * float(hist_px[tick].values[-1])) / group_mkt_cap)
             except:
                 # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
-                per = tuple([str(int(period[0])-1), t, data[t][0].index.values[0][2]])
-                group_vals[v] += data[t][0][v].rolling(center=False, window=5).mean()[per] / len(ticks)
-                group_vals[v+"_w_avg"] += data[t][0][v].rolling(center=False, window=5).mean()[per] * ((data[t][0]['shares'][per] * float(hist_px[t].values[-1])) / group_mkt_cap)
+                per = tuple([str(int(period[0])-1), tick, data[tick][0].index.values[0][2]])
+                group_vals[ind_val] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] / len(ticks)
+                group_vals[ind_val + "_w_avg"] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] * ((data[tick][0]['shares'][per] * float(hist_px[tick].values[-1])) / group_mkt_cap)
 
             # 5yr avgs, simpel and weighted
-            group_vals[v+"_fwd"] += data[t][0][v].rolling(center=False, window=years_fwd).mean()[fwd] / len(ticks)
-            group_vals[v+"_fwd_w_avg"] += data[t][0][v].rolling(center=False, window=years_fwd).mean()[fwd] * ((data[t][0]['shares'][per] * float(hist_px[t].values[-1])) / group_mkt_cap)
+            group_vals[ind_val + "_fwd"] += data[tick][0][ind_val].rolling(center=False, window=years_fwd).mean()[fwd] / len(ticks)
+            group_vals[ind_val + "_fwd_w_avg"] += data[tick][0][ind_val].rolling(center=False, window=years_fwd).mean()[fwd] * ((data[tick][0]['shares'][per] * float(hist_px[tick].values[-1])) / group_mkt_cap)
         if DEBUG:
-            print("{} 5Y simple avg: {}".format(v, '%.3f'%group_vals[v]))
-            print("{} 5Y weighted avg: {}".format(v, '%.3f'%group_vals[v+"_w_avg"]))
-            print("{} 2Y fwd avg: {}".format(v, '%.3f'%group_vals[v+"_fwd"]))
-            print("{} 2Y fwd weighted avg: {}".format(v, '%.3f'%group_vals[v+"_fwd_w_avg"]))
+            print("{} 5Y simple avg: {}".format(ind_val, '%.3f' % group_vals[ind_val]))
+            print("{} 5Y weighted avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_w_avg"]))
+            print("{} 2Y fwd avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd"]))
+            print("{} 2Y fwd weighted avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd_w_avg"]))
+
     comp_df = pd.DataFrame()
-    for k, v in data.items():
-        per = tuple([period[0], k, data[k][0].index.values[0][2]])
-        for val in vals:
+    for key, val in data.items():
+        per = tuple([period[0], key, data[key][0].index.values[0][2]])
+        for ratio in vals:
             if comp_df.empty:
                 comp_df = pd.DataFrame(columns=setup_pdv_cols())
-            row = [k, val]
+            row = [key, ratio]
             try:
-                row.append(v[0][val].rolling(center=False, window=5).mean()[per])
+                row.append(val[0][ratio].rolling(center=False, window=5).mean()[per])
             except:
                 # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
-                per = tuple([str(int(period[0])-1), k, data[k][0].index.values[0][2]])
-                row.append(v[0][val].rolling(center=False, window=5).mean()[per])
-            row.append(row[-1] / group_vals[val+"_w_avg"])
+                per = tuple([str(int(period[0])-1), key, data[key][0].index.values[0][2]])
+                row.append(val[0][ratio].rolling(center=False, window=5).mean()[per])
+            row.append(row[-1] / group_vals[ratio + "_w_avg"])
             # end of fwd estimate year
-            fwd = tuple([str(int(period[0])+years_fwd), k, data[k][0].index.values[0][2]+"E"])
-            row.append(v[0][val].rolling(center=False, window=years_fwd).mean()[fwd])
-            row.append(row[-1] / group_vals[val+"_fwd_w_avg"])
+            fwd = tuple([str(int(period[0]) + years_fwd), key, data[key][0].index.values[0][2] + "E"])
+            row.append(val[0][ratio].rolling(center=False, window=years_fwd).mean()[fwd])
+            row.append(row[-1] / group_vals[ratio + "_fwd_w_avg"])
             row.append(row[3] / row[5])
-            row.append(float(hist_px[k].dropna().values[-1]) * row[-1])
-            data[k][1].append(tuple(["pdv_"+val, per[1], str(int(per[0])+years_fwd), '%.3f'%row[-1]]))
+            row.append(float(hist_px[key].dropna().values[-1]) * row[-1])
+            data[key][1].append(tuple(["pdv_" + ratio, per[1], str(int(per[0]) + years_fwd), '%.3f' % row[-1]]))
             comp_df.loc[len(comp_df)] = row
     return data, comp_df.set_index(['ticker', 'cat'])
 
 
 def comparison_anal(data, period):
+    """
+    doing comparison analysis on security
+    """
     comp_df = pd.DataFrame()
     years_back = 5
     years_fwd = 2
@@ -276,13 +281,13 @@ def historical_ratios(data, period, hist_px):
 
     # P/S
     # Sales per share
-    data['ols']['sps'] = data['ols']['revenue'] / data['ols']['weight_avg_shares'] 
+    data['ols']['sps'] = data['ols']['revenue'] / data['ols']['weight_avg_shares']
     data['ols']['ps_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['sps']
     data['ols']['ps_curr_hist'] = curr_px / data['ols']['sps']
     data['ols']['ps_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
                              / data['is']['revenue'].shift(1))
     data['ols']['ps_5yr_avg_hist'] = data['ols']['ps_avg_hist'].rolling(center=False, window=5).mean()
-    
+
     for per in [next_per, pers_2]:
         final_val = '%.3f' % (data['ols']['ps_5yr_avg_hist'][period] * (data['ols']['sps'][per]))
         ests.append(("PS", per[1], per[0], final_val))
@@ -291,13 +296,13 @@ def historical_ratios(data, period, hist_px):
                 '%.3f' % (data['ols']['sps'][per]), per[1], per[0], final_val))
 
     # P/B
-    data['ols']['bvps'] = data['ols']['total_equity'] / data['ols']['weight_avg_shares'] 
+    data['ols']['bvps'] = data['ols']['total_equity'] / data['ols']['weight_avg_shares']
     data['ols']['pb_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['bvps']
     data['ols']['pb_curr_hist'] = curr_px / data['ols']['bvps']
     data['ols']['pb_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
                              / data['bs']['total_equity'].shift(1))
     data['ols']['pb_5yr_avg_hist'] = data['ols']['pb_avg_hist'].rolling(center=False, window=5).mean()
-    
+
     for per in [next_per, pers_2]:
         final_val = '%.3f' % (data['ols']['pb_5yr_avg_hist'][period] * (data['ols']['bvps'][per]))
         ests.append(("PS", per[1], per[0], final_val))
@@ -307,7 +312,7 @@ def historical_ratios(data, period, hist_px):
 
     # P/CF
     # cash flow per share
-    data['ols']['cfps'] = data['ols']['oper_cf'] / data['ols']['weight_avg_shares'] 
+    data['ols']['cfps'] = data['ols']['oper_cf'] / data['ols']['weight_avg_shares']
     data['ols']['pcf_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['cfps']
     data['ols']['pcf_curr_hist'] = curr_px / data['ols']['cfps']
     data['ols']['pcf_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
@@ -323,7 +328,7 @@ def historical_ratios(data, period, hist_px):
 
     # P/FCF
     # free cash flow per share
-    data['ols']['fcfps'] = data['ols']['fcf'] / data['ols']['weight_avg_shares'] 
+    data['ols']['fcfps'] = data['ols']['fcf'] / data['ols']['weight_avg_shares']
     data['ols']['pfcf_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['fcfps']
     data['ols']['pfcf_curr_hist'] = curr_px / data['ols']['fcfps']
     data['ols']['pfcf_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
@@ -353,12 +358,13 @@ def historical_ratios(data, period, hist_px):
     return data, ests
 
 
-def ratios_and_valuation(data, eod_px):
+def ratios_and_valuation(data, eod_px, bench):
     """
     Add some necessary columns
     """
     # get price info
     data = match_px(data, eod_px)
+    data = get_price_anals(data, eod_px, bench[0], bench[1])
 
     # Balance Sheet Columns
     data['bs']['div_per_share'] = (data['cf']['divs_paid']
@@ -376,7 +382,7 @@ def ratios_and_valuation(data, eod_px):
                                     - data['bs']['accounts_payable'])
     data['fr']['ebitda_margin'] = data['is']['ebitda'] / data['is']['revenue']
     data['fr']['ret_earn_ratio'] = (1 - data['fr']['div_payout_ratio'])
-    data['fr']['const_growth_rate'] = (data['fr']['roe'] 
+    data['fr']['const_growth_rate'] = (data['fr']['roe']
                                        * data['fr']['ret_earn_ratio'])
     data['fr']['oper_lev'] = (data['is']['oper_inc'].pct_change()
                               / data['is']['revenue'].pct_change())
@@ -455,7 +461,7 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
             # Need this to convert terminology for quarterly, also need to divide by four
             n_hist_dict[cat] = (yint + new_x * slope)
 
-        n_hist_dict['ebt'] = (n_hist_dict['oper_inc'] 
+        n_hist_dict['ebt'] = (n_hist_dict['oper_inc']
                               + n_hist_dict['net_int_inc'])
         # assume average tax rate over last 5 years
         n_hist_dict['taxes'] = (data['fr']['eff_tax_rate'].mean()
@@ -465,7 +471,7 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
                               / n_hist_dict['weight_avg_shares'])
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(IDX)
         hist = hist.append(t_df)
-        
+
     hist = pd.concat([data_ols, hist])
     return hist
 
@@ -669,7 +675,7 @@ def valuation_model(ticks, mode='db'):
         data['ols'] = model_est_ols(10, data)
 
         # Add some columns and adjustemnts and calculate ratios for Use later
-        data = ratios_and_valuation(data, hist_px)
+        data = ratios_and_valuation(data, hist_px, other)
 
         period = [i for i in data['is'].index.values if "E" not in i[2]][-1]
         # Get Historical Ratios for valuation
@@ -686,7 +692,7 @@ def valuation_model(ticks, mode='db'):
     comp_anal = comparison_anal(full_data, period)
 
     # Peer Derived Value
-    full_data, pdv = peer_derived_value(full_data, comp_anal, period, hist_px)
+    full_data, pdv = peer_derived_value(full_data, period, hist_px)
 
     # Analysis of all valuations
     analyze_ests(full_data, period, hist_px)
