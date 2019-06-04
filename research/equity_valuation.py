@@ -4,6 +4,7 @@ Equity Valuation for Analysts and Investors by James Kelleher
 """
 import sys
 import pdb
+import warnings
 import datetime as dt
 import numpy as np
 import pandas as pd
@@ -21,6 +22,7 @@ from dx.frame import get_year_deltas
 
 IDX = ['year', 'tick', 'month']
 DEBUG = True
+warnings.filterwarnings("ignore")
 
 
 def peer_derived_value(data, period, hist_px):
@@ -319,8 +321,7 @@ def historical_ratios(data, period, hist_px):
                              / data['cf']['oper_cf'].shift(1))
     data['ols']['pcf_5yr_avg_hist'] = data['ols']['pcf_avg_hist'].rolling(center=False, window=5).mean()
     
-    pdb.set_trace()
-    for p in [next_per, pers_2]:
+    for per in [next_per, pers_2]:
         final_val = '%.3f' % (data['ols']['pcf_5yr_avg_hist'][period] * (data['ols']['cfps'][per]))
         ests.append(("PCF", per[1], per[0], final_val))
         if DEBUG:
@@ -335,9 +336,9 @@ def historical_ratios(data, period, hist_px):
     data['ols']['pfcf_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
                              / data['cf']['fcf'].shift(1))
     data['ols']['pfcf_5yr_avg_hist'] = data['ols']['pfcf_avg_hist'].rolling(center=False, window=5).mean()
-    for p in [next_per, pers_2]:
+    for per in [next_per, pers_2]:
         final_val = '%.3f' % (data['ols']['pfcf_5yr_avg_hist'][period] * (data['ols']['fcfps'][per]))
-        ests.append(("PFCF", p[1], p[0], final_val))
+        ests.append(("PFCF", per[1], per[0], final_val))
         if DEBUG:
             print("Hist avg PFCF: {}  Fwd FCF/share: {}  DV Est {} {}: {}".format('%.3f' % (data['ols']['pfcf_5yr_avg_hist'][period]),
                 '%.3f' % (data['ols']['fcfps'][per]), per[1], per[0], final_val))
