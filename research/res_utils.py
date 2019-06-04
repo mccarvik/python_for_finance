@@ -330,7 +330,7 @@ OLS_COLS = ['total_liabs', 'total_cur_liabs', 'total_cur_assets', 'cash'
             'weight_avg_shares', 'working_cap', 'total_assets', 'ebitda', 
             'enterprise_val', 'nopat', 'div_per_share', 'cap_exp', 'oper_cf', 
             'revenue', 'oper_inc', 'prov_inc_tax', 'fcf', 'cogs', 'rnd', 'sga', 
-            'net_int_inc']
+            'net_int_inc', 'fcf_min_twc']
 
 # output cols
 int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
@@ -558,11 +558,10 @@ def setup_pdv_cols():
     return ['ticker', 'cat', '5y_avg', 'hist_var_v_weight_avg', '2yr_fwd_mult', 'cur_var_v_weight_avg', 'prem_disc', 'pdv_price']
 
 
-def match_px(data, eod_px):
+def match_px(data, eod_px, tick):
     """
     Apply a price to each statement date
     """
-    tick = data['bs'].reset_index().iloc[0]['tick']
     dates = data['bs'].reset_index()[['year', 'month']]
     eod_px = eod_px.loc[tick]
     data['ols']['date_px'] = None
@@ -594,11 +593,9 @@ def match_px(data, eod_px):
     return data
     
 
-def get_price_anals(data, eod_px, mkt, ind):
+def get_beta(data, eod_px, ticker, mkt, ind):
     window = 52
-    ticker = data['bs'].reset_index().iloc[0]['tick']
     # This will get the week end price and do a pct change
-    
     tick = eod_px.loc[ticker].rename(columns={'px': ticker}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
     ind = eod_px.loc[ind].rename(columns={'px': ind}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
     mkt = eod_px.loc[mkt].rename(columns={'px': mkt}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
@@ -616,7 +613,8 @@ def get_price_anals(data, eod_px, mkt, ind):
         except IndexError:
             print("May not have any dates, assume a beta of 1")
             val = 1
-        data['ols'].at[(str(ind_dt.year), ticker, str(ind_dt.month)), 'beta'] = val
+        data['ols'].at[(str(ind_dt.year), ticker, ind_dt.strftime("%m")), 'beta'] = val
+        # data['ols'].at[(str(ind_dt.year), ticker, "0" + str(ind_dt.month)), 'beta'] = val
     return data
  
    
