@@ -595,18 +595,33 @@ def match_px(data, eod_px):
     
 
 def get_price_anals(data, eod_px, mkt, ind):
-    # https://blog.quantinsti.com/asset-beta-market-beta-python/
-    window = 252
+    window = 52
     ticker = data['bs'].reset_index().iloc[0]['tick']
-    # pdb.set_trace()
-    tick = eod_px.loc[ticker].rename(columns={'px': ticker}).pct_change()
-    ind = eod_px.loc[ind].rename(columns={'px': ind}).pct_change()
-    mkt = eod_px.loc[mkt].rename(columns={'px': mkt}).pct_change()
-    pdb.set_trace()
-    cov_df = pd.merge(tick, mkt, left_index=True, right_index=True).rolling(window).cov()
+    # This will get the week end price and do a pct change
+    
+    tick = eod_px.loc[ticker].rename(columns={'px': ticker}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
+    ind = eod_px.loc[ind].rename(columns={'px': ind}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
+    mkt = eod_px.loc[mkt].rename(columns={'px': mkt}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
+    cov_df = pd.merge(tick, mkt, left_index=True, right_index=True).rolling(window, min_periods=1).cov()
     cov_df = cov_df[[cov_df.columns[1]]]
-    cov_df = cov_df[np.in1d(cov_df.index.get_level_values(1), [ticker])]
-    beta = (cov_df) / mkt.rolling(window).var()
-    pdb.set_trace()
-    print(beta)
+    covariance = cov_df[np.in1d(cov_df.index.get_level_values(1), [ticker])] 
+    variance_mkt = cov_df[np.in1d(cov_df.index.get_level_values(1), [mkt.columns[0]])]
+    beta = (covariance.reset_index().set_index('date')[[mkt.columns[0]]] 
+           / variance_mkt.reset_index().set_index('date')[[mkt.columns[0]]])
+    rep_dates = get_report_dates(data)
+    data['ols']['beta'] = None
+    for ind_dt in rep_dates:
+        try:
+            val = beta[beta.index < ind_dt].iloc[-1].values[0]
+        except IndexError:
+            print("May not have any dates, assume a beta of 1")
+            val = 1
+        data['ols'].at[(str(ind_dt.year), ticker, str(ind_dt.month)), 'beta'] = val
     return data
+ 
+   
+def get_report_dates(data):
+    dates = []
+    for ind, vals in data['bs'].iterrows():
+        dates.append(dt.datetime(int(ind[0]),int(ind[2]),1))
+    return dates

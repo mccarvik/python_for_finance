@@ -318,7 +318,8 @@ def historical_ratios(data, period, hist_px):
     data['ols']['pcf_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
                              / data['cf']['oper_cf'].shift(1))
     data['ols']['pcf_5yr_avg_hist'] = data['ols']['pcf_avg_hist'].rolling(center=False, window=5).mean()
-
+    
+    pdb.set_trace()
     for p in [next_per, pers_2]:
         final_val = '%.3f' % (data['ols']['pcf_5yr_avg_hist'][period] * (data['ols']['cfps'][per]))
         ests.append(("PCF", per[1], per[0], final_val))
@@ -471,7 +472,6 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
                               / n_hist_dict['weight_avg_shares'])
         t_df = pd.DataFrame(n_hist_dict, index=[0]).set_index(IDX)
         hist = hist.append(t_df)
-
     hist = pd.concat([data_ols, hist])
     return hist
 
@@ -667,9 +667,9 @@ def valuation_model(ticks, mode='db'):
         # This is only if we have quarterly data
         # data_cum = dataCumColumns(data)
         data_chg = period_chg(data)
-        data_margin = margin_df(data['is'])[['gross_profit', 'cogs', 'rnd',
-                                             'sga', 'restruct_mna',
-                                             'prov_inc_tax', 'other_oper_exp']]
+        # data_margin = margin_df(data['is'])[['gross_profit', 'cogs', 'rnd',
+        #                                      'sga', 'restruct_mna',
+        #                                      'prov_inc_tax', 'other_oper_exp']]
 
         # project out data based on historicals using OLS regression
         data['ols'] = model_est_ols(10, data)
@@ -682,17 +682,20 @@ def valuation_model(ticks, mode='db'):
         hist_rats, ests = historical_ratios(data, period, hist_px)
         # Discounted Free Cash Flow Valuation
         dfcf, ests = discount_fcf(hist_rats, period, ests, hist_px)
-        full_data[t] = [dfcf, ests]
+        full_data[ind_t] = [dfcf, ests]
 
     pdb.set_trace()
     # calculate performance metrics based on price
     px_df = price_perf_anal(period, mkt, ind, hist_px)
+    print(px_df)
 
     # Comaprisons
     comp_anal = comparison_anal(full_data, period)
+    print(comp_anal)
 
     # Peer Derived Value
     full_data, pdv = peer_derived_value(full_data, period, hist_px)
+    print(pdv)
 
     # Analysis of all valuations
     analyze_ests(full_data, period, hist_px)
@@ -700,7 +703,6 @@ def valuation_model(ticks, mode='db'):
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
-    valuation_model(['CSCO'])
-    # valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
-    # valuation_model(['SO', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
+    # valuation_model(['MSFT'])
+    valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
     
