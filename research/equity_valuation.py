@@ -700,6 +700,7 @@ def valuation_model(ticks, mode='db'):
 
 if __name__ == '__main__':
     # income_state_model(['MSFT'], 'api')
-    # valuation_model(['MSFT'])
-    valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
+    valuation_model(['CSCO'])
+    # valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
+    # valuation_model(['SO', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
     

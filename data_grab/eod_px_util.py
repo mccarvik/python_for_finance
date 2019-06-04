@@ -14,7 +14,7 @@ sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper
 
 FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
-FILE_NAME = 'iex_available_stocks_2019_02_25.txt'
+FILE_NAME = 'iex_available_{}_2019_05_29.txt'
 
 # px = HBIO
 # morningstar = NHF
@@ -74,17 +74,17 @@ def get_list_of_symbols(typ=None):
         resp = [ind_r for ind_r in resp if ind_r['type'] == typ]
     syms = [resp_sym['symbol'] for resp_sym in resp]
 
-    with open(FILE_PATH + FILE_NAME, 'w') as file:
+    with open(FILE_PATH + FILE_NAME.format(typ) , 'w') as file:
         for item in syms:
             file.write("%s\n" % item)
 
 
-def load_db():
+def load_db(typ):
     """
     Gathers px data one by one through the ticks
     """
     ticks = []
-    with open(FILE_PATH + FILE_NAME, "r") as file:
+    with open(FILE_PATH + FILE_NAME.format(typ), "r") as file:
         for line in file:
             ticks.append(line.strip())
 
@@ -169,8 +169,8 @@ if __name__ == '__main__':
     # S_DT = dt.datetime(2013, 1, 1)
     # E_DT = dt.datetime(2019, 2, 22)
     # get_time_series('F')
-    get_list_of_symbols('cs')
-    # load_db()
+    # get_list_of_symbols('et')
+    load_db('et')
     # quandl_load()
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)

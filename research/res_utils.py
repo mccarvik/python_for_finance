@@ -596,13 +596,17 @@ def match_px(data, eod_px):
 
 def get_price_anals(data, eod_px, mkt, ind):
     # https://blog.quantinsti.com/asset-beta-market-beta-python/
-    tick = data['bs'].reset_index().iloc[0]['tick']
-    tick = eod_px.loc[tick].rename(columns={'px': tick})
-    ind = eod_px.loc[ind].rename(columns={'px': ind})
-    mkt = eod_px.loc[mkt].rename(columns={'px': mkt})
-    cov_df = pd.merge(tick, mkt, left_index=True, right_index=True).rolling(250).cov()
-    cov_df = cov_df[[cov_df.columns[1]]]
-    cov_df = cov_df[np.in1d(cov_df.index.get_level_values(1), ['MSFT'])]
+    window = 252
+    ticker = data['bs'].reset_index().iloc[0]['tick']
+    # pdb.set_trace()
+    tick = eod_px.loc[ticker].rename(columns={'px': ticker}).pct_change()
+    ind = eod_px.loc[ind].rename(columns={'px': ind}).pct_change()
+    mkt = eod_px.loc[mkt].rename(columns={'px': mkt}).pct_change()
     pdb.set_trace()
-    beta1y = (cov_df_final) / mkt.rolling(250).var()
-    print()
+    cov_df = pd.merge(tick, mkt, left_index=True, right_index=True).rolling(window).cov()
+    cov_df = cov_df[[cov_df.columns[1]]]
+    cov_df = cov_df[np.in1d(cov_df.index.get_level_values(1), [ticker])]
+    beta = (cov_df) / mkt.rolling(window).var()
+    pdb.set_trace()
+    print(beta)
+    return data
