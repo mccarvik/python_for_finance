@@ -12,9 +12,9 @@ import quandl
 quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
 
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
-from res_utils import get_ticker_info, removeEmptyCols, period_chg, \
+from res_utils import get_ticker_info, removeEmptyCols, setup_comp_cols, \
                       getNextYear, OLS_COLS, match_px, getNextQuarter, \
-                      get_beta, setup_pdv_cols, setup_comp_cols
+                      get_beta, setup_pdv_cols
 from dx.frame import get_year_deltas
 
 # NOTES:
@@ -30,25 +30,27 @@ def peer_derived_value(data, period, hist_px):
     Get the value of the stock as compared to its peers
     """
     # get group values first
-    pdb.set_trace()
     group_vals = {}
     years_fwd = 2
-    vals = ['PS', 'PE_avg_hist', 'PB', 'PCF']
+    vals = ['ps_ratio', 'pe_avg_hist', 'pb_ratio', 'pfcf_ratio']
     ticks = list(data.keys())
 
     # get group market cap
     group_mkt_cap = 0
-    for key, val in data.items():
-        per = tuple([period[0], key, data[key][0].index.values[0][2]])
+    for key, data_df in data.items():
+        per = tuple([period[0], key, data[key][0]['ols'].index.values[0][2]])
         try:
-            group_mkt_cap += val[0]['shares'][per] * hist_px[key].dropna().values[-1]
+            group_mkt_cap += (data_df[0]['fr']['market_cap'])
         except:
             # May not have reported yet for this year, if this also fails,
             # raise exception as may have bigger problem
+            pdb.set_trace()
             per = tuple([str(int(period[0])-1), key, data[key][0].index.values[0][2]])
-            group_mkt_cap += val[0]['shares'][per] * float(hist_px[key].dropna().values[-1])
+            group_mkt_cap += data_df[0]['shares'][per] * float(hist_px[key].dropna().values[-1])
             per = tuple([period[0], key, data[key][0].index.values[0][2]])
+
         # Need to project out vals
+        pdb.set_trace()
         for ind_val in vals:
             xvals = data[key][0][ind_val].dropna().reset_index()[['date', 'month']]
             slope, yint = ols_calc(xvals, data[key][0][ind_val].dropna())
@@ -762,11 +764,11 @@ def valuation_model(ticks, mode='db'):
     print(comp_anal)
 
     # Peer Derived Value
-    pdb.set_trace()
     full_data, pdv = peer_derived_value(full_data, period, hist_px)
     print(pdv)
 
     # Analysis of all valuations
+    pdb.set_trace()
     analyze_ests(full_data, period, hist_px)
 
 
