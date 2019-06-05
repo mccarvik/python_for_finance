@@ -330,7 +330,8 @@ OLS_COLS = ['total_liabs', 'total_cur_liabs', 'total_cur_assets', 'cash'
             'weight_avg_shares', 'working_cap', 'total_assets', 'ebitda', 
             'enterprise_val', 'nopat', 'div_per_share', 'cap_exp', 'oper_cf', 
             'revenue', 'oper_inc', 'prov_inc_tax', 'fcf', 'cogs', 'rnd', 'sga', 
-            'net_int_inc', 'fcf_min_twc']
+            'net_int_inc', 'fcf_min_twc', 'gross_prof_marg', 'pretax_prof_marg',
+            'net_prof_marg']
 
 # output cols
 int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
