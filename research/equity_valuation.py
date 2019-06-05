@@ -114,6 +114,7 @@ def comparison_anal(data, period):
     """
     doing comparison analysis on security
     """
+    pdb.set_trace()
     comp_df = pd.DataFrame()
     years_back = 5
     years_fwd = 2
@@ -156,14 +157,14 @@ def price_perf_anal(period, mkt, ind, hist_px):
     mkt_px = hist_px.loc[mkt]
     ind_px = hist_px.loc[ind]
     for ind_t in list(set(hist_px.index.get_level_values(0).unique()) - set([mkt, ind])):
-        t_df = pd.DataFrame([ind_t], columns=['tick'])
         t_px = hist_px.loc[ind_t]
         potential_yrs = list(set([ind_dt.year for ind_dt in list(t_px.index) if ind_dt.year > int(period[0])])) 
         for yrs in [int(period[0])] + potential_yrs:
-            pdb.set_trace()
+            t_df = pd.DataFrame([ind_t], columns=['tick'])
+            t_df['year'] = yrs
             year_px = (t_px[(t_px.index >= dt.datetime(yrs, 1, 1))
                             & (t_px.index <= dt.datetime(yrs, 12, 31))])
-            t_df['cur_px'] = t_px.values[-1][0]
+            t_df['cur_px'] = year_px.values[-1][0]
             t_df['y_px'] = year_px.values[0][0]
             t_df['ytd_chg'] = (t_df['cur_px'] / t_df['y_px']) - 1
             t_df['ytd_high'] = max(year_px.values)
@@ -176,11 +177,11 @@ def price_perf_anal(period, mkt, ind, hist_px):
                                     (year_mkt_px.values[-1][0] / year_mkt_px.values[-1][0] - 1))
             t_df['ind_rel_perf'] = (t_df['ytd_chg'] -
                                     (year_ind_px.values[-1][0] / year_ind_px.values[-1][0] - 1))
-        px_df = px_df.append(t_df)
-    return px_df.set_index('tick')
+            px_df = px_df.append(t_df)
+    return px_df.set_index(['tick', 'year'])
 
 
-def discount_fcf(data, period, ests, hist_px):
+def discount_fcf(data, period, ests):
     """
     Calculate the value of the security based on
     discounted free cash flow models
@@ -728,7 +729,7 @@ def valuation_model(ticks, mode='db'):
         # Get Historical Ratios for valuation
         hist_rats, ests = historical_ratios(data, period, hist_px)
         # Discounted Free Cash Flow Valuation
-        dfcf, ests = discount_fcf(hist_rats, period, ests, hist_px)
+        dfcf, ests = discount_fcf(hist_rats, period, ests)
         full_data[ind_t] = [dfcf, ests]
 
     # calculate performance metrics based on price
