@@ -14,7 +14,7 @@ quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from res_utils import get_ticker_info, removeEmptyCols, setup_comp_cols, \
                       getNextYear, OLS_COLS, match_px, getNextQuarter, \
-                      get_beta, setup_pdv_cols
+                      get_beta, setup_pdv_cols, valuations
 from dx.frame import get_year_deltas
 
 # NOTES:
@@ -122,6 +122,8 @@ def peer_derived_value(data, period, hist_px):
             print("{} 2Y fwd weighted avg: {}"
                   "".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd_w_avg"]))
 
+    # TODO have this work for all years bewteen today and fwd
+    pdb.set_trace()
     comp_df = pd.DataFrame()
     for key, data_df in data.items():
         per = tuple([period[0], key, data_df[0]['ols'].index.values[0][2]])
@@ -261,7 +263,7 @@ def discount_fcf(data, period, ests):
             * (1 - tax_rate / 100))
     print("WACC: " + str(wacc))
 
-    # TODO: ENTER analysts projected EPS growth here
+    # todo: ENTER analysts projected EPS growth here
     eps_g_proj = 0.12
     # average of calc'd growth and analyst projection
     data['ols']['proj_calc_g'] = (data['fr']['const_growth_rate'] + eps_g_proj) / 2
@@ -274,74 +276,76 @@ def discount_fcf(data, period, ests):
     term_growth = 0.05
 
     # 2 Stage DFCF
-    years_to_terminal = 2
-    fcf_pershare = (data['cf']['fcf_min_twc'][period]
-                    / data['is']['weight_avg_shares'][period])
-    indices = [d for d in list(data['ols'].index.values)
-               if int(d[0]) > int(period[0]) and int(d[0]) <= int(period[0]) + years_to_terminal]
-    # fcf geometric growth
-    fcfs = [fcf_pershare * (1 + data['ols']['1st_5yr_lt_g'][period])
-            ** (int(x[0]) - int(period[0])) for x in indices]
-    disc_fcfs = [fcfs[x] / (1 + cost_equity) **
-                 (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
-    sum_of_disc_cf = sum(disc_fcfs)
-    term_val = ((data['ols']['fcf_min_twc'][indices[-1]]
-                 / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth))
-    final_val = term_val + sum_of_disc_cf
-    ests.append(("2stage", indices[-1][1], indices[-1][0],
-                 '%.3f' % (final_val)))
-    if DEBUG:
-        print("2 Stage Val Est {} {}: {}".format(indices[-1][1],
-                                                 indices[-1][0], '%.3f'%(final_val)))
+    years_to_terminal = [1, 2]
+    for ytt in years_to_terminal:
+        fcf_pershare = (data['cf']['fcf_min_twc'][period]
+                        / data['is']['weight_avg_shares'][period])
+        indices = [d for d in list(data['ols'].index.values)
+                   if int(d[0]) > int(period[0]) and int(d[0]) <= int(period[0]) + ytt]
+        # fcf geometric growth
+        fcfs = [fcf_pershare * (1 + data['ols']['1st_5yr_lt_g'][period])
+                ** (int(x[0]) - int(period[0])) for x in indices]
+        disc_fcfs = [fcfs[x] / (1 + cost_equity) **
+                     (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
+        sum_of_disc_cf = sum(disc_fcfs)
+        term_val = ((data['ols']['fcf_min_twc'][indices[-1]]
+                     / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth))
+        final_val = term_val + sum_of_disc_cf
+        ests.append(("2stage", indices[-1][1], indices[-1][0],
+                     '%.3f' % (final_val)))
+        if DEBUG:
+            print("2 Stage Val Est {} {}: {}".format(indices[-1][1],
+                                                     indices[-1][0], '%.3f'%(final_val)))
 
     # 3 Stage DFCF
-    years_phase1 = 1
-    years_phase2 = 1
-    # 1st growth phase
-    fcf_pershare = (data['ols']['fcf_min_twc'][period]
-                    / data['is']['weight_avg_shares'][period])
-    indices = [d for d in list(data['ols'].index.values) if int(d[0]) > int(period[0])
-               and int(d[0]) <= int(period[0]) + years_phase1]
-    fcfs = [fcf_pershare * (1 + data['ols']['1st_5yr_lt_g'][period])
-            ** (int(x[0]) - int(period[0])) for x in indices]
-    disc_fcfs_1 = [fcfs[x] / (1 + cost_equity) **
-                   (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
-    # second growth phase
-    # need to make sure hav the right indices after first growth period is over
-    indices = [d for d in list(data['ols'].index.values)
-               if int(d[0]) > int(period[0]) + years_phase1
-               and int(d[0]) <= int(period[0]) + years_phase1 + years_phase2]
-    fcfs = [fcf_pershare * (1 + data['ols']['2nd_5yr_lt_g'][period])
-            ** (int(x[0]) - int(period[0])) for x in indices]
-    disc_fcfs_2 = [fcfs[x] / (1 + cost_equity) **
-                   (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
-    sum_of_disc_cf = sum(disc_fcfs_1) + sum(disc_fcfs_2)
-    term_val = ((data['ols']['fcf_min_twc'][indices[-1]]
-                 / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth))
-    final_val = term_val + sum_of_disc_cf
-    ests.append(("3stage", indices[-1][1], indices[-1][0],
-                 '%.3f' % (final_val)))
-    if DEBUG:
-        print("3 Stage Val Est {} {}: {}".format(indices[-1][1],
-                                                 indices[-1][0], '%.3f'%(final_val)))
+    years_to_terminal_3 = [[0, 1], [1, 1]]
+    for ytt in years_to_terminal_3:
+        # 1st growth phase
+        fcf_pershare = (data['ols']['fcf_min_twc'][period]
+                        / data['is']['weight_avg_shares'][period])
+        indices = [d for d in list(data['ols'].index.values) if int(d[0]) > int(period[0])
+                   and int(d[0]) <= int(period[0]) + ytt[0]]
+        fcfs = [fcf_pershare * (1 + data['ols']['1st_5yr_lt_g'][period])
+                ** (int(x[0]) - int(period[0])) for x in indices]
+        disc_fcfs_1 = [fcfs[x] / (1 + cost_equity) **
+                       (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
+        # second growth phase
+        # need to make sure hav the right indices after first growth period is over
+        indices = [d for d in list(data['ols'].index.values)
+                   if int(d[0]) > int(period[0]) + ytt[0]
+                   and int(d[0]) <= int(period[0]) + ytt[0] + ytt[1]]
+        fcfs = [fcf_pershare * (1 + data['ols']['2nd_5yr_lt_g'][period])
+                ** (int(x[0]) - int(period[0])) for x in indices]
+        disc_fcfs_2 = [fcfs[x] / (1 + cost_equity) **
+                       (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
+        sum_of_disc_cf = sum(disc_fcfs_1) + sum(disc_fcfs_2)
+        term_val = ((data['ols']['fcf_min_twc'][indices[-1]]
+                     / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth))
+        final_val = term_val + sum_of_disc_cf
+        ests.append(("3stage", indices[-1][1], indices[-1][0],
+                     '%.3f' % (final_val)))
+        if DEBUG:
+            print("3 Stage Val Est {} {}: {}".format(indices[-1][1],
+                                                     indices[-1][0], '%.3f'%(final_val)))
 
     # Component DFCF
-    years_to_terminal = 2
-    # use the OLS growth calcs for FCFs instead of growth forecasts
-    fcfs = (data['ols']['fcf_min_twc'] / data['ols']['weight_avg_shares'])
-    indices = [d for d in list(data['ols'].index.values) if int(d[0]) > int(period[0])
-               and int(d[0]) <= int(period[0]) + years_to_terminal]
-    disc_fcfs = [fcfs[indices[x]] / (1 + cost_equity) **
-                 (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
-    sum_of_disc_cf = sum(disc_fcfs)
-    term_val = (data['ols']['fcf_min_twc'][indices[-1]]
-                / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth)
-    final_val = term_val + sum_of_disc_cf
-    ests.append(("Component Anal", indices[-1][1], indices[-1][0],
-                 '%.3f' % (final_val)))
-    if DEBUG:
-        print("Component Val {} {}: {}".format(indices[-1][1],
-                                               indices[-1][0], '%.3f'%(final_val)))
+    years_to_terminal = [1, 2]
+    for ytt in years_to_terminal:
+        # use the OLS growth calcs for FCFs instead of growth forecasts
+        fcfs = (data['ols']['fcf_min_twc'] / data['ols']['weight_avg_shares'])
+        indices = [d for d in list(data['ols'].index.values) if int(d[0]) > int(period[0])
+                   and int(d[0]) <= int(period[0]) + ytt]
+        disc_fcfs = [fcfs[indices[x]] / (1 + cost_equity) **
+                     (int(indices[x][0]) - int(period[0])) for x in range(0, len(indices))]
+        sum_of_disc_cf = sum(disc_fcfs)
+        term_val = (data['ols']['fcf_min_twc'][indices[-1]]
+                    / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth)
+        final_val = term_val + sum_of_disc_cf
+        ests.append(("Component Anal", indices[-1][1], indices[-1][0],
+                     '%.3f' % (final_val)))
+        if DEBUG:
+            print("Component Val {} {}: {}".format(indices[-1][1],
+                                                   indices[-1][0], '%.3f'%(final_val)))
     return data, ests
 
 
@@ -407,7 +411,7 @@ def historical_ratios(data, period, hist_px):
     for per in [next_per, pers_2]:
         final_val = '%.3f' % (data['ols']['pb_5yr_avg_hist'][period]
                               * (data['ols']['bvps'][per]))
-        ests.append(("PS", per[1], per[0], final_val))
+        ests.append(("PB", per[1], per[0], final_val))
         if DEBUG:
             print("Hist avg PB: {}  Fwd BVPS: {}  DV Est {} {}: {}"
                   "".format('%.3f' % (data['ols']['pb_5yr_avg_hist'][period]),
@@ -709,6 +713,9 @@ def get_price_data(ticks, comps, method='db'):
 
 
 def analyze_ests(data, period, hist_px, years_fwd=2):
+    """
+    Analyze the results of all the outputs from the valuation techniques
+    """
     val_models = ['Hist Comps', 'DFCF', 'PDV']
     val_weights = {
         'Hist Comps': 0.35,
@@ -716,15 +723,14 @@ def analyze_ests(data, period, hist_px, years_fwd=2):
         'PDV': 0.15
     }
     for key, data_df in data.items():
-        pdb.set_trace()
         per = tuple([period[0], key, data_df[0]['bs'].index.values[0][2]])
         print("Tick: {}   Date: {} {}".format(key, per[0], per[2]))
-        print("Current Price: {}".format(hist_px[key].dropna().values[-1]))
+        print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
         try:
-            v[0]['beta'][per]
-        except:
+            data_df[0]['bs'].loc[per]
+        except KeyError:
             # Company may havent reported yet in current year
-            per = tuple([str(int(period[0])-1), key, 
+            per = tuple([str(int(period[0])-1), key,
                          data_df[0]['bs'].index.values[0][2]])
 
         for ind_y in range(1, years_fwd+1):
@@ -734,24 +740,30 @@ def analyze_ests(data, period, hist_px, years_fwd=2):
                 mod_est = []
                 for val in valuations[mod]:
                     try:
-                        e = [float(est[3]) for est in v[1] if est[0] == val and
-                             est[1] == key and est[2] == year][0]
-                    except:
+                        estimate = [float(est[3]) for est in data_df[1] if est[0] == val and
+                                    est[1] == key and est[2] == year][0]
+                    except KeyError:
                         # Might not have this model for this year
                         continue
-                    mod_est.append(e)
+                    except IndexError:
+                        # Might not have year for this model
+                        continue
+                    mod_est.append(estimate)
                     print("Model: {}  tick: {}  year: {}  EST: {}"
-                          "".format(val, key, year, e))
-                if len(mod_est) == 0:
+                          "".format(val, key, year, estimate))
+                if not mod_est:
                     continue
                 year_est[mod] = sum(mod_est)/len(mod_est)
                 print("Models AVG: {}  tick: {}  year: {}  EST: {}"
                       "".format(mod, key, year, '%.4f' % year_est[mod]))
-                prem_disc = (year_est[mod] / float(hist_px[key].dropna().values[-1])) - 1
+                prem_disc = (year_est[mod] / data_df[0]['ols']['date_px'][per]) - 1
                 # Divide by beta
-                risk_adj = ((year_est[mod] / float(hist_px[key].dropna().values[-1])) - 1) / v[0]['beta'][per]
+                risk_adj = (((year_est[mod]
+                              / data_df[0]['ols']['date_px'][per]) - 1)
+                            / data_df[0]['ols']['beta'][per])
                 print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
                       "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
+
             # Assume 50% DFCF, 35% Hist comparables, 15% for peer derived
             year_avg_est = 0
             if len(list(year_est.keys())) < 3:
@@ -759,16 +771,16 @@ def analyze_ests(data, period, hist_px, years_fwd=2):
                 continue
             for yr_key, estimate in year_est.items():
                 year_avg_est += estimate * val_weights[yr_key]
-            print("Current Price: {}".format(hist_px[key].dropna().values[-1]))
+            print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
             print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}"
-                  "".format(key, year, '%.4f'%year_avg_est))
+                  "".format(key, year, '%.4f'% year_avg_est))
             prem_disc = (year_avg_est
-                         / float(hist_px[key].dropna().values[-1])) - 1
+                         / data_df[0]['ols']['date_px'][per]) - 1
             # Divide by beta
-            risk_adj = (((year_avg_est / float(hist_px[key].dropna().values[-1]))
-                         - 1) / v[0]['beta'][per])
+            risk_adj = (((year_avg_est / data_df[0]['ols']['date_px'][per])
+                         - 1) / data_df[0]['ols']['beta'][per])
             print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
-                  "".format('%.4f'%prem_disc, '%.4f'%risk_adj))
+                  "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
 
 
 def valuation_model(ticks, mode='db'):

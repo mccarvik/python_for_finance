@@ -354,7 +354,7 @@ dfcf = ['constGrowthRate', 'proj_calc_g', '1st_5yr_lt_g', '2nd_5yr_lt_g']
 valuations = {
     'Hist Comps': ['PE', 'PS', 'PB', 'PCF', 'PFCF'],
     'DFCF': ['2stage', '3stage', 'Component Anal'],
-    'PDV': ['pdv_PE_avg_hist', 'pdv_PS', 'pdv_PB', 'pdv_PCF']
+    'PDV': ['pdv_pe_avg_hist', 'pdv_ps_ratio', 'pdv_pd_ratio', 'pdv_pfcc_ratio']
 }
 
 
