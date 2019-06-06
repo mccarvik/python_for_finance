@@ -40,75 +40,117 @@ def peer_derived_value(data, period, hist_px):
     for key, data_df in data.items():
         per = tuple([period[0], key, data[key][0]['ols'].index.values[0][2]])
         try:
-            group_mkt_cap += (data_df[0]['fr']['market_cap'])
-        except:
+            group_mkt_cap += (data_df[0]['fr']['market_cap']).reset_index().set_index('year')['market_cap']
+        except KeyError:
             # May not have reported yet for this year, if this also fails,
             # raise exception as may have bigger problem
             pdb.set_trace()
-            per = tuple([str(int(period[0])-1), key, data[key][0].index.values[0][2]])
-            group_mkt_cap += data_df[0]['shares'][per] * float(hist_px[key].dropna().values[-1])
-            per = tuple([period[0], key, data[key][0].index.values[0][2]])
+            per = tuple([str(int(period[0])), key, period[2]+"E"])
+            group_mkt_cap += (data_df[0]['shares'][per]
+                              * float(hist_px[key].dropna().values[-1]))
 
         # Need to project out vals
-        pdb.set_trace()
-        for ind_val in vals:
-            xvals = data[key][0][ind_val].dropna().reset_index()[['date', 'month']]
-            slope, yint = ols_calc(xvals, data[key][0][ind_val].dropna())
-            for fwd in range(1, years_fwd+1):
-                start = dt.datetime(int(xvals.values[0][0]), int(xvals.values[0][1]), 1).date()
-                per = tuple([str(int(period[0])+fwd), val[0].index.values[0][1], val[0].index.values[0][2]+"E"])
-                new_x = get_year_deltas([start, dt.datetime(int(per[0]), int(per[2][:-1]), 1).date()])[-1]
-                data[key][0].at[per, ind_val] = (yint + new_x * slope)
+        for ind_val in vals + ['market_cap']:
+            if ind_val in ['pe_avg_hist']:
+                sheet = 'ols'
+            else:
+                sheet = 'fr'
+            xvals = data_df[0][sheet][ind_val].dropna().reset_index()[['year', 'month']]
+            month = xvals['month'].values[0]
+            slope, yint = ols_calc(xvals,
+                                   data_df[0][sheet][ind_val].dropna().astype('float'))
+            for fwd in range(1, years_fwd + 1):
+                start = dt.datetime(int(xvals.values[0][0]),
+                                    int(xvals.values[0][1]), 1).date()
+                per = tuple([str(int(period[0]) + fwd), key, month+"E"])
+                new_x = get_year_deltas([start, dt.datetime(int(per[0]),
+                                                            int(per[2][:-1]), 1).date()])[-1]
+                data_df[0][sheet].at[per, ind_val] = (yint + new_x * slope)
+
+    # ols for group market cap
+    xvals = group_mkt_cap.reset_index()
+    xvals['month'] = '06'
+    month = '06'
+    xvals = xvals[['year', 'month']]
+    slope, yint = ols_calc(xvals,
+                           group_mkt_cap.astype('float'))
+    for fwd in range(1, years_fwd + 1):
+        start = dt.datetime(int(xvals.values[0][0]),
+                            int(xvals.values[0][1]), 1).date()
+        per = tuple([str(int(period[0]) + fwd), month+"E"])
+        new_x = get_year_deltas([start, dt.datetime(int(per[0]),
+                                                    int(month), 1).date()])[-1]
+        group_mkt_cap[per[0]] = (yint + new_x * slope)
 
     for ind_val in vals:
+        if ind_val in ['pe_avg_hist']:
+            sheet = 'ols'
+        else:
+            sheet = 'fr'
         group_vals[ind_val] = 0
         group_vals[ind_val + "_w_avg"] = 0
         group_vals[ind_val + "_fwd"] = 0
         group_vals[ind_val + "_fwd_w_avg"] = 0
         for tick in ticks:
-            per = tuple([period[0], tick, data[tick][0].index.values[0][2]])
-            fwd = tuple([str(int(period[0])+years_fwd), tick, data[tick][0].index.values[0][2]+"E"])
-
+            per = tuple([period[0], tick,
+                         data[tick][0][sheet].index.values[0][2]])
+            fwd = tuple([str(int(period[0]) + years_fwd), tick,
+                         data[tick][0][sheet].index.values[0][2]+"E"])
             # 5yr avgs, simple and weighted
             try:
+                group_vals[ind_val] += data[tick][0][sheet][ind_val].rolling(center=False, window=5).mean()[per] / len(ticks)
+                group_vals[ind_val + "_w_avg"] += (data[tick][0][sheet][ind_val].rolling(center=False, window=5).mean()[per]
+                                                   * (data[tick][0]['fr']['market_cap'][per] / group_mkt_cap[per[0]]))
+            except KeyError:
+                # May not have reported yet for this year, if this also fails,
+                # raise exception as may have bigger problem
+                pdb.set_trace()
+                per = tuple([str(int(period[0])-1), tick,
+                             data[tick][0].index.values[0][2]])
                 group_vals[ind_val] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] / len(ticks)
-                group_vals[ind_val + "_w_avg"] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] * ((data[tick][0]['shares'][per] * float(hist_px[tick].values[-1])) / group_mkt_cap)
-            except:
-                # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
-                per = tuple([str(int(period[0])-1), tick, data[tick][0].index.values[0][2]])
-                group_vals[ind_val] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] / len(ticks)
-                group_vals[ind_val + "_w_avg"] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] * ((data[tick][0]['shares'][per] * float(hist_px[tick].values[-1])) / group_mkt_cap)
+                group_vals[ind_val + "_w_avg"] += (data[tick][0][ind_val].rolling(center=False, window=5).mean()[per]
+                                                   * (data[tick][0]['fr']['market_cap'] / group_mkt_cap[per[0]]))
 
-            # 5yr avgs, simpel and weighted
-            group_vals[ind_val + "_fwd"] += data[tick][0][ind_val].rolling(center=False, window=years_fwd).mean()[fwd] / len(ticks)
-            group_vals[ind_val + "_fwd_w_avg"] += data[tick][0][ind_val].rolling(center=False, window=years_fwd).mean()[fwd] * ((data[tick][0]['shares'][per] * float(hist_px[tick].values[-1])) / group_mkt_cap)
+            # 5yr avgs, simple and weighted
+            group_vals[ind_val + "_fwd"] += data[tick][0][sheet][ind_val].rolling(center=False, window=years_fwd).mean()[fwd] / len(ticks)
+            group_vals[ind_val + "_fwd_w_avg"] += (data[tick][0][sheet][ind_val].rolling(center=False, window=years_fwd).mean()[fwd]
+                                                   * (data[tick][0]['fr']['market_cap'][fwd] / group_mkt_cap[fwd[0]]))
         if DEBUG:
             print("{} 5Y simple avg: {}".format(ind_val, '%.3f' % group_vals[ind_val]))
             print("{} 5Y weighted avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_w_avg"]))
             print("{} 2Y fwd avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd"]))
-            print("{} 2Y fwd weighted avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd_w_avg"]))
+            print("{} 2Y fwd weighted avg: {}"
+                  "".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd_w_avg"]))
 
     comp_df = pd.DataFrame()
-    for key, val in data.items():
-        per = tuple([period[0], key, data[key][0].index.values[0][2]])
+    for key, data_df in data.items():
+        per = tuple([period[0], key, data_df[0]['ols'].index.values[0][2]])
         for ratio in vals:
+            if ratio in ['pe_avg_hist']:
+                sheet = 'ols'
+            else:
+                sheet = 'fr'
             if comp_df.empty:
                 comp_df = pd.DataFrame(columns=setup_pdv_cols())
             row = [key, ratio]
             try:
-                row.append(val[0][ratio].rolling(center=False, window=5).mean()[per])
-            except:
-                # May not have reported yet for this year, if this also fails, raise exception as may have bigger problem
-                per = tuple([str(int(period[0])-1), key, data[key][0].index.values[0][2]])
-                row.append(val[0][ratio].rolling(center=False, window=5).mean()[per])
+                row.append(data_df[0][sheet][ratio].rolling(center=False, window=5).mean()[per])
+            except KeyError:
+                # May not have reported yet for this year, if this also fails,
+                # raise exception as may have bigger problem
+                per = tuple([str(int(period[0])-1),
+                             key, data[key][0].index.values[0][2]])
+                row.append(data_df[0][sheet][ratio][per])
             row.append(row[-1] / group_vals[ratio + "_w_avg"])
             # end of fwd estimate year
-            fwd = tuple([str(int(period[0]) + years_fwd), key, data[key][0].index.values[0][2] + "E"])
-            row.append(val[0][ratio].rolling(center=False, window=years_fwd).mean()[fwd])
+            fwd = tuple([str(int(period[0]) + years_fwd), key,
+                         data_df[0]['ols'].index.values[0][2] + "E"])
+            row.append(data_df[0][sheet][ratio].rolling(center=False, window=years_fwd).mean()[fwd])
             row.append(row[-1] / group_vals[ratio + "_fwd_w_avg"])
             row.append(row[3] / row[5])
-            row.append(float(hist_px[key].dropna().values[-1]) * row[-1])
-            data[key][1].append(tuple(["pdv_" + ratio, per[1], str(int(per[0]) + years_fwd), '%.3f' % row[-1]]))
+            row.append(data_df[0]['ols'].date_px[per] * row[-1])
+            data[key][1].append(tuple(["pdv_" + ratio, per[1],
+                                       str(int(per[0]) + years_fwd), '%.3f' % row[-1]]))
             comp_df.loc[len(comp_df)] = row
     return data, comp_df.set_index(['ticker', 'cat'])
 
@@ -320,7 +362,8 @@ def historical_ratios(data, period, hist_px):
     data['ols']['pe_low_hist'] = data['ols']['hi_52wk'] / data['ols']['eps']
     data['ols']['pe_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['eps']
     data['ols']['pe_curr_hist'] = curr_px / data['ols']['eps']
-    data['ols']['pe_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
+    data['ols']['pe_fwd'] = ((data['ols']['date_px']
+                              * data['is']['weight_avg_shares'])
                              / data['is']['net_inc'].shift(1))
     data['ols']['pe_5yr_avg_hist'] = data['ols']['pe_avg_hist'].rolling(center=False, window=5).mean()
 
@@ -338,7 +381,8 @@ def historical_ratios(data, period, hist_px):
     data['ols']['sps'] = data['ols']['revenue'] / data['ols']['weight_avg_shares']
     data['ols']['ps_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['sps']
     data['ols']['ps_curr_hist'] = curr_px / data['ols']['sps']
-    data['ols']['ps_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
+    data['ols']['ps_fwd'] = ((data['ols']['date_px']
+                              * data['is']['weight_avg_shares'])
                              / data['is']['revenue'].shift(1))
     data['ols']['ps_5yr_avg_hist'] = data['ols']['ps_avg_hist'].rolling(center=False, window=5).mean()
 
@@ -352,7 +396,8 @@ def historical_ratios(data, period, hist_px):
                             '%.3f' % (data['ols']['sps'][per]), per[1], per[0], final_val))
 
     # P/B
-    data['ols']['bvps'] = data['ols']['total_equity'] / data['ols']['weight_avg_shares']
+    data['ols']['bvps'] = (data['ols']['total_equity']
+                           / data['ols']['weight_avg_shares'])
     data['ols']['pb_avg_hist'] = data['ols']['avg_52wk'] / data['ols']['bvps']
     data['ols']['pb_curr_hist'] = curr_px / data['ols']['bvps']
     data['ols']['pb_fwd'] = ((data['ols']['date_px'] * data['is']['weight_avg_shares'])
@@ -545,15 +590,18 @@ def model_est(cum, margin):
     Model based on quarterly estimats
     """
     # some cleanup
-    margin = margin.reset_index()[margin.reset_index().date != 'TTM'].set_index(IDX)
+    margin = margin.reset_index()[margin.reset_index().date !=
+                                  'TTM'].set_index(IDX)
     cum = cum.reset_index()[cum.reset_index().month != ''].set_index(IDX)
 
-    # next qurater est is equal to revenue * average est margin over the last year
+    # next qurater est is equal to rev * avg est margin over the last year
     for _ in range(4):
         n_idx = list(cum.iloc[-1].name)
         n_idx = getNextQuarter(n_idx)
         n_data = n_idx + list(margin[-5:-1].mean())
-        t_df = pd.DataFrame(dict((key, value) for (key, value) in zip(IDX+list(margin.columns), n_data)), columns=IDX+list(margin.columns), index=[0]).set_index(IDX)
+        t_df = pd.DataFrame(dict((key, value) for (key, value) in
+                                 zip(IDX+list(margin.columns), n_data)),
+                            columns=IDX+list(margin.columns), index=[0]).set_index(IDX)
         margin = margin.append(t_df)
 
         n_cum_dict = {k: v for k, v in zip(IDX, n_idx)}
@@ -563,27 +611,40 @@ def model_est(cum, margin):
         # Use mean of previous few years to get there
         #########
         for col in ['cogs', 'rd', 'sga', 'grossProfit', 'mna', 'otherExp']:
-            n_cum_dict[col] = margin.loc[tuple(n_idx)][col] * n_cum_dict['revenue']
-        n_cum_dict['operatingCost'] = n_cum_dict['rd'] + n_cum_dict['sga'] + n_cum_dict['mna'] + n_cum_dict['otherExp']
-        n_cum_dict['EBIT'] = n_cum_dict['revenue'] - n_cum_dict['operatingCost'] - n_cum_dict['cogs']   # operating income
+            n_cum_dict[col] = (margin.loc[tuple(n_idx)][col]
+                               * n_cum_dict['revenue'])
+        n_cum_dict['operatingCost'] = (n_cum_dict['rd'] + n_cum_dict['sga']
+                                       + n_cum_dict['mna'] + n_cum_dict['otherExp'])
+        # operating income
+        n_cum_dict['EBIT'] = (n_cum_dict['revenue']
+                              - n_cum_dict['operatingCost'] - n_cum_dict['cogs'])
         # Need to update these when we do balance sheet
         total_debt = cum.iloc[-1]['totalLiab']
         cash_and_inv = cum.iloc[-1]['totalCash']
-        # 0.6 = about corp rate , 0.02 = about yield on cash, 0.25 = 1/4 of the year
-        n_cum_dict['intExp'] = total_debt * 0.25 * 0.7 - cash_and_inv * 0.25 * 0.02
-        # just assume average of last year, gonna be very specific company to company
+        # 0.6 = about corp rate, 0.02 = about yld on cash, 0.25 = 1/4 of the yr
+        n_cum_dict['intExp'] = (total_debt * 0.25 * 0.7
+                                - cash_and_inv * 0.25 * 0.02)
+        # just assume avg of last yr, gonna be very specific company to company
         n_cum_dict['otherInc'] = cum[-5:-1]['otherInc'].mean()
-        n_cum_dict['EBT'] = n_cum_dict['EBIT'] - n_cum_dict['intExp'] + n_cum_dict['otherInc']
+        n_cum_dict['EBT'] = (n_cum_dict['EBIT'] - n_cum_dict['intExp']
+                             + n_cum_dict['otherInc'])
         # average tax rate of the last year
-        n_cum_dict['taxes'] = (cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean() * n_cum_dict['EBT']
+        n_cum_dict['taxes'] = ((cum[-5:-1]['taxes'] / cum[-5:-1]['EBT']).mean()
+                               * n_cum_dict['EBT'])
         n_cum_dict['netIncome'] = n_cum_dict['EBT'] - n_cum_dict['taxes']
 
-        # Assume change over the last year continues for next quarter - may need to adjust this per company
-        n_cum_dict['shares'] = ((((cum.iloc[-1]['shares'] / cum.iloc[-5]['shares']) - 1) / 4) + 1) * cum.iloc[-1]['shares']
-        n_cum_dict['sharesBasic'] = ((((cum.iloc[-1]['sharesBasic'] / cum.iloc[-5]['sharesBasic']) - 1) / 4) + 1) * cum.iloc[-1]['sharesBasic']
+        # Assume change over the last year continues for next quarter
+        # may need to adjust this per company
+        n_cum_dict['shares'] = (((((cum.iloc[-1]['shares']
+                                    / cum.iloc[-5]['shares']) - 1) / 4) + 1)
+                                * cum.iloc[-1]['shares'])
+        n_cum_dict['sharesBasic'] = (((((cum.iloc[-1]['sharesBasic']
+                                         / cum.iloc[-5]['sharesBasic']) - 1) / 4) + 1)
+                                     * cum.iloc[-1]['sharesBasic'])
 
         n_cum_dict['EPS'] = n_cum_dict['netIncome'] / n_cum_dict['shares']
-        n_cum_dict['EPSBasic'] = n_cum_dict['netIncome'] / n_cum_dict['sharesBasic']
+        n_cum_dict['EPSBasic'] = (n_cum_dict['netIncome']
+                                  / n_cum_dict['sharesBasic'])
 
         # Assume cash and liabilities are static
         n_cum_dict['totalLiab'] = total_debt
@@ -651,55 +712,63 @@ def analyze_ests(data, period, hist_px, years_fwd=2):
     val_models = ['Hist Comps', 'DFCF', 'PDV']
     val_weights = {
         'Hist Comps': 0.35,
-        'DFCF': 0.5,
+        'DFCF': 0.50,
         'PDV': 0.15
     }
-    for k, v in data.items():
-        per = tuple([period[0], k, v[0].index.values[0][2]])
-        print("Tick: {}   Date: {} {}".format(k, per[0], per[2]))
-        print("Current Price: {}".format(hist_px[k].dropna().values[-1]))
+    for key, data_df in data.items():
+        pdb.set_trace()
+        per = tuple([period[0], key, data_df[0]['bs'].index.values[0][2]])
+        print("Tick: {}   Date: {} {}".format(key, per[0], per[2]))
+        print("Current Price: {}".format(hist_px[key].dropna().values[-1]))
         try:
             v[0]['beta'][per]
         except:
             # Company may havent reported yet in current year
-            per = tuple([str(int(period[0])-1), k, v[0].index.values[0][2]])
+            per = tuple([str(int(period[0])-1), key, 
+                         data_df[0]['bs'].index.values[0][2]])
 
-        for y in range(1, years_fwd+1):
-            year = str(int(per[0])+y)
+        for ind_y in range(1, years_fwd+1):
+            year = str(int(per[0]) + ind_y)
             year_est = {}
             for mod in val_models:
                 mod_est = []
                 for val in valuations[mod]:
                     try:
                         e = [float(est[3]) for est in v[1] if est[0] == val and
-                             est[1] == k and est[2] == year][0]
+                             est[1] == key and est[2] == year][0]
                     except:
                         # Might not have this model for this year
                         continue
                     mod_est.append(e)
-                    print("Model: {}  tick: {}  year: {}  EST: {}".format(val, k, year, e))
+                    print("Model: {}  tick: {}  year: {}  EST: {}"
+                          "".format(val, key, year, e))
                 if len(mod_est) == 0:
                     continue
                 year_est[mod] = sum(mod_est)/len(mod_est)
-                print("Models AVG: {}  tick: {}  year: {}  EST: {}".format(mod, k, year, '%.4f' % year_est[mod]))
-                prem_disc = (year_est[mod] / float(hist_px[k].dropna().values[-1])) - 1
+                print("Models AVG: {}  tick: {}  year: {}  EST: {}"
+                      "".format(mod, key, year, '%.4f' % year_est[mod]))
+                prem_disc = (year_est[mod] / float(hist_px[key].dropna().values[-1])) - 1
                 # Divide by beta
-                risk_adj = ((year_est[mod] / float(hist_px[k].dropna().values[-1])) - 1) / v[0]['beta'][per]
-                print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}".format('%.4f' % prem_disc, '%.4f' % risk_adj))
-            # Assume 50% for DFCF, 35% for Hist comparables, 15% for peer derived
+                risk_adj = ((year_est[mod] / float(hist_px[key].dropna().values[-1])) - 1) / v[0]['beta'][per]
+                print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
+                      "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
+            # Assume 50% DFCF, 35% Hist comparables, 15% for peer derived
             year_avg_est = 0
             if len(list(year_est.keys())) < 3:
                 # dont have values for all models
                 continue
-            for key, estimate in year_est.items():
-                year_avg_est += estimate * val_weights[key]
-            print("Current Price: {}".format(hist_px[k].dropna().values[-1]))
-            print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}".format(k, year, '%.4f'%year_avg_est))
+            for yr_key, estimate in year_est.items():
+                year_avg_est += estimate * val_weights[yr_key]
+            print("Current Price: {}".format(hist_px[key].dropna().values[-1]))
+            print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}"
+                  "".format(key, year, '%.4f'%year_avg_est))
             prem_disc = (year_avg_est
-                         / float(hist_px[k].dropna().values[-1])) - 1
+                         / float(hist_px[key].dropna().values[-1])) - 1
             # Divide by beta
-            risk_adj = ((year_avg_est / float(hist_px[k].dropna().values[-1])) - 1) / v[0]['beta'][per]
-            print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}".format('%.4f'%prem_disc, '%.4f'%risk_adj))
+            risk_adj = (((year_avg_est / float(hist_px[key].dropna().values[-1]))
+                         - 1) / v[0]['beta'][per])
+            print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
+                  "".format('%.4f'%prem_disc, '%.4f'%risk_adj))
 
 
 def valuation_model(ticks, mode='db'):
@@ -768,7 +837,6 @@ def valuation_model(ticks, mode='db'):
     print(pdv)
 
     # Analysis of all valuations
-    pdb.set_trace()
     analyze_ests(full_data, period, hist_px)
 
 
