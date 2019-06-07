@@ -1,8 +1,15 @@
+"""
+Helper script for equity valuation
+"""
 import sys
-import pdb, time, requests, csv
+import pdb
+import time
+import csv
+import datetime as dt
+import requests
 import numpy as np
 import pandas as pd
-import datetime as dt
+
 sys.path.append("/home/ubuntu/workspace/ml_dev_work")
 from utils.db_utils import DBHelper
 
@@ -23,7 +30,7 @@ IS_COLS = {
     'Total costs and expenses' : 'operatingCost',
     'Total expenses' : 'operatingCost',
     'Total benefits, claims and expenses' : 'operatingCost',
-    'Operating income' : 'EBIT', 
+    'Operating income' : 'EBIT',
     'Interest Expense' : 'intExp',
     'Interest expense' : 'intExp',
     'Interest expenses' : 'intExp',
@@ -40,7 +47,7 @@ IS_COLS = {
     'Provision for loan losses' : 'provForLoanLoss',
     'Other assets' : 'otherAssets',
     'Other income (loss)' : 'otherInc',
-    'Other income (expense)' : 'otherInc', 
+    'Other income (expense)' : 'otherInc',
     'Other income' : 'otherInc',
     'Other' : 'otherInc',
     'Other expenses' : 'otherExp',
@@ -51,7 +58,7 @@ IS_COLS = {
     'Income before taxes' : 'EBT',
     'Income before income taxes' : 'EBT',
     'Income (loss) from cont ops before taxes' : 'EBT',
-    'Provision for income taxes' : 'taxes', 
+    'Provision for income taxes' : 'taxes',
     'Provision (benefit) for taxes' : 'taxes',
     'Provision (benefit) for income taxes' : 'taxes',
     'Income tax (expense) benefit' : 'taxes',
@@ -62,12 +69,12 @@ IS_COLS = {
     'Net income from discontinuing ops' : 'netIncomeDiscontinuing',
     'Income from discontinued ops' : 'netIncomeDiscontinuing',
     'Income from discontinued operations' : 'netIncomeDiscontinuing',
-    'Net income' : 'netIncome', 
-    'Net income available to common shareholders' : 'netIncomeShareholders', 
-    'EPSBasic' : 'EPSBasic', 
-    'EPSDiluted' : 'EPS', 
-    'SharesBasic' : 'sharesBasic', 
-    'SharesDiluted' : 'shares', 
+    'Net income' : 'netIncome',
+    'Net income available to common shareholders' : 'netIncomeShareholders',
+    'EPSBasic' : 'EPSBasic',
+    'EPSDiluted' : 'EPS',
+    'SharesBasic' : 'sharesBasic',
+    'SharesDiluted' : 'shares',
     'EBITDA' : 'EBITDA',
     'Restructuring, merger and acquisition' : 'mna',
     'Merger, acquisition and restructuring' : 'mna',
@@ -133,7 +140,7 @@ BS_COLS = {
     'Derivative liabilities' : 'derivLiabs',
     'Trading liabilities' : 'shortTermLiab',
     'Total cash and cash equivalents' : 'totalCash',
-    'Total cash' : 'totalCash', 
+    'Total cash' : 'totalCash',
     'Receivables' : 'receivables',
     'Interest receivable' : 'intReceivables',
     'Premiums and other receivables' : 'receivables',
@@ -323,66 +330,48 @@ CF_COLS = {
     'Investment income due and accrued' : 'invIncomeDueAndAccrued'
 }
 
-
 # input cols
 OLS_COLS = ['total_liabs', 'total_cur_liabs', 'total_cur_assets', 'cash'
             'receivables', 'inv', 'accounts_payable', 'net_ppe', 'total_equity',
-            'weight_avg_shares', 'working_cap', 'total_assets', 'ebitda', 
-            'enterprise_val', 'nopat', 'div_per_share', 'cap_exp', 'oper_cf', 
-            'revenue', 'oper_inc', 'prov_inc_tax', 'fcf', 'cogs', 'rnd', 'sga', 
+            'weight_avg_shares', 'working_cap', 'total_assets', 'ebitda',
+            'enterprise_val', 'nopat', 'div_per_share', 'cap_exp', 'oper_cf',
+            'revenue', 'oper_inc', 'prov_inc_tax', 'fcf', 'cogs', 'rnd', 'sga',
             'net_int_inc', 'fcf_min_twc', 'gross_prof_marg', 'pretax_prof_marg',
             'net_prof_marg']
 
-# output cols
-int_liq = ['workingCapital', 'tradeWorkingCapital', 'currentRatio', 'quickRatio', 'workingCap_v_Sales']
-op_eff = ['receivablesTurnover', 'receivablesDaysOutstanding', 'totalAssetTurnover', 'inventoryTurnover',
-          'inventoryDaysOutstanding', 'daysSalesOutstanding', 'equityTurnover', 'payablesTurnover',
-          'payablesDaysOutstanding', 'cashConversionCycle']
-marg_rats = ['grossMargin', 'operMargin', 'pretaxMargin', 'netMargin', 'EBITDAMargin', 'EBITDA_v_EV', 'EV_v_EBITDA']
-ret_rats = ['ROIC', 'RTC', 'ROA', 'ROE', 'ROE_dupont']
-risk_anal = ['operLev', 'intCov', 'debtToEquity', 'debtToCap']
-cf_anal = ['operCF', 'FCF', 'FCF_min_wc', 'FCF_min_twc', 'retEarnRatio', 'divPayoutRatio', 'constGrowthRate']
-pe = ['PE_low_hist', 'PE_high_hist', 'PE_avg_hist', 'PE_curr_hist', 'PE_fwd']
-ps = ['PS', 'PS_curr', 'PS_fwd', 'PS_5yr_avg_hist']
-pb = ['PB', 'PB_curr', 'PB_fwd', 'PB_5yr_avg_hist']
-pcf = ['PCF', 'PCF_curr', 'PCF_fwd', 'PCF_5yr_avg_hist']
-pfcf = ['PFCF', 'PFCF_curr', 'PFCF_fwd', 'PFCF_5yr_avg_hist']
-peg = ['PEG', 'PEG_5yr_avg', 'PEGY', 'PEGY_5yr_avg', 'divYield']
-dfcf = ['constGrowthRate', 'proj_calc_g', '1st_5yr_lt_g', '2nd_5yr_lt_g']
-
 # valuation
-valuations = {
+VALUATIONS = {
     'Hist Comps': ['PE', 'PS', 'PB', 'PCF', 'PFCF'],
     'DFCF': ['2stage', '3stage', 'Component Anal'],
     'PDV': ['pdv_pe_avg_hist', 'pdv_ps_ratio', 'pdv_pd_ratio', 'pdv_pfcc_ratio']
 }
 
 
-def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
+def make_api_call(ticker, sheet='bs', per=3, col=10, num=3):
     # Use this for quarterly info
     # Period can be 3 or 12 for quarterly vs annual
     # Sheet can be bs = balance sheet, is = income statement, cf = cash flow statement
     # Column year can be 5 or 10, doesnt really work
     # 1 = None 2 = Thousands 3 = Millions 4 = Billions
     url = 'http://financials.morningstar.com/ajax/ReportProcess4CSV.html?t={0}&reportType={1}&period={2}&dataType=A&order=asc&columnYear={3}&number={4}'.format(ticker, sheet, per, col, num)
-    urlData = requests.get(url).content.decode('utf-8')
-    if 'Error reading' in urlData or urlData=='':
+    url_data = requests.get(url).content.decode('utf-8')
+    if 'Error reading' in url_data or url_data == '':
         # try one more time
         time.sleep(3)
-        urlData = requests.get(url).content.decode('utf-8')
-    if 'Error reading' in urlData or urlData=='':
+        url_data = requests.get(url).content.decode('utf-8')
+    if 'Error reading' in url_data or url_data == '':
         print('API issue - Error - ' + ticker)
         return []
-        
-    cr = csv.reader(urlData.splitlines(), delimiter=',')
+
+    cr = csv.reader(url_data.splitlines(), delimiter=',')
     data = []
     for row in list(cr):
         data.append(row)
-    
+
     if len(data) == 0:
         print('API issue - empty')
         return []
-        
+
     # Remove empty rows
     data = [x for x in data if x != []]
     data = [x for x in data if len(x) != 1]
@@ -402,12 +391,12 @@ def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
         elif sheet == 'cf':
             columns = CF_COLS
         data = [[columns[h]] + d[1:] for h, d in zip(headers, data)]
-    except Exception as e:
+    except Exception:
         exc_type, exc_obj, exc_tb = sys.exc_info()
-        print("Error in dictionary setup: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
-        # pdb.set_trace()
+        print("Error in dictionary setup: {0}, {1}, {2}"
+              "".format(exc_type, exc_tb.tb_lineno, exc_obj))
         raise
-        
+
     data = pd.DataFrame(data).transpose()
     cols = data.iloc[0]
     data = data[1:]
@@ -427,36 +416,15 @@ def makeAPICall(ticker, sheet='bs', per=3, col=10, num=3):
             data[i] = 0
     data = data.set_index(IDX)
     return data
-    
-
-def is_replacements(headers):
-    first = False
-    new_headers = []
-    for h in headers:
-        if not first:
-            if h == 'Basic':
-                new_headers.append('EPS' + h)
-            else:
-                if h == 'Diluted':
-                    new_headers.append('EPS' + h)
-                    first = True
-                else:
-                    new_headers.append(h)
-        else:
-            if h == 'Basic':
-                new_headers.append('Shares' + h)
-            else:
-                if h == 'Diluted':
-                    new_headers.append('Shares' + h)
-                else:
-                    new_headers.append(h)
-    return new_headers
 
 
-def getNextQuarter(index):
+def get_next_quarter(index):
+    """
+    Get next quarters index key
+    """
     tick = index[1]
     y = int(index[0])
-    m = int(index[2].replace("E","")) + 3
+    m = int(index[2].replace("E", "")) + 3
     if m > 12:
         m -= 12
         y += 1
@@ -465,24 +433,26 @@ def getNextQuarter(index):
     return [str(y), tick, str(m)+"E"]
 
 
-def getNextYear(index):
-    return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E",""))))+"E"]
+def get_next_year(index):
+    """
+    Get next years index key
+    """
+    return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E", ""))))+"E"]
 
 
 def get_ticker_info(ticks, table, idx=None, dates=None):
-    # Temp to make testing quicker
-    t0 = time.time()
-    # tickers = pd.read_csv('/home/ubuntu/workspace/ml_dev_work/utils/dow_ticks.csv', header=None)
+    """
+    Grabbing info for a list of given tickers from the db
+    """
+    # t0 = time.time()
     with DBHelper() as db:
         db.connect()
-        # df = db.select('morningstar', where = 'date in ("2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016")')
         lis = ''
         for t in ticks:
             lis += "'" + t + "', "
-        df = db.select(table, where = 'tick in (' + lis[:-2] + ')')
-        
-    # Getting Dataframe
-    t1 = time.time()
+        df = db.select(table, where='tick in (' + lis[:-2] + ')')
+
+    # t1 = time.time()
     # print("Done Retrieving data, took {0} seconds".format(t1-t0))
     if idx:
         return df.set_index(idx)
@@ -490,7 +460,10 @@ def get_ticker_info(ticks, table, idx=None, dates=None):
         return df
 
 
-def dataCumColumns(data):
+def data_cum_columns(data):
+    """
+    cumulative columns for intrayear calcs
+    """
     tick = data.reset_index()['tick'][0]
     try:
         data = data.drop([('TTM', '', tick)])
@@ -504,12 +477,15 @@ def dataCumColumns(data):
     data.loc[len(data)] = ['H1', tick, ''] + list(H1.values)
     data.loc[len(data)] = ['M9', tick, ''] + list(M9.values)
     data.loc[len(data)] = ['Y1', tick, ''] + list(Y1.values)
-    data = data.reindex([0,1,2,5,3,6,4,7])
+    data = data.reindex([0, 1, 2, 5, 3, 6, 4, 7])
     data = data.set_index(IDX)
     return data
 
 
-def removeEmptyCols(data):
+def remove_empty_cols(data):
+    """
+    remove empty columns from dataframe
+    """
     for key in data.keys():
         data[key] = data[key].dropna(axis='columns', how='all')
     return data
@@ -528,13 +504,13 @@ def period_chg(data_df):
         if y == min(years):
             last_y = y
             continue
-        year_df = df_y[(df_y.year==y[:4]) & (df_y.month==y[4:])].drop(IDX, axis=1).values
-        last_y_df = df_y[(df_y.year==last_y[:4]) & (df_y.month==last_y[4:])].drop(IDX, axis=1).values
+        year_df = df_y[(df_y.year == y[:4]) & (df_y.month == y[4:])].drop(IDX, axis=1).values
+        last_y_df = df_y[(df_y.year == last_y[:4]) & (df_y.month == last_y[4:])].drop(IDX, axis=1).values
         yoy = (year_df / last_y_df - 1) * 100
         yoy[abs(yoy) == np.inf] = 0
         where_are_NaNs = np.isnan(yoy)
         yoy[where_are_NaNs] = 0
-        data = list(df_y[(df_y.year==y[:4]) & (df_y.month==y[4:])].iloc[0][IDX]) + list(yoy[0])
+        data = list(df_y[(df_y.year == y[:4]) & (df_y.month == y[4:])].iloc[0][IDX]) + list(yoy[0])
         df_chg.loc[len(df_chg)] = data
         last_y = y
     
@@ -550,12 +526,18 @@ def period_chg(data_df):
 
 
 def setup_comp_cols(indices):
+    """
+    Sets up the comparison analysis columns 
+    """
     cols = ['ticker', 'cat'] + [i[0] for i in indices]
     cols.insert(7, 'avg_5y')
     return cols
     
     
 def setup_pdv_cols(per, years_fwd):
+    """
+    Assigns the column values for the peer derived value calc
+    """
     cols = ['ticker', 'cat', '5y_avg', 'hist_avg_v_weight_avg']
     for yrf in range(1, years_fwd + 1):
         year = int(per[0]) + yrf
@@ -574,7 +556,7 @@ def match_px(data, eod_px, tick):
     data['ols']['hi_52wk'] = None
     data['ols']['lo_52wk'] = None
     data['ols']['avg_52wk'] = None
-    
+
     for _, vals in dates.iterrows():
         # get the closest price to the data date
         data_date = dt.datetime(int(vals['year']), int(vals['month']), 1)
@@ -586,7 +568,7 @@ def match_px(data, eod_px, tick):
                 px = eod_px.loc[date]['px']
                 data['ols'].at[(vals['year'], tick, vals['month']), 'date_px'] = px
                 break
-            except KeyError as exc:
+            except KeyError:
                 # holiday or weekend probably
                 day += 1
             if day > 10:
@@ -597,9 +579,12 @@ def match_px(data, eod_px, tick):
         data['ols'].at[(vals['year'], tick, vals['month']), 'lo_52wk'] = date_range['px'].min()
         data['ols'].at[(vals['year'], tick, vals['month']), 'avg_52wk'] = date_range['px'].mean()
     return data
-    
+
 
 def get_beta(data, eod_px, ticker, mkt, ind):
+    """
+    Calculate the beta for a given security
+    """
     window = 52
     # This will get the week end price and do a pct change
     tick = eod_px.loc[ticker].rename(columns={'px': ticker}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
@@ -609,7 +594,7 @@ def get_beta(data, eod_px, ticker, mkt, ind):
     cov_df = cov_df[[cov_df.columns[1]]]
     covariance = cov_df[np.in1d(cov_df.index.get_level_values(1), [ticker])] 
     variance_mkt = cov_df[np.in1d(cov_df.index.get_level_values(1), [mkt.columns[0]])]
-    beta = (covariance.reset_index().set_index('date')[[mkt.columns[0]]] 
+    beta = (covariance.reset_index().set_index('date')[[mkt.columns[0]]]
            / variance_mkt.reset_index().set_index('date')[[mkt.columns[0]]])
     rep_dates = get_report_dates(data)
     data['ols']['beta'] = None
@@ -623,9 +608,9 @@ def get_beta(data, eod_px, ticker, mkt, ind):
         # data['ols'].at[(str(ind_dt.year), ticker, "0" + str(ind_dt.month)), 'beta'] = val
     return data
  
-   
+
 def get_report_dates(data):
     dates = []
-    for ind, vals in data['bs'].iterrows():
-        dates.append(dt.datetime(int(ind[0]),int(ind[2]),1))
+    for ind, _ in data['bs'].iterrows():
+        dates.append(dt.datetime(int(ind[0]), int(ind[2]), 1))
     return dates

@@ -12,9 +12,9 @@ import quandl
 quandl.ApiConfig.api_key = 'J4d6zKiPjebay-zW7T8X'
 
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
-from res_utils import get_ticker_info, removeEmptyCols, setup_comp_cols, \
-                      getNextYear, OLS_COLS, match_px, getNextQuarter, \
-                      get_beta, setup_pdv_cols, valuations
+from res_utils import get_ticker_info, remove_empty_cols, setup_comp_cols, \
+                      get_next_year, OLS_COLS, match_px, get_next_quarter, \
+                      get_beta, setup_pdv_cols, VALUATIONS
 from dx.frame import get_year_deltas
 
 # NOTES:
