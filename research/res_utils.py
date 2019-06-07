@@ -555,8 +555,13 @@ def setup_comp_cols(indices):
     return cols
     
     
-def setup_pdv_cols():
-    return ['ticker', 'cat', '5y_avg', 'hist_var_v_weight_avg', '2yr_fwd_mult', 'cur_var_v_weight_avg', 'prem_disc', 'pdv_price']
+def setup_pdv_cols(per, years_fwd):
+    cols = ['ticker', 'cat', '5y_avg', 'hist_avg_v_weight_avg']
+    for yrf in range(1, years_fwd + 1):
+        year = int(per[0]) + yrf
+        cols += ['fwd_mult_{}'.format(year), 'fwd_mult_v_weight_avg_{}'.format(year),
+                 'prem_disc_{}'.format(year), 'pdv_price_{}'.format(year)]
+    return cols
 
 
 def match_px(data, eod_px, tick):

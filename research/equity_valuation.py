@@ -21,11 +21,11 @@ from dx.frame import get_year_deltas
 # simulate api call --> http://financials.morningstar.com/ajax/exportKR2CSV.html?t=BA
 
 IDX = ['year', 'tick', 'month']
-DEBUG = True
+DEBUG = False
 warnings.filterwarnings("ignore")
 
 
-def peer_derived_value(data, period, hist_px):
+def peer_derived_value(data, period):
     """
     Get the value of the stock as compared to its peers
     """
@@ -46,8 +46,6 @@ def peer_derived_value(data, period, hist_px):
             # raise exception as may have bigger problem
             pdb.set_trace()
             per = tuple([str(int(period[0])), key, period[2]+"E"])
-            group_mkt_cap += (data_df[0]['shares'][per]
-                              * float(hist_px[key].dropna().values[-1]))
 
         # Need to project out vals
         for ind_val in vals + ['market_cap']:
@@ -89,41 +87,47 @@ def peer_derived_value(data, period, hist_px):
             sheet = 'fr'
         group_vals[ind_val] = 0
         group_vals[ind_val + "_w_avg"] = 0
-        group_vals[ind_val + "_fwd"] = 0
-        group_vals[ind_val + "_fwd_w_avg"] = 0
+        for yrf in range(1, years_fwd + 1):
+            group_vals[ind_val + "_" + str(yrf) + "fwd"] = 0
+            group_vals[ind_val + "_" + str(yrf) + "fwd_w_avg"] = 0
+
         for tick in ticks:
             per = tuple([period[0], tick,
                          data[tick][0][sheet].index.values[0][2]])
-            fwd = tuple([str(int(period[0]) + years_fwd), tick,
-                         data[tick][0][sheet].index.values[0][2]+"E"])
-            # 5yr avgs, simple and weighted
+            fwd_pers = [tuple([str(int(period[0]) + yf), tick,
+                               data[tick][0][sheet].index.values[0][2] + "E"])
+                        for yf in range(1, years_fwd + 1)]
             try:
-                group_vals[ind_val] += data[tick][0][sheet][ind_val].rolling(center=False, window=5).mean()[per] / len(ticks)
-                group_vals[ind_val + "_w_avg"] += (data[tick][0][sheet][ind_val].rolling(center=False, window=5).mean()[per]
-                                                   * (data[tick][0]['fr']['market_cap'][per] / group_mkt_cap[per[0]]))
+                # 5yr avgs, simple and weighted
+                group_vals[ind_val] += data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=5).mean()[per] / len(ticks)
+                group_vals[ind_val + "_w_avg"] += (data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=5).mean()[per]
+                                                   * (data[tick][0]['fr']['market_cap'][per]
+                                                      / group_mkt_cap[per[0]]))
             except KeyError:
                 # May not have reported yet for this year, if this also fails,
                 # raise exception as may have bigger problem
                 pdb.set_trace()
                 per = tuple([str(int(period[0])-1), tick,
                              data[tick][0].index.values[0][2]])
-                group_vals[ind_val] += data[tick][0][ind_val].rolling(center=False, window=5).mean()[per] / len(ticks)
-                group_vals[ind_val + "_w_avg"] += (data[tick][0][ind_val].rolling(center=False, window=5).mean()[per]
-                                                   * (data[tick][0]['fr']['market_cap'] / group_mkt_cap[per[0]]))
 
-            # 5yr avgs, simple and weighted
-            group_vals[ind_val + "_fwd"] += data[tick][0][sheet][ind_val].rolling(center=False, window=years_fwd).mean()[fwd] / len(ticks)
-            group_vals[ind_val + "_fwd_w_avg"] += (data[tick][0][sheet][ind_val].rolling(center=False, window=years_fwd).mean()[fwd]
-                                                   * (data[tick][0]['fr']['market_cap'][fwd] / group_mkt_cap[fwd[0]]))
+            for fwd in fwd_pers:
+                year_diff = int(fwd[0]) - int(per[0])
+                # fwd avgs, simple and weighted
+                group_vals[ind_val + "_" + str(year_diff) + "fwd"] += data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=years_fwd).mean()[fwd] / len(ticks)
+                group_vals[ind_val + "_" + str(year_diff) + "fwd_w_avg"] += (data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=years_fwd).mean()[fwd]
+                                                                             * (data[tick][0]['fr']['market_cap'][fwd]
+                                                                                / group_mkt_cap[fwd[0]]))
         if DEBUG:
             print("{} 5Y simple avg: {}".format(ind_val, '%.3f' % group_vals[ind_val]))
             print("{} 5Y weighted avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_w_avg"]))
-            print("{} 2Y fwd avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd"]))
-            print("{} 2Y fwd weighted avg: {}"
-                  "".format(ind_val, '%.3f' % group_vals[ind_val + "_fwd_w_avg"]))
+            for yrf in range(1, years_fwd + 1):
+                print("{} {}Y fwd avg: {}"
+                      "".format(ind_val, str(yrf),
+                                '%.3f' % group_vals[ind_val + "_" + str(yrf) + "fwd"]))
+                print("{} {}Y fwd weighted avg: {}"
+                      "".format(ind_val, str(yrf),
+                                '%.3f' % group_vals[ind_val + "_" + str(yrf) + "fwd_w_avg"]))
 
-    # TODO have this work for all years bewteen today and fwd
-    pdb.set_trace()
     comp_df = pd.DataFrame()
     for key, data_df in data.items():
         per = tuple([period[0], key, data_df[0]['ols'].index.values[0][2]])
@@ -133,26 +137,39 @@ def peer_derived_value(data, period, hist_px):
             else:
                 sheet = 'fr'
             if comp_df.empty:
-                comp_df = pd.DataFrame(columns=setup_pdv_cols())
+                comp_df = pd.DataFrame(columns=setup_pdv_cols(per, years_fwd))
             row = [key, ratio]
             try:
-                row.append(data_df[0][sheet][ratio].rolling(center=False, window=5).mean()[per])
+                # 5y average
+                row.append(data_df[0][sheet][ratio].dropna().rolling(center=False, window=5).mean()[per])
             except KeyError:
                 # May not have reported yet for this year, if this also fails,
                 # raise exception as may have bigger problem
+                pdb.set_trace()
                 per = tuple([str(int(period[0])-1),
                              key, data[key][0].index.values[0][2]])
-                row.append(data_df[0][sheet][ratio][per])
+
+            # 5y avg vs weighted avg
             row.append(row[-1] / group_vals[ratio + "_w_avg"])
-            # end of fwd estimate year
-            fwd = tuple([str(int(period[0]) + years_fwd), key,
-                         data_df[0]['ols'].index.values[0][2] + "E"])
-            row.append(data_df[0][sheet][ratio].rolling(center=False, window=years_fwd).mean()[fwd])
-            row.append(row[-1] / group_vals[ratio + "_fwd_w_avg"])
-            row.append(row[3] / row[5])
-            row.append(data_df[0]['ols'].date_px[per] * row[-1])
-            data[key][1].append(tuple(["pdv_" + ratio, per[1],
-                                       str(int(per[0]) + years_fwd), '%.3f' % row[-1]]))
+
+            # get fwd years
+            fwd_pers = [tuple([str(int(period[0]) + yf), key,
+                               data_df[0]['ols'].index.values[0][2] + "E"])
+                        for yf in range(1, years_fwd+1)]
+            for fwd in fwd_pers:
+                year_diff = int(fwd[0]) - int(per[0])
+                # fwd multiple
+                row.append(data_df[0][sheet][ratio].dropna().rolling(center=False, window=year_diff).mean()[fwd])
+                # fwd mult vs fwd group average
+                row.append(row[-1] / group_vals[ratio + "_" + str(year_diff) + "fwd_w_avg"])
+                # premium / discount: (5yr avg / group wgt avg)
+                #                      / (fwd mult vs fwd group wgt ratio)
+                # aka relative fwd mult compared to current mult
+                row.append(row[3] / row[-1])
+                # prem_discount * current price for Peer derived value
+                row.append(data_df[0]['ols'].date_px[per] * row[-1])
+                data[key][1].append(tuple(["pdv_" + ratio, per[1],
+                                           str(int(per[0]) + year_diff), '%.3f' % row[-1]]))
             comp_df.loc[len(comp_df)] = row
     return data, comp_df.set_index(['ticker', 'cat'])
 
@@ -261,7 +278,8 @@ def discount_fcf(data, period, ests):
     tax_rate = data['fr']['eff_tax_rate'].mean()
     wacc = ((cost_equity * eq_v_cap) + (cost_debt * debt_v_cap)
             * (1 - tax_rate / 100))
-    print("WACC: " + str(wacc))
+    if DEBUG:
+        print("WACC: " + str(wacc))
 
     # todo: ENTER analysts projected EPS growth here
     eps_g_proj = 0.12
@@ -712,7 +730,7 @@ def get_price_data(ticks, comps, method='db'):
     return pxs
 
 
-def analyze_ests(data, period, hist_px, years_fwd=2):
+def analyze_ests(data, period, years_fwd=2):
     """
     Analyze the results of all the outputs from the valuation techniques
     """
@@ -835,21 +853,24 @@ def valuation_model(ticks, mode='db'):
 
     # calculate performance metrics based on price
     px_df = price_perf_anal(period, mkt, ind, hist_px)
-    for ind, px_tick in px_df.iterrows():
-        print("{} for year: {}  Return: {}  Rel Mkt Ret: {},  Rel Bmk Ret: {}"
-              "".format(ind[0], ind[1], '%.3f' % px_tick['ytd_chg'],
-                        '%.3f' % px_tick['mkt_rel_perf'], '%.3f' % px_tick['ind_rel_perf']))
+    if DEBUG:
+        for ind, px_tick in px_df.iterrows():
+            print("{} for year: {}  Return: {}  Rel Mkt Ret: {},  Rel Bmk Ret: {}"
+                  "".format(ind[0], ind[1], '%.3f' % px_tick['ytd_chg'],
+                            '%.3f' % px_tick['mkt_rel_perf'], '%.3f' % px_tick['ind_rel_perf']))
 
     # Comaprisons
     comp_anal = comparison_anal(full_data, period)
-    print(comp_anal)
+    if DEBUG:
+        print(comp_anal)
 
     # Peer Derived Value
-    full_data, pdv = peer_derived_value(full_data, period, hist_px)
-    print(pdv)
+    full_data, pdv = peer_derived_value(full_data, period)
+    if DEBUG:
+        print(pdv)
 
     # Analysis of all valuations
-    analyze_ests(full_data, period, hist_px)
+    analyze_ests(full_data, period)
 
 
 if __name__ == '__main__':
