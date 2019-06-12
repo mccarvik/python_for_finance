@@ -6,13 +6,16 @@ import sys
 import time
 import io
 import json
+import warnings
 import datetime as dt
 import requests
 import pandas as pd
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
-from utils.db_utils import DBHelper
-from data_grab.fmp_helper import map_columns
+from utils.db_utils import DBHelper, get_ticker_table_data
+from data_grab.fmp_helper import map_columns, add_px_ret_to_fr
+from data_grab.eod_px_util import get_db_pxs
 
+warnings.filterwarnings("ignore")
 SUCCESS = []
 FAILURE = []
 
@@ -97,7 +100,7 @@ def fin_ratios_api(tick):
     data = data.drop('index', axis=1)
     data = data.set_index(['tick', 'year', 'month'])
     data.columns = map_columns("fin_ratios", list(data.columns.values))
-    
+
     try:
         url = DATA_MAP['fin_ratios'][1][1].format(tick)
         raw = requests.get(url).content
@@ -113,7 +116,7 @@ def fin_ratios_api(tick):
         print("May be an etf where this isnt applicable")
         return
     data_cm = data_cm.drop(['curr_ratio', 'roe', 'debt_to_equity', 'pb_ratio',
-                           'pfcf_ratio', 'pe_ratio', 'div_yield'], axis=1)
+                            'pfcf_ratio', 'pe_ratio', 'div_yield'], axis=1)
     data = pd.merge(data, data_cm, left_index=True, right_index=True)
     send_to_db(data, 'fin_ratios', ['tick', 'year', 'month'])
 
@@ -195,9 +198,31 @@ def send_to_db(data_df, table, prim_keys):
             dbh.upsert(table, val_dict, prim_keys)
 
 
+def send_px_ret_to_db(ticks=None):
+    """
+    Send the price of financial statement and returns / fwd returns for that day
+    need fwd returns as input for ml algos
+    """
+    if not ticks:
+        ticks = []
+        stock_file_name = 'iex_available_{}_2019_05_29.txt'
+        with open(FILE_PATH + stock_file_name.format('cs'), "r") as file:
+            for line in file:
+                ticks.append(line.strip())
+    # px_df = get_db_pxs(ticks)
+    
+    for ind_t in ticks:
+        print("calcs for {}".format(ind_t))
+        px_df = get_db_pxs([ind_t])
+        fr_df = get_ticker_table_data([ind_t], 'fin_ratios')
+        # pdb.set_trace()
+        ret_table = add_px_ret_to_fr(px_df, fr_df)
+        send_to_db(ret_table, 'fin_ratios', ['tick', 'year', 'month'])
+
+
 DATA_MAP = {
     'fin_ratios': [fin_ratios_api, ["https://financialmodelingprep.com/api/financial-ratios/{}?datatype=csv",
-                                   "https://financialmodelingprep.com/api/v3/company-key-metrics/{}?datatype=json"]],
+                                    "https://financialmodelingprep.com/api/v3/company-key-metrics/{}?datatype=json"]],
     'bal_sheet': [bal_sheet_api, "https://financialmodelingprep.com/api/v2/financials/balance-sheet-statement/{}?datatype=json"],
     'inc_statement': [inc_statement_api, "https://financialmodelingprep.com/api/v2/financials/income-statement/{}?datatype=json"],
     'cf_statement': [cf_statement_api, "https://financialmodelingprep.com/api/v2/financials/cash-flow-statement/{}?datatype=json"]
@@ -206,7 +231,7 @@ DATA_MAP = {
 
 if __name__ == "__main__":
     # get_available_ticks()
-    get_fmp_data('fin_ratios')
+    # get_fmp_data('fin_ratios')
     # get_fmp_data('fin_ratios', ['AAPL'])
     # get_fmp_data('bal_sheet', ['AAPL'])
     # get_fmp_data('bal_sheet')
@@ -214,3 +239,4 @@ if __name__ == "__main__":
     # get_fmp_data('inc_statement')
     # get_fmp_data('cf_statement', ['AAPL'])
     # get_fmp_data('cf_statement')
+    send_px_ret_to_db()

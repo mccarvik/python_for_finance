@@ -193,7 +193,20 @@ def create_table_if_not_exists(schema, table, columns_dict, prim_keys):
         dbh.connect()
         dbh.cursor.execute(create_sql)
         dbh.cursor.execute(prim_keys_sql)
-    
+
+
+def get_ticker_table_data(tickers, table):
+    """
+    Grad table data by tickers
+    """
+    with DBHelper() as dbh:
+        dbh.connect()
+        lis = ''
+        for tick in tickers:
+            lis += "'" + tick + "', "
+        df_ret = dbh.select(table, where='tick in (' + lis[:-2] + ')')
+    return df_ret
+
 
 if __name__ == '__main__':
     # a = DBHelper()

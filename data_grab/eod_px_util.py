@@ -3,6 +3,7 @@ This util will grab data to and from the db with eod prices
 """
 import pdb
 import sys
+import time
 import json
 import datetime as dt
 import pandas as pd
@@ -97,6 +98,7 @@ def load_db(typ):
 
         print("starting load for {}".format(ind_t))
         try:
+            pdb.set_trace()
             data = get_time_series(ind_t).reset_index()
             data['tick'] = ind_t
             data.columns = ['date', 'px', 'tick']
@@ -147,12 +149,14 @@ def get_db_pxs(ticks=None, s_date=None, e_date=None):
             else:
                 where_clause = 'date <= "{}"'.format(e_date.strftime('%Y-%m-%d'))
 
-
+        time0 = time.time()
+        print("Starting retrieving data")
         if where_clause:
             px_df = dbh.select('eod_px', where=where_clause).set_index(['date', 'tick'])
         else:
             px_df = dbh.select('eod_px').set_index(['date', 'tick'])
-
+        time1 = time.time()
+        print("Done Retrieving data, took {0} seconds".format(time1-time0))
         # final_df = pd.DataFrame()
         # for ind_t in set(list(px_df['tick'].values)):
         #     temp_df = px_df[px_df.tick == ind_t][['px']]
@@ -169,8 +173,9 @@ if __name__ == '__main__':
     # S_DT = dt.datetime(2013, 1, 1)
     # E_DT = dt.datetime(2019, 2, 22)
     # get_time_series('F')
+    get_list_of_symbols('cs')
     # get_list_of_symbols('et')
-    load_db('et')
+    # load_db('cs')
     # quandl_load()
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)

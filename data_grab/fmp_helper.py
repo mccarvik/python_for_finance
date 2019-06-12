@@ -1,4 +1,8 @@
 import pdb
+import sys
+import datetime as dt
+import numpy as np
+from dateutil.relativedelta import relativedelta
 
 
 BAL_SHEET_MAP = {
@@ -380,7 +384,7 @@ FIN_RATIOS_MAP = {
     'priceSalesRatio': 'price_to_sales',
     'dividendYield': 'div_yield',
     'Dividend Yield': 'div_yield',
-    'enterpriseValueMultiple': 'ev_multiple',
+    'enterpriseValueMultiple': 'enterprise_val_over_ebitda',
     'priceFairValue': 'price_fv',
     'Average Inventory': 'avg_inv',
     'Average Payables': 'avg_payables',
@@ -431,7 +435,7 @@ FIN_RATIOS_MAP = {
     'Return on Tangible Assets': 'return_on_tangible_assets',
     'Revenue per Share': 'rev_per_share',
     'SG&A to Revenue': 'sga_to_rev',
-    'Shareholders Equity per Share': 'eps',
+    'Shareholders Equity per Share': 'eq_ps',
     'Stock-based compensation to Revenue': 'stock_compensation_to_rev',
     'Tangible Asset Value': 'tangible_asset_value',
     'Tangible Book Value per Share': 'tangible_bvps',
@@ -460,4 +464,62 @@ def map_columns(data_set, cols):
             pdb.set_trace()
             print(exc)
     return new_cols
+
+
+def add_px_ret_to_fr(pxs, fr_table):
+    """
+    Do the calcs for price returns
+    """
+    fr_table = fr_table[['year', 'month', 'tick']]
+    tick = fr_table['tick'].values[0]
+    print()
+    cols_to_add = ['date_px', 'ret_1y', 'ret_2y', 'ret_3y', 'ret_5y',
+                   'retfwd_1y', 'retfwd_2y', 'retfwd_3y', 'retfwd_5y']
+    for col in cols_to_add:
+        fr_table[col] = 0.0
     
+    dates = [[y,m] for y,m in zip(fr_table['year'].values, fr_table['month'])]
+    fr_table = fr_table.set_index(['year', 'tick', 'month'])
+    yrs_offset = [0, -1, -2, -3, -5, 1, 2, 3, 5]
+    for ind_d in dates:
+        for yrs, col in zip(yrs_offset, cols_to_add):
+            # assume the 15th of the month
+            day = dt.datetime(int(ind_d[0]), int(ind_d[1]), 15)
+            day_px = get_closest_date_px(pxs, day, yrs)
+            idx = (str(day.year), tick, str(day.month))
+            if np.isnan(day_px):
+                fr_table.at[idx, col] = np.nan
+            else:
+                if col == 'date_px':
+                    fr_table.at[idx, col] = day_px
+                else:
+                    if yrs > 0:
+                        ret_val = ((day_px / fr_table['date_px'][idx]) - 1) * 100
+                    else:
+                        ret_val = ((fr_table['date_px'][idx] / day_px) - 1) * 100
+                    fr_table.at[idx, col] = ret_val
+    return fr_table
+
+
+def get_closest_date_px(pxs, day, yr_offset=0):
+    """
+    Get the price closest to given date
+    """
+    if yr_offset > 0:
+        move = -1
+    else:
+        move = 1
+    count = 0
+    day = day + relativedelta(years=yr_offset)
+    while True:
+        try:
+            px_val = pxs.loc[day]['px'].values[0]
+            return px_val
+        except KeyError:
+            # holiday or weekend probably
+            day += relativedelta(days=move)
+            count += 1
+            if count > 10:
+                print("no value for this date")
+                return np.nan
+

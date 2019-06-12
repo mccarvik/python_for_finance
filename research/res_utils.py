@@ -2,7 +2,6 @@
 Helper script for equity valuation
 """
 import sys
-import pdb
 import time
 import csv
 import datetime as dt
@@ -10,7 +9,6 @@ import requests
 import numpy as np
 import pandas as pd
 
-sys.path.append("/home/ubuntu/workspace/ml_dev_work")
 from utils.db_utils import DBHelper
 
 IDX = ['year', 'tick', 'month']
@@ -348,11 +346,15 @@ VALUATIONS = {
 
 
 def make_api_call(ticker, sheet='bs', per=3, col=10, num=3):
-    # Use this for quarterly info
-    # Period can be 3 or 12 for quarterly vs annual
-    # Sheet can be bs = balance sheet, is = income statement, cf = cash flow statement
-    # Column year can be 5 or 10, doesnt really work
-    # 1 = None 2 = Thousands 3 = Millions 4 = Billions
+    """
+    *** Morngingstar API no longer functional ***
+    Call Morningstar API for quarterly data
+    Use this for quarterly info
+    Period can be 3 or 12 for quarterly vs annual
+    Sheet: bs = balance sheet, is = income statement, cf = cash flow statement
+    Column year can be 5 or 10, doesnt really work
+    1 = None 2 = Thousands 3 = Millions 4 = Billions
+    """
     url = 'http://financials.morningstar.com/ajax/ReportProcess4CSV.html?t={0}&reportType={1}&period={2}&dataType=A&order=asc&columnYear={3}&number={4}'.format(ticker, sheet, per, col, num)
     url_data = requests.get(url).content.decode('utf-8')
     if 'Error reading' in url_data or url_data == '':
@@ -363,12 +365,12 @@ def make_api_call(ticker, sheet='bs', per=3, col=10, num=3):
         print('API issue - Error - ' + ticker)
         return []
 
-    cr = csv.reader(url_data.splitlines(), delimiter=',')
+    cr_data = csv.reader(url_data.splitlines(), delimiter=',')
     data = []
-    for row in list(cr):
+    for row in list(cr_data):
         data.append(row)
 
-    if len(data) == 0:
+    if data:
         print('API issue - empty')
         return []
 
@@ -384,7 +386,7 @@ def make_api_call(ticker, sheet='bs', per=3, col=10, num=3):
     try:
         if sheet == 'is':
             columns = IS_COLS
-            headers = is_replacements(headers)
+            # headers = is_replacements(headers)
         elif sheet == 'bs':
             columns = BS_COLS
             # headers = is_replacements(headers)
@@ -423,14 +425,14 @@ def get_next_quarter(index):
     Get next quarters index key
     """
     tick = index[1]
-    y = int(index[0])
-    m = int(index[2].replace("E", "")) + 3
-    if m > 12:
-        m -= 12
-        y += 1
-    if m < 10:
-        m = "0" + str(m)
-    return [str(y), tick, str(m)+"E"]
+    yrs = int(index[0])
+    mon = int(index[2].replace("E", "")) + 3
+    if mon > 12:
+        mon -= 12
+        yrs += 1
+    if mon < 10:
+        mon = "0" + str(mon)
+    return [str(yrs), tick, str(mon)+"E"]
 
 
 def get_next_year(index):
@@ -440,24 +442,23 @@ def get_next_year(index):
     return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E", ""))))+"E"]
 
 
-def get_ticker_info(ticks, table, idx=None, dates=None):
+def get_ticker_info(ticks, table, idx=None):
     """
     Grabbing info for a list of given tickers from the db
     """
     # t0 = time.time()
-    with DBHelper() as db:
-        db.connect()
+    with DBHelper() as dbh:
+        dbh.connect()
         lis = ''
-        for t in ticks:
-            lis += "'" + t + "', "
-        df = db.select(table, where='tick in (' + lis[:-2] + ')')
+        for tick in ticks:
+            lis += "'" + tick + "', "
+        df_ret = dbh.select(table, where='tick in (' + lis[:-2] + ')')
 
     # t1 = time.time()
     # print("Done Retrieving data, took {0} seconds".format(t1-t0))
     if idx:
-        return df.set_index(idx)
-    else:
-        return df
+        return df_ret.set_index(idx)
+    return df_ret
 
 
 def data_cum_columns(data):
@@ -467,16 +468,16 @@ def data_cum_columns(data):
     tick = data.reset_index()['tick'][0]
     try:
         data = data.drop([('TTM', '', tick)])
-    except:
+    except KeyError:
         # no TTM included
         pass
-    H1 = data.iloc[-4] + data.iloc[-3]
-    M9 = H1 + data.iloc[-2]
-    Y1 = M9 + data.iloc[-1]
+    h1_dat = data.iloc[-4] + data.iloc[-3]
+    m9_dat = h1_dat + data.iloc[-2]
+    y1_dat = m9_dat + data.iloc[-1]
     data = data.reset_index()
-    data.loc[len(data)] = ['H1', tick, ''] + list(H1.values)
-    data.loc[len(data)] = ['M9', tick, ''] + list(M9.values)
-    data.loc[len(data)] = ['Y1', tick, ''] + list(Y1.values)
+    data.loc[len(data)] = ['H1', tick, ''] + list(h1_dat.values)
+    data.loc[len(data)] = ['M9', tick, ''] + list(m9_dat.values)
+    data.loc[len(data)] = ['Y1', tick, ''] + list(y1_dat.values)
     data = data.reindex([0, 1, 2, 5, 3, 6, 4, 7])
     data = data.set_index(IDX)
     return data
@@ -490,7 +491,7 @@ def remove_empty_cols(data):
         data[key] = data[key].dropna(axis='columns', how='all')
     return data
 
-    
+
 def period_chg(data_df):
     """
     Calculate the change fom one year to the next
@@ -500,25 +501,29 @@ def period_chg(data_df):
     df_y = df_y[df_y.year != 'TTM']
     years = list(df_y['year'] + df_y['month'])
     df_chg = pd.DataFrame(columns=IDX + list(data_df.columns))
-    for y in years:
-        if y == min(years):
-            last_y = y
+    for yrs in years:
+        if yrs == min(years):
+            last_y = yrs
             continue
-        year_df = df_y[(df_y.year == y[:4]) & (df_y.month == y[4:])].drop(IDX, axis=1).values
-        last_y_df = df_y[(df_y.year == last_y[:4]) & (df_y.month == last_y[4:])].drop(IDX, axis=1).values
+        year_df = df_y[(df_y.year == yrs[:4]) &
+                       (df_y.month == yrs[4:])].drop(IDX, axis=1).values
+        last_y_df = df_y[(df_y.year == last_y[:4]) &
+                         (df_y.month == last_y[4:])].drop(IDX, axis=1).values
         yoy = (year_df / last_y_df - 1) * 100
         yoy[abs(yoy) == np.inf] = 0
-        where_are_NaNs = np.isnan(yoy)
-        yoy[where_are_NaNs] = 0
-        data = list(df_y[(df_y.year == y[:4]) & (df_y.month == y[4:])].iloc[0][IDX]) + list(yoy[0])
+        where_are_nans = np.isnan(yoy)
+        yoy[where_are_nans] = 0
+        data = list(df_y[(df_y.year == yrs[:4]) &
+                         (df_y.month == yrs[4:])].iloc[0][IDX]) + list(yoy[0])
         df_chg.loc[len(df_chg)] = data
-        last_y = y
-    
+        last_y = yrs
+
     # need this to add year over year for single year model
-    yoy = (df_y.drop(IDX, axis=1).loc[len(df_y)-1].values / df_y.drop(IDX, axis=1).loc[0].values - 1) * 100
+    yoy = (df_y.drop(IDX, axis=1).loc[len(df_y)-1].values
+           / df_y.drop(IDX, axis=1).loc[0].values - 1) * 100
     yoy[abs(yoy) == np.inf] = 0
-    where_are_NaNs = np.isnan(yoy)
-    yoy[where_are_NaNs] = 0
+    where_are_nans = np.isnan(yoy)
+    yoy[where_are_nans] = 0
     data = ['YoY', data_df.reset_index().tick[0], ''] + list(yoy)
     df_chg.loc[len(df_chg)] = data
     df_chg = df_chg.set_index(IDX)
@@ -527,13 +532,13 @@ def period_chg(data_df):
 
 def setup_comp_cols(indices):
     """
-    Sets up the comparison analysis columns 
+    Sets up the comparison analysis columns
     """
     cols = ['ticker', 'cat'] + [i[0] for i in indices]
     cols.insert(7, 'avg_5y')
     return cols
-    
-    
+
+
 def setup_pdv_cols(per, years_fwd):
     """
     Assigns the column values for the peer derived value calc
@@ -565,8 +570,8 @@ def match_px(data, eod_px, tick):
         while True:
             try:
                 date = dt.datetime(int(vals['year']), int(vals['month']), day)
-                px = eod_px.loc[date]['px']
-                data['ols'].at[(vals['year'], tick, vals['month']), 'date_px'] = px
+                px_val = eod_px.loc[date]['px']
+                data['ols'].at[(vals['year'], tick, vals['month']), 'date_px'] = px_val
                 break
             except KeyError:
                 # holiday or weekend probably
@@ -574,7 +579,7 @@ def match_px(data, eod_px, tick):
             if day > 10:
                 break
         # 52 week high, low, and avg
-        date_range = eod_px.loc[yr1_ago : data_date]
+        date_range = eod_px.loc[yr1_ago: data_date]
         data['ols'].at[(vals['year'], tick, vals['month']), 'hi_52wk'] = date_range['px'].max()
         data['ols'].at[(vals['year'], tick, vals['month']), 'lo_52wk'] = date_range['px'].min()
         data['ols'].at[(vals['year'], tick, vals['month']), 'avg_52wk'] = date_range['px'].mean()
@@ -592,10 +597,10 @@ def get_beta(data, eod_px, ticker, mkt, ind):
     mkt = eod_px.loc[mkt].rename(columns={'px': mkt}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
     cov_df = pd.merge(tick, mkt, left_index=True, right_index=True).rolling(window, min_periods=1).cov()
     cov_df = cov_df[[cov_df.columns[1]]]
-    covariance = cov_df[np.in1d(cov_df.index.get_level_values(1), [ticker])] 
+    covariance = cov_df[np.in1d(cov_df.index.get_level_values(1), [ticker])]
     variance_mkt = cov_df[np.in1d(cov_df.index.get_level_values(1), [mkt.columns[0]])]
     beta = (covariance.reset_index().set_index('date')[[mkt.columns[0]]]
-           / variance_mkt.reset_index().set_index('date')[[mkt.columns[0]]])
+            / variance_mkt.reset_index().set_index('date')[[mkt.columns[0]]])
     rep_dates = get_report_dates(data)
     data['ols']['beta'] = None
     for ind_dt in rep_dates:
@@ -607,9 +612,12 @@ def get_beta(data, eod_px, ticker, mkt, ind):
         data['ols'].at[(str(ind_dt.year), ticker, ind_dt.strftime("%m")), 'beta'] = val
         # data['ols'].at[(str(ind_dt.year), ticker, "0" + str(ind_dt.month)), 'beta'] = val
     return data
- 
+
 
 def get_report_dates(data):
+    """
+    Gets the report dates from the financial statements
+    """
     dates = []
     for ind, _ in data['bs'].iterrows():
         dates.append(dt.datetime(int(ind[0]), int(ind[2]), 1))
