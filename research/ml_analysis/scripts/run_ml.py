@@ -16,7 +16,8 @@ sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.helper_funcs import timeme
 from utils.db_utils import DBHelper
 from utils.ml_utils import standardize
-from utils.data_utils import DAY_COUNTS, PER_SHARE
+from utils.data_utils import DAY_COUNTS, PER_SHARE, RETURNS, FWD_RETURNS, \
+                             MARGINS, INDEX, RATIOS, OTHER
 
 # from ml_algorithms import *
 # from scripts.model_evaluation import *
@@ -24,8 +25,11 @@ from utils.data_utils import DAY_COUNTS, PER_SHARE
 # from scripts.ensemble_methods import *
 # from scripts.continuous_variables import *
 
+FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
+FILE_NAME = 'fmp_available_stocks_20190507.txt'
 
-def run(inputs, cust_ticks=None):
+
+def run(inputs, label='retfwd_2y', cust_ticks=None):
     """
     Main function to run analytics
     """
@@ -33,15 +37,16 @@ def run(inputs, cust_ticks=None):
     if cust_ticks:
         tickers = cust_ticks
     else:
-        tickers = pd.read_csv('/home/ubuntu/workspace/ml_dev_work/utils/iex_available_stocks_2019_02_25', header=None)
-        # tickers = pd.read_csv('/home/ubuntu/workspace/ml_dev_work/utils/dow_ticks.csv', header=None)
+        tickers = list(pd.read_csv(FILE_PATH + FILE_NAME, header=None)[0].values)
 
     with DBHelper() as dbh:
         dbh.connect()
         lis = ''
         for tick in tickers:
             lis += "'" + tick + "', "
-        df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')')
+        print("starting data retrieval")
+        df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')'
+                            'and {} != 0'.format(label))
 
     # Getting Dataframe
     time1 = time.time()
@@ -54,10 +59,13 @@ def run(inputs, cust_ticks=None):
 
     # clean data
     train_df = remove_unnecessary_columns(train_df)
+    print("Number of rows in training set: {}".format(len(train_df)))
     train_df = clean_data(train_df)
+    print("Number of rows in training set after cleaning: {}"
+          "".format(len(train_df)))
     pdb.set_trace()
-    train_df = add_target(train_df, '5yrFwdReturn', breaks=1, custom_breaks=[33, 67])
-    train_df = train_df.st_index(['ticker', 'date'])
+    train_df = add_target(train_df, label, breaks=1, custom_breaks=[33, 67])
+    train_df = train_df.set_index(['ticker', 'date'])
     train_df = selectInputs(train_df, inputs)
     # drop all rows with NA's
     size_before = len(train_df)
@@ -192,7 +200,8 @@ def add_target(data_df, tgt, breaks=2, custom_breaks=None):
         break_arr = custom_breaks
     breaks = np.percentile(data_df['target_proxy'], break_arr)
     # breaks = np.percentile(data_df['target_proxy'], [50])
-    data_df['target'] = data_df.apply(lambda x: targetToCatMulti(x['target_proxy'], breaks), axis=1)
+    data_df['target'] = data_df.apply(lambda x: 
+                                      targetToCatMulti(x['target_proxy'], breaks), axis=1)
     return data_df
 
 
@@ -211,7 +220,8 @@ def remove_unnecessary_columns(data_df):
     """
     # data_df = data_df[RATIOS + KEY_STATS + OTHER + GROWTH + MARGINS + RETURNS +
     #              FWD_RETURNS + PER_SHARE + INDEX]
-    data_df = data_df[PER_SHARE + DAY_COUNTS]
+    data_df = data_df[PER_SHARE + DAY_COUNTS + RETURNS + FWD_RETURNS + INDEX + 
+                      MARGINS + RATIOS + OTHER]
     return data_df
 
 
@@ -232,12 +242,8 @@ def clean_data(train_df):
     Remove any outlier data
     """
     # To filter out errant data
-    # train_df = train_df[train_df['revenueGrowth'] != 0]
-    # train_df = train_df[train_df['5yrFwdReturn'] != 0]
-    # train_df = train_df[train_df['trailingPE'] != 0]
-    # train_df = train_df[train_df['priceToBook'] > 0]
-    # train_df = train_df[train_df['priceToSales'] != 0]
-
+    train_df = train_df[train_df['pe_ratio'] != 0]
+    train_df = train_df[train_df['pb_ratio'] > 0]
 
     # To filter out outliers
     # train_df = train_df[train_df['capExToSales'] < 20]
@@ -265,6 +271,6 @@ def clean_data(train_df):
 if __name__ == "__main__":
     # Most Relevant columns
     COLS = ['roe', 'pb_ratio', 'div_yield', 'price_to_sales', 'pe_ratio']
-    TICKS = ['MSFT', 'INTC']
-    run(COLS, TICKS)
+    # TICKS = ['A', 'AAPL']
+    run(COLS)
     

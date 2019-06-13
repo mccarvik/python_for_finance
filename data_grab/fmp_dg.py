@@ -211,13 +211,30 @@ def send_px_ret_to_db(ticks=None):
                 ticks.append(line.strip())
     # px_df = get_db_pxs(ticks)
     
+    count = 1
+    print("{} stocks to load".format(len(ticks)))
+    empties = []
+    already_done = True
     for ind_t in ticks:
+        if ind_t == 'APTV':
+            already_done = False
+        if already_done:
+            count += 1
+            continue
         print("calcs for {}".format(ind_t))
         px_df = get_db_pxs([ind_t])
         fr_df = get_ticker_table_data([ind_t], 'fin_ratios')
-        # pdb.set_trace()
+        if px_df.empty or fr_df.empty:
+            print("empty df for {}\n".format(ind_t))
+            empties.append(ind_t)
+            count += 1
+            continue
         ret_table = add_px_ret_to_fr(px_df, fr_df)
+        # pdb.set_trace()
         send_to_db(ret_table, 'fin_ratios', ['tick', 'year', 'month'])
+        print("loaded {} stocks, just loaded {}".format(count, ind_t))
+        count += 1
+    print(empties)
 
 
 DATA_MAP = {

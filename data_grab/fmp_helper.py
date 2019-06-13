@@ -486,7 +486,7 @@ def add_px_ret_to_fr(pxs, fr_table):
             # assume the 15th of the month
             day = dt.datetime(int(ind_d[0]), int(ind_d[1]), 15)
             day_px = get_closest_date_px(pxs, day, yrs)
-            idx = (str(day.year), tick, str(day.month))
+            idx = (str(day.year), tick, day.strftime("%m"))
             if np.isnan(day_px):
                 fr_table.at[idx, col] = np.nan
             else:
@@ -520,6 +520,6 @@ def get_closest_date_px(pxs, day, yr_offset=0):
             day += relativedelta(days=move)
             count += 1
             if count > 10:
-                print("no value for this date")
+                # print("no px value for {}".format(day))
                 return np.nan
 

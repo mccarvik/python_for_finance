@@ -152,67 +152,12 @@ DAY_COUNTS = ["days_sales_outstanding", "days_of_inv_on_hand",
             "receivables_turnover", 'inv_turnover', 'fixed_asset_turnover',
             "asset_turnover"]
 PER_SHARE = ["bvps", 'net_income_per_share', "fcf_per_share", "rev_per_share"]
-
-
-BALANCE_SHEET = ["EBT", "totalAssets", "cashAndShortTermInv", "accountsRecievable", "inventory", "otherCurrentAssets",
-                "totalCurrentAssets", "netPPE", "intangibles", "otherLongTermAssets", 
-                "accountsPayable", "shortTermDebt", "taxesPayable", "accruedLiabilities",
-                "otherShortTermLiabilities", "totalCurrentLiabilities", "longTermDebt", 
-                "otherLongTermLiabilities", "totalLiabilities", "totalEquity",
-                "revenue", "netIncome", "trailingEPS"]
-INCOME_AND_CASH_FLOW = ["grossProfit", "enterpriseValue", "cogs", "sga", "rd", "other", "operatingIncome", "operatingCashFlow",
-                    "capSpending", "freeCashFlow", "workingCapital"]
-RATIOS = ["sharpeRatio", "sortinoRatio", "currentRatio", "quickRatio", "financialLeverage", "debtToEquity", 
-        "interestCoverage", "capExToSales", "freeCashFlowToSales", "freeCashFlowToNetIncome",
-        "trailingPE", "priceToBook", "priceToSales", "pegRatio", "assetTurnoverRatio",
-        "treynorRatio", 'priceToCashFlow']
-MARGINS = ["gross_prof_marg", "oper_prof_marg", "netInterestOtherMargin", 
-          "pretax_prof_marg", "net_prof_marg"]
-RETURNS = ["returnOnAssets", "returnOnEquity", "returnOnCapital", "1yrReturn",
-            "3yrReturn", "5yrReturn", "10yrReturn", "52WeekLow", "52WeekHigh",
-            "ytdReturn", "50DayMvgAvg", "200DayMvgAvg"]
-GROWTH = ["operatingCashFlowGrowth", "freeCashFlowGrowth", "revenueGrowth", "epsGrowth"]
-OTHER = ['shares', "payoutRatio", "taxRate", "marketCapital"]
-INDEX = ['year', 'ticker']
-KEY_STATS = ['currentPrice', "divYield", 'volatility', 'beta', 'marketCorr']
-FWD_RETURNS = ['1yrFwdReturn', '3yrFwdReturn', '5yrFwdReturn', '10yrFwdReturn',]
-
-# NOTES:
-# Below columns in Mil of local currency (usually USD)
-# revenue, operatingIncome, dividendPerShare, bookValuePerShare,
-# operatingCashFlow, capSpending, freeCashFlow, workingCapital
-''' COLUMNS NOT USED:
-Revenue %
-Year over Year
-3-Year Average
-5-Year Average
-10-Year Average
-Operating Income %
-Year over Year
-3-Year Average
-5-Year Average
-10-Year Average
-Net Income %
-Year over Year
-3-Year Average
-5-Year Average
-10-Year Average
-EPS %
-Year over Year
-3-Year Average
-5-Year Average
-10-Year Average
-'''
-
-
-remove_strs = ['Mil', 'ZAR', 'USD', 'AUD', 'CAD', 'EUR', 'GBP', 'RUB', 'THB']
-# Not provided by morningstar
-remove_ticks_ms = ['ADPT', 'AMSG', 'BBCN', 'CMN', 'CLNY', 'CSAL', 'CSC', 'FNBC', 
-                    'FTI', 'GMT', 'HWAY', 'HMPR', 'IMS', 'ISLE', 'IILG', 'LMCA',
-                    'LMCK', 'MBVT', 'PCCC', 'PSG', 'SWHC', 'SSS', 'TASR', 'TCB', 
-                    'SYRG', 'SYUT', 'TSRA', 'TKAI', 'UA.C,', 'USMD', 'MESG', 'TMX.']
-# Can't get from yahoo / google datareader
-remove_ticks_dr = ['AVG', 'AHS', 'BTX', 'CARO', 'CCF', 'CDK', 'CIX', 'EPM', 'FSP',
-                    'HALO', 'IDI', 'IMH', 'LTS', 'LBY', 'LMT', 'MFS', 'NERV', 'NHC',
-                    'NWL', 'NUS', 'NBL', 'TIS', 'PRL', 'REI', 'PIP', 'SGA', 'SEB',
-                    'FLOW', 'SYN', 'WEX']
+RETURNS = ["roa", "roe", "ret_on_cap", "ret_1y", "ret_2y", "ret_3y", "ret_5y"]
+FWD_RETURNS = ['retfwd_1y', 'retfwd_2y', 'retfwd_3y', 'retfwd_5y']
+MARGINS = ["gross_prof_marg", "oper_prof_marg", 
+           "pretax_prof_marg", "net_prof_marg"]
+INDEX = ['year', 'tick']
+RATIOS = ["curr_ratio", "pfcf_ratio",
+          "debt_to_equity", "interest_coverage_ratio", "capex_to_rev", 
+          "pe_ratio", "pb_ratio", "price_to_sales", "peg_ratio"]
+OTHER = ["payout_ratio", "eff_tax_rate", "market_cap", "div_yield", "date_px"]
