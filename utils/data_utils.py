@@ -156,7 +156,7 @@ RETURNS = ["roa", "roe", "ret_on_cap", "ret_1y", "ret_2y", "ret_3y", "ret_5y"]
 FWD_RETURNS = ['retfwd_1y', 'retfwd_2y', 'retfwd_3y', 'retfwd_5y']
 MARGINS = ["gross_prof_marg", "oper_prof_marg", 
            "pretax_prof_marg", "net_prof_marg"]
-INDEX = ['year', 'tick']
+INDEX = ['year', 'tick', 'month']
 RATIOS = ["curr_ratio", "pfcf_ratio",
           "debt_to_equity", "interest_coverage_ratio", "capex_to_rev", 
           "pe_ratio", "pb_ratio", "price_to_sales", "peg_ratio"]

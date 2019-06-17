@@ -216,7 +216,7 @@ def send_px_ret_to_db(ticks=None):
     empties = []
     already_done = True
     for ind_t in ticks:
-        if ind_t == 'APTV':
+        if ind_t == 'CTRL':
             already_done = False
         if already_done:
             count += 1

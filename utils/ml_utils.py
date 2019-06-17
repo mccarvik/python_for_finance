@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from sklearn.preprocessing import StandardScaler
 
-IMG_PATH = '/home/ubuntu/workspace/ml_dev_work/static/img/temp/'
-IMG_ROOT = '/home/ubuntu/workspace/ml_dev_work/static/img/'
+IMG_PATH = '/home/ec2-user/environment/python_for_finance/research/ml_analysis/png/temp/'
+IMG_ROOT = '/home/ec2-user/environment/python_for_finance/research/ml_analysis/png/'
 
 def update_check(list1, list2):
     for i,j in zip(list1, list2):

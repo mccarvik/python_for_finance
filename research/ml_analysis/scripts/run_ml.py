@@ -11,17 +11,24 @@ import sys
 # import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+# SVM = support vector machine, SVC = support vector classifier
+from sklearn.svm import SVC
 
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
+sys.path.append("/home/ec2-user/environment/python_for_finance/research/ml_analysis/")
 from utils.helper_funcs import timeme
 from utils.db_utils import DBHelper
 from utils.ml_utils import standardize
 from utils.data_utils import DAY_COUNTS, PER_SHARE, RETURNS, FWD_RETURNS, \
                              MARGINS, INDEX, RATIOS, OTHER
 
-# from ml_algorithms import *
+from ml_algorithms import AdalineSGD, AdalineGD
 # from scripts.model_evaluation import *
-# from scripts.feature_selection import *
+from scripts.feature_selection import sbs_run
 # from scripts.ensemble_methods import *
 # from scripts.continuous_variables import *
 
@@ -63,20 +70,23 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
     train_df = clean_data(train_df)
     print("Number of rows in training set after cleaning: {}"
           "".format(len(train_df)))
-    pdb.set_trace()
-    train_df = add_target(train_df, label, breaks=1, custom_breaks=[33, 67])
-    train_df = train_df.set_index(['ticker', 'date'])
-    train_df = selectInputs(train_df, inputs)
+
+    # Add the label column, set the index, and designate inputs for learning
+    # train_df = add_target(train_df, label, custom_breaks=[33, 67])
+    train_df = add_target(train_df, label, breaks=1)
+    train_df = train_df.set_index(['tick', 'year', 'month'])
+    train_df = select_inputs(train_df, inputs)
     # drop all rows with NA's
     size_before = len(train_df)
     train_df = train_df.dropna()
-    print("There are {0} samples (removed {1} NA rows)".format(len(train_df), size_before - len(train_df)))
-    pdb.set_trace()
+    print("There are {0} samples (removed {1} NA rows)"
+          "".format(len(train_df), size_before - len(train_df)))
 
     # Select features
     feature_selection(train_df, inputs)
 
     # Feature Extraction
+    pdb.set_trace()
     # feature_extraction(df, inputs)
 
     # Algorithms
@@ -136,17 +146,33 @@ def feature_selection(train_df, inputs):
     Sequential Backward Selection - feature selection to see
     which are the most telling variable
     Default is K-means Clustering
+    
+    Feature selection: Select a subset of the existing 
+                       features without a transformation
+    
     """
-    timeme(sbs_run)(train_df, tuple(inputs))
-    # timeme(sbs_run)(train_df, tuple(inputs), est=DecisionTreeClassifier(criterion='entropy', max_depth=3, random_state=0))
-    # timeme(sbs_run)(train_df, tuple(inputs), est=RandomForestClassifier(criterion='entropy', n_estimators=3, random_state=1,n_jobs=3))
-    # timeme(sbs_run)(train_df, tuple(inputs), est=SVC(kernel='linear', C=100, random_state=0))
-    # timeme(sbs_run)(train_df, tuple(inputs), est=LogisticRegression(C=100, random_state=0, penalty='l1'))
-    # timeme(sbs_run)(train_df, tuple(inputs), est=AdalineSGD(n_iter=15, eta=0.001, random_state=1))
-    # timeme(sbs_run)(train_df, tuple(inputs), est=AdalineGD(n_iter=20, eta=0.001))
-
+    ests = []
+    ests.append([DecisionTreeClassifier(criterion='entropy', max_depth=3, 
+                                       random_state=0), 'DecTree'])
+    ests.append([RandomForestClassifier(criterion='entropy', n_estimators=3, 
+                                       random_state=1,n_jobs=3), 'RandForest'])
+    ests.append([SVC(kernel='linear', C=100, random_state=0), 'SVC'])
+    ests.append([LogisticRegression(C=100, random_state=0, penalty='l1'), 
+                'LogRegr'])
+    # ests.append([AdalineSGD(n_iter=15, eta=0.001, random_state=1), 
+    #              'AdalineSGD'])
+    # ests.append([AdalineGD(n_iter=20, eta=0.001), 'AdalineGD'])
+    ests.append([KNeighborsClassifier(n_neighbors=3), 'Kmeans'])
+    
+    for ind_est in ests:
+        pdb.set_trace()
+        print("running for {}".format(ind_est[1]))
+        timeme(sbs_run)(train_df, tuple(inputs), est=ind_est[0], 
+                        name=ind_est[1])
+    
     # Random Forest Feature Selection - using a random forest to identify
     # which factors decrease impurity the most
+    pdb.set_trace()
     timeme(random_forest_feature_importance)(train_df, tuple(inputs))
 
     # Logistic Regression Feature Selection - logistic regression
@@ -155,7 +181,12 @@ def feature_selection(train_df, inputs):
 
 
 def feature_extraction(df, inputs):
-    # Transforms the data - can be used to linearly separate data thru dimensionality reduction
+    """
+    feature extraction --> Transform the existing features
+                           into a lower dimensional space
+    Transforms the data - can be used to linearly separate
+                          data thru dimensionality reduction
+    """
     timeme(principal_component_analysis)(df, tuple(inputs))
     # timeme(pca_scikit)(df, tuple(inputs))
     # timeme(linear_discriminant_analysis)(df, tuple(inputs))
@@ -179,10 +210,13 @@ def separate_train_test(data):
     return test_df, train_df
 
 
-def selectInputs(df, inputs):
+def select_inputs(data_df, inputs):
+    """
+    Select the inputs to use for learning
+    """
     columns = inputs + ['target'] + ['target_proxy']
-    df = df[columns]
-    return df
+    data_df = data_df[columns]
+    return data_df
 
 
 def add_target(data_df, tgt, breaks=2, custom_breaks=None):
@@ -195,17 +229,20 @@ def add_target(data_df, tgt, breaks=2, custom_breaks=None):
     data_df = data_df[data_df['target_proxy'] != 0]
 
     if not custom_breaks:
-        break_arr = np.linspace(0, 100, num_of_breaks+1)[1:-1]
+        break_arr = np.linspace(0, 100, num_of_breaks+2)[1:-1]
     else:
         break_arr = custom_breaks
     breaks = np.percentile(data_df['target_proxy'], break_arr)
     # breaks = np.percentile(data_df['target_proxy'], [50])
-    data_df['target'] = data_df.apply(lambda x: 
-                                      targetToCatMulti(x['target_proxy'], breaks), axis=1)
+    data_df['target'] = data_df.apply(lambda x:
+                                      target_to_cat_multi(x['target_proxy'], breaks), axis=1)
     return data_df
 
 
-def targetToCatMulti(x, breaks):
+def target_to_cat_multi(x, breaks):
+    """
+    make the breaks between categories for a label
+    """
     cat = 0
     for b in breaks:
         if x < b:
@@ -218,9 +255,7 @@ def remove_unnecessary_columns(data_df):
     """
     Filter to only the columns we want
     """
-    # data_df = data_df[RATIOS + KEY_STATS + OTHER + GROWTH + MARGINS + RETURNS +
-    #              FWD_RETURNS + PER_SHARE + INDEX]
-    data_df = data_df[PER_SHARE + DAY_COUNTS + RETURNS + FWD_RETURNS + INDEX + 
+    data_df = data_df[PER_SHARE + DAY_COUNTS + RETURNS + FWD_RETURNS + INDEX +
                       MARGINS + RATIOS + OTHER]
     return data_df
 
@@ -270,7 +305,8 @@ def clean_data(train_df):
 
 if __name__ == "__main__":
     # Most Relevant columns
-    COLS = ['roe', 'pb_ratio', 'div_yield', 'price_to_sales', 'pe_ratio']
+    COLS = ['roe', 'roa', 'pb_ratio', 'div_yield', 'price_to_sales', 
+            'pe_ratio', 'gross_prof_marg', 'net_prof_marg', 'peg_ratio']
     # TICKS = ['A', 'AAPL']
     run(COLS)
     
