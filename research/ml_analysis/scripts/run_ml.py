@@ -40,7 +40,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
     """
     Main function to run analytics
     """
-    time0 = time.time()
+    
     if cust_ticks:
         tickers = cust_ticks
     else:

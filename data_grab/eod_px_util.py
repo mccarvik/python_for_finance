@@ -15,7 +15,8 @@ sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper
 
 FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
-FILE_NAME = 'iex_available_{}_2019_05_29.txt'
+FILE_NAME_SYM = 'fmp_avail_symbols_{}.txt'
+FILE_NAME_STOCK = 'fmp_avail_stocks_{}.txt'
 
 # px = HBIO
 # morningstar = NHF
@@ -59,49 +60,69 @@ def get_time_series(tick, start=None, end=dt.datetime.today()):
     """
     Pulls an individual time series from the API
     """
-    if not start:
-        start = dt.datetime.today() - relativedelta(years=5)
-    data = pd_dr.DataReader(tick, 'iex', start, end)['close']
+    url = "https://financialmodelingprep.com/api/v3/historical-price-full/{}?serietype=line".format(tick)
+    raw = requests.get(url).content
+    data = json.loads(raw)['historical']
+    data = pd.DataFrame(data)
     return data
 
 
-def get_list_of_symbols(typ=None):
+def get_list_of_stocks():
     """
     Gets the list of potential stocks from IEX API
     """
-    resp = requests.get('https://api.iextrading.com/1.0/ref-data/symbols').content.decode('utf-8')
-    resp = json.loads(resp)
-    if typ:
-        resp = [ind_r for ind_r in resp if ind_r['type'] == typ]
-    syms = [resp_sym['symbol'] for resp_sym in resp]
-
-    with open(FILE_PATH + FILE_NAME.format(typ) , 'w') as file:
+    today = dt.datetime.today().strftime("%Y%m%d")
+    with DBHelper() as dbh:
+        dbh.connect()
+        tick_df = dbh.select('fin_ratios', cols=['DISTINCT(tick)'])
+        
+    syms = tick_df['tick'].values
+    with open(FILE_PATH + FILE_NAME_STOCK.format(today), 'w') as file:
         for item in syms:
             file.write("%s\n" % item)
 
 
-def load_db(typ):
+def get_list_of_symbols():
+    """
+    Gets the list of potential stocks from IEX API
+    """
+    today = dt.datetime.today().strftime("%Y%m%d")
+    resp = requests.get('https://financialmodelingprep.com/api/v3/company/stock/list').content.decode('utf-8')
+    resp = json.loads(resp)['symbolsList']
+    syms = [resp_sym['symbol'] for resp_sym in resp]
+
+    with open(FILE_PATH + FILE_NAME_SYM.format(today) , 'w') as file:
+        for item in syms:
+            file.write("%s\n" % item)
+
+
+def load_db(start=None):
     """
     Gathers px data one by one through the ticks
     """
     ticks = []
-    with open(FILE_PATH + FILE_NAME.format(typ), "r") as file:
+    read_date = "20190619"
+    with open(FILE_PATH + FILE_NAME_SYM.format(read_date), "r") as file:
         for line in file:
             ticks.append(line.strip())
 
     count = 0
+    already_have = True
     for ind_t in ticks:
-        # if ind_t < 'FGEN':
-        #     count += 1
-        #     print("skipping {}  already have data".format(ind_t))
-        #     continue
+        if ind_t == 'NUAN':
+            already_have = False
+        if already_have:
+            count += 1
+            print("skipping {}  already have data".format(ind_t))
 
         print("starting load for {}".format(ind_t))
         try:
-            pdb.set_trace()
-            data = get_time_series(ind_t).reset_index()
+            data = get_time_series(ind_t, start).reset_index()
             data['tick'] = ind_t
-            data.columns = ['date', 'px', 'tick']
+            data = data.drop(['index'], axis=1)
+            data.columns = ['px', 'date', 'tick']
+            if start:
+                data[data.date > start.strftime("%Y-%m-%d")]
             send_to_db(data)
             print("Completed load for {}".format(ind_t))
             count += 1
@@ -170,13 +191,15 @@ def get_db_pxs(ticks=None, s_date=None, e_date=None):
 
 
 if __name__ == '__main__':
-    # S_DT = dt.datetime(2013, 1, 1)
+    S_DT = dt.datetime(2019, 5, 1)
     # E_DT = dt.datetime(2019, 2, 22)
+    
     # get_time_series('F')
-    get_list_of_symbols('cs')
-    # get_list_of_symbols('et')
-    # load_db('cs')
-    # quandl_load()
+    # get_list_of_symbols()
+    # get_list_of_stocks()
+    
+    load_db(start=S_DT)
+    
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)
     # print(get_db_pxs(["A", "MSFT"]))

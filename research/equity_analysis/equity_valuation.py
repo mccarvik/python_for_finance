@@ -801,7 +801,7 @@ def analyze_ests(data, period, years_fwd=2):
                   "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
 
 
-def valuation_model(ticks, mode='db'):
+def valuation_model(ticks, mkt, ind, mode='db'):
     """
     Main method for valuation model
     """
@@ -826,7 +826,7 @@ def valuation_model(ticks, mode='db'):
         # join on whatever data you need
         data['is']['gross_profit'] = data['is']['revenue'] - data['is']['cogs']
 
-        data = removeEmptyCols(data)
+        data = remove_empty_cols(data)
         # This is only if we have quarterly data
         # data_cum = dataCumColumns(data)
         # data_chg = period_chg(data)
@@ -873,9 +873,32 @@ def valuation_model(ticks, mode='db'):
     analyze_ests(full_data, period)
 
 
+def read_analysis():
+    anal_df = pd.read_csv('analysis.csv', header=None)
+    anal_df.columns = ['tick', 'mkt', 'ind', 'peers']
+    return anal_df.set_index('tick')
+
+
+def run_eq_valuation(ticks):
+    """
+    Given ticks, read analysis input for other parameters
+    then run thru equity valuation based on those inputs
+    """
+    read_val = read_analysis()
+    mom_df[mom_df.index.isin(ticks['tick'].values)]
+    inputs = read_val[read_val.index.isin(ticks['tick'].values)]
+    for ix, vals in inputs.iterrows():
+        valuation_model([ix]+[vals['peers']], vals['mkt'], vals['ind'])
+    
+
+
 if __name__ == '__main__':
-    # income_state_model(['MSFT'], 'api')
+    # use this to pic your analysis setup
+    anal_row = 0
+    read_val = read_analysis().iloc[anal_row]
     # valuation_model(['MSFT'])
     # valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
-    valuation_model(['MSFT', 'INTC'])
+    # valuation_model(['MSFT', 'INTC'])
+    valuation_model([read_val[0]] + read_val[3].strip().split(" "), 
+                     read_val[1], read_val[2])
     
