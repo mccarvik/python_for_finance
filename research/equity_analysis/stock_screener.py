@@ -1,3 +1,6 @@
+"""
+Screener to filter stocks through the DB
+"""
 import pdb
 import sys
 import pandas as pd
@@ -14,12 +17,18 @@ class Filter():
         self.oper = oper
         self.value = value
         self.create_where_string()
-    
+
     def create_where_string(self):
+        """
+        generates the where clause for this filter
+        """
         self.clause = self.col + " " + self.oper + " " + self.value
 
 
 def db_call(table, where_clause, cols):
+    """
+    Call to DB for data
+    """
     with DBHelper() as dbh:
         dbh.connect()
         tick_df = dbh.select(table, where=where_clause, cols=cols)
@@ -41,6 +50,9 @@ def get_tick_info(table, cols, filts):
 
 
 def run_filter():
+    """
+    Creates the filters and runs through to the DB
+    """
     # columns we want
     cols = ['tick', 'year', 'month', 'pe_ratio', 'pb_ratio', 'div_yield', 'roe']
     filts = []
@@ -50,6 +62,7 @@ def run_filter():
     filts.append(Filter('pe_ratio', ">", "0"))
     filts.append(Filter('pb_ratio', "<", "10"))
     filts.append(Filter('div_yield', ">", "0"))
+    filts.append(Filter('market_cap', ">", "0"))
     ticks = get_tick_info('fin_ratios', cols, filts)
     return ticks
 
@@ -67,7 +80,20 @@ def check_momentum(date, ticks):
     return mom_df
 
 
+def check_big_v_small(date, ticks):
+    """
+    Grab the small companies that meet other filters
+    """
+    bvs_df = pd.read_csv("static/output/small_v_big_{}.csv"
+                         "".format(date)).set_index('tick')
+    # filter for only the stocks that got through filter
+    bvs_df = bvs_df[bvs_df.index.isin(ticks['tick'].values)]
+    # filter only for smallest 30% of peers re Fama-French
+    bvs_df = bvs_df[bvs_df.percentile < 0.3]
+    return bvs_df
+
+
 if __name__ == '__main__':
-    ticks = run_filter()
-    check_momentum(ticks)
-    print(ticks)
+    TICKS = run_filter()
+    check_momentum('20190619', TICKS)
+    print(TICKS)

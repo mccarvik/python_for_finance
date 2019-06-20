@@ -1,15 +1,13 @@
 """
 This util will grab data to and from the db with eod prices
 """
-import pdb
+# import pdb
 import sys
 import time
 import json
 import datetime as dt
 import pandas as pd
 import requests
-from pandas_datareader import data as pd_dr
-from dateutil.relativedelta import relativedelta
 # import pandas_datareader as dr
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper
@@ -18,9 +16,6 @@ FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
 FILE_NAME_SYM = 'fmp_avail_symbols_{}.txt'
 FILE_NAME_STOCK = 'fmp_avail_stocks_{}.txt'
 
-# px = HBIO
-# morningstar = NHF
-# is = TR
 
 def quandl_load():
     """
@@ -29,7 +24,7 @@ def quandl_load():
     ticks = []
     start = dt.date(1999, 12, 1)
     end = dt.date(2019, 2, 26)
-    with open(FILE_PATH + FILE_NAME, "r") as file:
+    with open(FILE_PATH + FILE_NAME_SYM, "r") as file:
         for line in file:
             ticks.append(line.strip())
 
@@ -56,7 +51,7 @@ def quandl_load():
             print(exc)
 
 
-def get_time_series(tick, start=None, end=dt.datetime.today()):
+def get_time_series(tick):
     """
     Pulls an individual time series from the API
     """
@@ -75,7 +70,7 @@ def get_list_of_stocks():
     with DBHelper() as dbh:
         dbh.connect()
         tick_df = dbh.select('fin_ratios', cols=['DISTINCT(tick)'])
-        
+
     syms = tick_df['tick'].values
     with open(FILE_PATH + FILE_NAME_STOCK.format(today), 'w') as file:
         for item in syms:
@@ -91,7 +86,7 @@ def get_list_of_symbols():
     resp = json.loads(resp)['symbolsList']
     syms = [resp_sym['symbol'] for resp_sym in resp]
 
-    with open(FILE_PATH + FILE_NAME_SYM.format(today) , 'w') as file:
+    with open(FILE_PATH + FILE_NAME_SYM.format(today), 'w') as file:
         for item in syms:
             file.write("%s\n" % item)
 
@@ -106,28 +101,44 @@ def load_db(start=None):
         for line in file:
             ticks.append(line.strip())
 
+    data = pd.DataFrame()
     count = 0
+    batch = 50
     already_have = True
     for ind_t in ticks:
-        if ind_t == 'NUAN':
+        if ind_t == 'NBB':
             already_have = False
         if already_have:
             count += 1
             print("skipping {}  already have data".format(ind_t))
+            continue
 
         print("starting load for {}".format(ind_t))
         try:
-            data = get_time_series(ind_t, start).reset_index()
-            data['tick'] = ind_t
-            data = data.drop(['index'], axis=1)
-            data.columns = ['px', 'date', 'tick']
+            t_data = get_time_series(ind_t, start).reset_index()
+            t_data['tick'] = ind_t
+            t_data = t_data.drop(['index'], axis=1)
+            t_data.columns = ['px', 'date', 'tick']
             if start:
-                data[data.date > start.strftime("%Y-%m-%d")]
-            send_to_db(data)
-            print("Completed load for {}".format(ind_t))
+                t_data = t_data[t_data.date > start.strftime("%Y-%m-%d")]
+            # send_to_db(t_data)
+            if not t_data.empty:
+                if data.empty:
+                    data = t_data
+                else:
+                    data = pd.concat([data, t_data])
+            else:
+                print("Failed for {}".format(ind_t))
+
+            if count % batch == 0 and not data.empty:
+                send_to_db(data)
+                loaded_ticks = list(data['tick'].unique())
+                print("Completed load for {}".format(", ".join(loaded_ticks)))
+                print("Finished {}  of  {}  loads".format(count, len(ticks)))
+                data = pd.DataFrame()
             count += 1
-            print("finished {}  of  {}  loads".format(count, len(ticks)))
-        except Exception as exc:
+            print("Gathered data for {}".format(ind_t))
+        except KeyError as exc:
             print("FALIED for {}".format(ind_t))
             print(exc)
 
@@ -193,13 +204,12 @@ def get_db_pxs(ticks=None, s_date=None, e_date=None):
 if __name__ == '__main__':
     S_DT = dt.datetime(2019, 5, 1)
     # E_DT = dt.datetime(2019, 2, 22)
-    
+
     # get_time_series('F')
     # get_list_of_symbols()
     # get_list_of_stocks()
-    
+
     load_db(start=S_DT)
-    
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)
     # print(get_db_pxs(["A", "MSFT"]))

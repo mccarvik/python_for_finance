@@ -58,8 +58,8 @@ def calc_mom_return(trade_dt):
                      - 1).sort_values(ascending=False).to_frame().dropna()
     annual_return.index.names = ['tick']
     annual_return.columns = ['return']
-    annual_return['percentile'] = (annual_return['return'].rank() 
-                                  / len(annual_return))
+    annual_return['percentile'] = (annual_return['return'].rank()
+                                   / len(annual_return))
     annual_return.to_csv("static/output/momentum_returns_{}.csv"
                          "".format(trade_dt.strftime("%Y%m%d")))
     return annual_return

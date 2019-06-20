@@ -86,7 +86,8 @@ def fin_ratios_api(tick):
     # get fin ratios
     url = DATA_MAP['fin_ratios'][1][0].format(tick)
     raw = requests.get(url).content
-    data = pd.read_csv(io.StringIO(raw.decode('utf-8')))
+    pdb.set_trace()
+    data = json.loads(raw)['financials']
     try:
         data = data.drop('TTM', axis=1)
     except Exception as exc:
@@ -125,6 +126,7 @@ def bal_sheet_api(tick):
     """
     reach out to the balance sheet API on FMP
     """
+    pdb.set_trace()
     url = DATA_MAP['bal_sheet'][1].format(tick)
     try:
         raw = requests.get(url).content
@@ -169,6 +171,7 @@ def cf_statement_api(tick):
     """
     reach out to the Cash Flow statement API on FMP
     """
+    pdb.set_trace()
     url = DATA_MAP['cf_statement'][1].format(tick)
     try:
         raw = requests.get(url).content
@@ -238,22 +241,22 @@ def send_px_ret_to_db(ticks=None):
 
 
 DATA_MAP = {
-    'fin_ratios': [fin_ratios_api, ["https://financialmodelingprep.com/api/financial-ratios/{}?datatype=csv",
+    'fin_ratios': [fin_ratios_api, ["https://financialmodelingprep.com/api/v3/financial-ratios/{}?datatype=csv",
                                     "https://financialmodelingprep.com/api/v3/company-key-metrics/{}?datatype=json"]],
-    'bal_sheet': [bal_sheet_api, "https://financialmodelingprep.com/api/v2/financials/balance-sheet-statement/{}?datatype=json"],
-    'inc_statement': [inc_statement_api, "https://financialmodelingprep.com/api/v2/financials/income-statement/{}?datatype=json"],
-    'cf_statement': [cf_statement_api, "https://financialmodelingprep.com/api/v2/financials/cash-flow-statement/{}?datatype=json"]
+    'bal_sheet': [bal_sheet_api, "https://financialmodelingprep.com/api/v3/financials/balance-sheet-statement/{}?datatype=json"],
+    'inc_statement': [inc_statement_api, "https://financialmodelingprep.com/api/v3/financials/income-statement/{}?datatype=json"],
+    'cf_statement': [cf_statement_api, "https://financialmodelingprep.com/api/v3/financials/cash-flow-statement/{}?datatype=json"]
 }
 
 
 if __name__ == "__main__":
     # get_available_ticks()
     # get_fmp_data('fin_ratios')
-    # get_fmp_data('fin_ratios', ['AAPL'])
-    # get_fmp_data('bal_sheet', ['AAPL'])
+    # get_fmp_data('fin_ratios', ['MAIN'])
+    get_fmp_data('bal_sheet', ['MAIN'])
     # get_fmp_data('bal_sheet')
     # get_fmp_data('inc_statement', ['AAPL'])
     # get_fmp_data('inc_statement')
-    # get_fmp_data('cf_statement', ['AAPL'])
+    # get_fmp_data('cf_statement', ['MAIN'])
     # get_fmp_data('cf_statement')
-    send_px_ret_to_db()
+    # send_px_ret_to_db()
