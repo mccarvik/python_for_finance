@@ -9,6 +9,7 @@ import warnings
 import datetime as dt
 import requests
 import pandas as pd
+import urllib.request
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper, get_ticker_table_data
 from data_grab.fmp_helper import map_columns, add_px_ret_to_fr
@@ -57,7 +58,7 @@ def get_fmp_data(dataset="fin_ratios", tickers=None):
     # already_have = False
     for tick in tasks:
         print(tick)
-        if tick == 'V':
+        if tick == 'MPC':
             already_have = False
         if already_have:
             count += 1
@@ -188,11 +189,13 @@ def cf_statement_api(tick):
     url = DATA_MAP['cf_statement'][1].format(tick)
     try:
         raw = requests.get(url).content
+        # raw = urllib.request.urlopen(url)
         while True:
             if "Bad Gateway" in str(raw):
-                print("Bad Gateway - sleeping for 1 second")
-                time.sleep(1)
+                print("{} Bad Gateway - sleeping for 5 second".format(tick))
+                time.sleep(5)
                 raw = requests.get(url).content
+                # raw = urllib.request.urlopen(url).read()
             else:
                 break
 
@@ -243,7 +246,7 @@ def send_px_ret_to_db(ticks=None):
     empties = []
     already_done = True
     for ind_t in ticks:
-        if ind_t == 'VEON':
+        if ind_t == 'MGM':
             already_done = False
         if already_done:
             count += 1
@@ -282,7 +285,7 @@ if __name__ == "__main__":
     # get_fmp_data('inc_statement', ['AAPL'])
     # get_fmp_data('inc_statement')
     # get_fmp_data('cf_statement', ['AAPL'])
-    # get_fmp_data('cf_statement')
+    get_fmp_data('cf_statement')
     # get_fmp_data('fin_ratios', ['AAPL'])
     # get_fmp_data('fin_ratios')
-    send_px_ret_to_db()
+    # send_px_ret_to_db()

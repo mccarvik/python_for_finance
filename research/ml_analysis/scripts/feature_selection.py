@@ -53,14 +53,18 @@ def sbs_run(train_df, xcols, k_feats=1, est=KNeighborsClassifier(n_neighbors=3),
     # selecting features
     sbs = SBS(est, k_features=k_feats)
     sbs.fit(x_train, y_train)
+    order = []
     if k_feats == 1:
         print("Removed Order, first to last: "
               "" + str(list(x_val.columns[sbs.removed_order + list(sbs.subsets_[-1])])))
+        order = list(x_val.columns[sbs.removed_order + 
+                                   list(sbs.subsets_[-1])])[::-1]
     else:
         print("Removed Order, first to last:" + str(list(x_val.columns[sbs.removed_order])))
         print("Chosen columns: " + str(list(x_val.columns[list(sbs.subsets_[-1])])))
 
     # plotting performance of feature subsets
+    # This will chart the accuracy of each model as we remove features
     k_feat = [len(k) for k in sbs.subsets_]
     plt.plot(k_feat, sbs.scores_, marker='o')
     plt.ylim([0.0, 1.1])
@@ -72,19 +76,23 @@ def sbs_run(train_df, xcols, k_feats=1, est=KNeighborsClassifier(n_neighbors=3),
     plt.savefig(IMG_ROOT + 'sbs_{}_{}.png'.format(name, dt_time), dpi=300)
     plt.close()
 
+    # Training and test accuracy with all variables
     ks5 = list(sbs.subsets_[-1])
     est.fit(x_train, y_train)
     print("With all variables:")
     print('Training accuracy:', est.score(x_train, y_train))
     print('Test accuracy:', est.score(x_test, y_test))
 
-    print("With all only chosen (no:{}) variables:".format(k_feats))
+    # Training and test accuracy with only chosen variables for model
+    print("With only chosen (no:{}) variables:".format(k_feats))
     est.fit(x_train[:, ks5], y_train)
     print('Training accuracy:', est.score(x_train[:, ks5], y_train))
     print('Test accuracy:', est.score(x_test[:, ks5], y_test))
+    return order
 
 
 def random_forest_feature_importance(df, xcols):
+    pdb.set_trace()
     y_s = df['target']
     x_s = df[list(xcols)]
 

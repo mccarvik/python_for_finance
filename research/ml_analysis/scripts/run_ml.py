@@ -40,7 +40,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
     """
     Main function to run analytics
     """
-    
+
     if cust_ticks:
         tickers = cust_ticks
     else:
@@ -56,7 +56,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
         print("starting data retrieval")
         df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')'
                             'and {} != 0'.format(label))
-    
+
     time1 = time.time()
     print("Done Retrieving data, took {0} seconds".format(time1-time0))
 
@@ -105,7 +105,6 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
     # timeme(adalinesgd)(df, tuple(inputs), estimators=3)
     # timeme(run_perceptron_multi)(df, tuple(inputs), estimators=3)
 
-
     # Model Evaluation
     # model_evaluation(df, inputs)
     # timeme(majority_vote)(df, tuple(inputs))
@@ -147,38 +146,46 @@ def feature_selection(train_df, inputs):
     Sequential Backward Selection - feature selection to see
     which are the most telling variable
     Default is K-means Clustering
-    
-    Feature selection: Select a subset of the existing 
+
+    Feature selection: Select a subset of the existing
                        features without a transformation
-    
+
+    Use this to limit down the factors we learn on
     """
     ests = []
-    ests.append([DecisionTreeClassifier(criterion='entropy', max_depth=3, 
-                                       random_state=0), 'DecTree'])
-    ests.append([RandomForestClassifier(criterion='entropy', n_estimators=3, 
-                                       random_state=1,n_jobs=3), 'RandForest'])
-    ests.append([SVC(kernel='linear', C=100, random_state=0), 'SVC'])
-    ests.append([LogisticRegression(C=100, random_state=0, penalty='l1'), 
-                'LogRegr'])
-    # ests.append([AdalineSGD(n_iter=15, eta=0.001, random_state=1), 
+    ests.append([DecisionTreeClassifier(criterion='entropy', max_depth=3,
+                                        random_state=0), 'DecTree'])
+    ests.append([RandomForestClassifier(criterion='entropy', n_estimators=3,
+                                        random_state=1, n_jobs=3), 'RandForest'])
+    # ests.append([SVC(kernel='linear', C=100, random_state=0), 'SVC'])
+    ests.append([LogisticRegression(C=100, random_state=0, penalty='l1'),
+                 'LogRegr'])
+    # ests.append([AdalineSGD(n_iter=15, eta=0.001, random_state=1),
     #              'AdalineSGD'])
     # ests.append([AdalineGD(n_iter=20, eta=0.001), 'AdalineGD'])
     ests.append([KNeighborsClassifier(n_neighbors=3), 'Kmeans'])
-    
-    for ind_est in ests:
-        pdb.set_trace()
-        print("running for {}".format(ind_est[1]))
-        timeme(sbs_run)(train_df, tuple(inputs), est=ind_est[0], 
-                        name=ind_est[1])
-    
+
+    # ranks = []
+    # for ind_est in ests:
+    #     print("running for {}".format(ind_est[1]))
+    #     ranks.append([ind_est[1], timeme(sbs_run)(train_df, tuple(inputs),
+    #                                               est=ind_est[0], name=ind_est[1])])
+
     # Random Forest Feature Selection - using a random forest to identify
     # which factors decrease impurity the most
     pdb.set_trace()
-    timeme(random_forest_feature_importance)(train_df, tuple(inputs))
+    ranks.append([timeme(random_forest_feature_importance)(train_df,
+                                                           tuple(inputs)), 'RandForestFeats'])
 
     # Logistic Regression Feature Selection - logistic regression
     # should expose the important variables through its weights
-    timeme(logistic_regression_feature_importance)(train_df, tuple(inputs))
+    pdb.set_trace()
+    ranks.append([timeme(logistic_regression_feature_importance)(train_df,
+                                                                 tuple(inputs)), "LogRegrWgts"])
+    pdb.set_trace()
+    for rank in ranks:
+        print("Ranks for {}".format(rank[1]))
+        print(rank[0])
 
 
 def feature_extraction(df, inputs):
@@ -306,7 +313,7 @@ def clean_data(train_df):
 
 if __name__ == "__main__":
     # Most Relevant columns
-    COLS = ['roe', 'roa', 'pb_ratio', 'div_yield', 'ps_ratio', 
+    COLS = ['roe', 'roa', 'pb_ratio', 'div_yield', 'ps_ratio',
             'pe_ratio', 'gross_prof_marg', 'net_prof_marg', 'peg_ratio',
             'ret_1y', 'ret_2y']
     # TICKS = ['A', 'AAPL']
