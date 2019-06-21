@@ -32,8 +32,8 @@ from scripts.feature_selection import sbs_run
 # from scripts.ensemble_methods import *
 # from scripts.continuous_variables import *
 
-FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
-FILE_NAME = 'fmp_available_stocks_20190507.txt'
+FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/inputs/'
+FILE_NAME = 'fmp_avail_stocks_20190619.txt'
 
 
 def run(inputs, label='retfwd_2y', cust_ticks=None):
@@ -46,6 +46,8 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
     else:
         tickers = list(pd.read_csv(FILE_PATH + FILE_NAME, header=None)[0].values)
 
+    # Getting Dataframe
+    time0 = time.time()
     with DBHelper() as dbh:
         dbh.connect()
         lis = ''
@@ -54,8 +56,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
         print("starting data retrieval")
         df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')'
                             'and {} != 0'.format(label))
-
-    # Getting Dataframe
+    
     time1 = time.time()
     print("Done Retrieving data, took {0} seconds".format(time1-time0))
 
@@ -83,10 +84,10 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
           "".format(len(train_df), size_before - len(train_df)))
 
     # Select features
+    pdb.set_trace()
     feature_selection(train_df, inputs)
 
     # Feature Extraction
-    pdb.set_trace()
     # feature_extraction(df, inputs)
 
     # Algorithms
@@ -305,8 +306,9 @@ def clean_data(train_df):
 
 if __name__ == "__main__":
     # Most Relevant columns
-    COLS = ['roe', 'roa', 'pb_ratio', 'div_yield', 'price_to_sales', 
-            'pe_ratio', 'gross_prof_marg', 'net_prof_marg', 'peg_ratio']
+    COLS = ['roe', 'roa', 'pb_ratio', 'div_yield', 'ps_ratio', 
+            'pe_ratio', 'gross_prof_marg', 'net_prof_marg', 'peg_ratio',
+            'ret_1y', 'ret_2y']
     # TICKS = ['A', 'AAPL']
     run(COLS)
     

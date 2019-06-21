@@ -1,7 +1,7 @@
 """
 Screener to filter stocks through the DB
 """
-import pdb
+# import pdb
 import sys
 import pandas as pd
 
@@ -64,6 +64,13 @@ def run_filter():
     filts.append(Filter('div_yield', ">", "0"))
     filts.append(Filter('market_cap', ">", "0"))
     ticks = get_tick_info('fin_ratios', cols, filts)
+    # Remove Dupes
+    dupes = ticks.tick.value_counts().to_frame()
+    dupes = list(dupes[dupes.tick > 1].index)
+    for stock in dupes:
+        older = ticks[ticks.tick == stock].sort_values('year').iloc[0].name
+        ticks = ticks.drop(older)
+        # print("Dropped dupe for {}".format(stock))
     return ticks
 
 
@@ -74,22 +81,29 @@ def check_momentum(date, ticks):
     mom_df = pd.read_csv("static/output/momentum_returns_{}.csv"
                          "".format(date)).set_index('tick')
     # filter for only the stocks that got through filter
-    mom_df = mom_df[mom_df.index.isin(ticks['tick'].values)]
+    mom_df = pd.merge(ticks.set_index(['tick']), mom_df, left_index=True, right_index=True)
     # filter only for momentum over 70% of peers re Fama-French
     mom_df = mom_df[mom_df.percentile > 0.7]
-    return mom_df
+    mom_df = mom_df.rename(columns={'percentile': 'mom_perc'})
+    return mom_df.reset_index().set_index(['tick', 'year', 'month'])
 
 
 def check_big_v_small(date, ticks):
     """
     Grab the small companies that meet other filters
     """
-    bvs_df = pd.read_csv("static/output/small_v_big_{}.csv"
-                         "".format(date)).set_index('tick')
+    bvs_df = pd.read_csv("static/output/small_v_big_{}.csv".format(date))
+
+    # Need this as month is lost in the read_csv
+    bvs_df['year'] = bvs_df['year'].astype(str)
+    bvs_df['month'] = ("0" + bvs_df['month'].astype(str)).str[-2:]
+    bvs_df = bvs_df.set_index(['tick', 'month', 'year'])
     # filter for only the stocks that got through filter
-    bvs_df = bvs_df[bvs_df.index.isin(ticks['tick'].values)]
+    bvs_df = pd.merge(ticks.set_index(['tick', 'month', 'year']),
+                      bvs_df, left_index=True, right_index=True)
     # filter only for smallest 30% of peers re Fama-French
     bvs_df = bvs_df[bvs_df.percentile < 0.3]
+    bvs_df = bvs_df.rename(columns={'percentile': 'bvs_perc'})
     return bvs_df
 
 

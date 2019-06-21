@@ -24,12 +24,12 @@ def run_analysis():
 
     # check recent momentum returns
     print("Running Momentum Check:")
-    ticks = timeme(check_momentum)('20190619', ticks)
+    ticks = timeme(check_momentum)('20190621', ticks)
     print("{} stocks thru momentum checks\n".format(len(ticks)))
 
     # check recent big vs small results
     print("Running Big vs. Small Filter:")
-    ticks = timeme(check_big_v_small)('20190620', ticks.reset_index())
+    ticks = timeme(check_big_v_small)('20190621', ticks.reset_index())
     print("{} stocks thru big vs small filter\n".format(len(ticks)))
 
     # Run equity valuation

@@ -496,8 +496,13 @@ def replace_needed_cols(data):
     """
     replace columns we need with 0s
     """
-    data['bs']['inv'] = 0
-    data['cf']['divs_paid'] = 0
+    check_replace = []
+    check_replace.append(['bs', 'accounts_payable'])
+    check_replace.append(['bs', 'inv'])
+    check_replace.append(['cf', 'chg_working_cap'])
+    for ind_check in check_replace:
+        if ind_check[1] not in data[ind_check[0]].columns:
+            data[ind_check[0]][ind_check[1]] = 0
     return data
 
 

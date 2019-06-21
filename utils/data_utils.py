@@ -150,14 +150,17 @@ CUSTOM_COL_MAP = {
 DAY_COUNTS = ["days_sales_outstanding", "days_of_inv_on_hand", 
               "days_payables_outstanding", 'payables_turnover',
             "receivables_turnover", 'inv_turnover', 'fixed_asset_turnover',
-            "asset_turnover"]
-PER_SHARE = ["bvps", 'net_income_per_share', "fcf_per_share", "rev_per_share"]
+            "asset_turnover", 'cash_conversion_cycle', 'oper_cycle']
+PER_SHARE = ["bvps", 'net_income_per_share', "fcf_per_share", "rev_per_share",
+             "cash_per_share", "oper_cf_per_share"]
 RETURNS = ["roa", "roe", "ret_on_cap", "ret_1y", "ret_2y", "ret_3y", "ret_5y"]
 FWD_RETURNS = ['retfwd_1y', 'retfwd_2y', 'retfwd_3y', 'retfwd_5y']
-MARGINS = ["gross_prof_marg", "oper_prof_marg", 
-           "pretax_prof_marg", "net_prof_marg"]
+MARGINS = ["gross_prof_marg", "oper_prof_marg", "oper_cf_sales_ratio",
+           "pretax_prof_marg", "net_prof_marg", 'ebit_per_rev']
 INDEX = ['year', 'tick', 'month']
-RATIOS = ["curr_ratio", "pfcf_ratio",
-          "debt_to_equity", "interest_coverage_ratio", "capex_to_rev", 
-          "pe_ratio", "pb_ratio", "price_to_sales", "peg_ratio"]
-OTHER = ["payout_ratio", "eff_tax_rate", "market_cap", "div_yield", "date_px"]
+RATIOS = ["curr_ratio", "pfcf_ratio", 'pcf_ratio', 'pocf_ratio', 
+          'cash_ratio', "debt_to_equity", "interest_coverage_ratio",
+          "pe_ratio", "pb_ratio", "ps_ratio", "peg_ratio", 'debt_ratio',
+          "ev_multiple", "capex_to_rev", "quick_ratio", 'cf_to_debt_ratio']
+OTHER = ["div_payout_ratio", "eff_tax_rate", "market_cap", "div_yield", 
+         "date_px"]

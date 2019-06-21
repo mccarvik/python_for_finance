@@ -125,7 +125,7 @@ def peer_derived_value(data, period):
                 group_vals[ind_val + "_" + str(year_diff) + "fwd_w_avg"] += (data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=years_fwd).mean()[fwd]
                                                                              * (data[tick][0]['fr']['market_cap'][fwd]
                                                                                 / group_mkt_cap[fwd[0]]))
-        if DEBUG or (STOCK_DEBUG and tick == ticks[0]):
+        if DEBUG:
             print("{} 5Y simple avg: {}".format(ind_val, '%.3f' % group_vals[ind_val]))
             print("{} 5Y weighted avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_w_avg"]))
             for yrf in range(1, years_fwd + 1):
@@ -261,7 +261,6 @@ def discount_fcf(data, period, ests, stock):
     Calculate the value of the security based on
     discounted free cash flow models
     """
-    # pdb.set_trace()
     # should be pulled off debt issued by company, hard coded for now
     cost_debt = 0.07
     # rate on 10yr tsy
@@ -301,7 +300,6 @@ def discount_fcf(data, period, ests, stock):
     term_growth = 0.05
 
     # 2 Stage DFCF
-    pdb.set_trace()
     years_to_terminal = [1, 2]
     for ytt in years_to_terminal:
         fcf_pershare = (data['cf']['fcf_min_twc'][period]
@@ -763,7 +761,7 @@ def analyze_ests(data, period, years_fwd=2):
             year_est = {}
             for mod in val_models:
                 mod_est = []
-                for val in valuations[mod]:
+                for val in VALUATIONS[mod]:
                     try:
                         estimate = [float(est[3]) for est in data_df[1] if est[0] == val and
                                     est[1] == key and est[2] == year][0]
@@ -812,6 +810,7 @@ def valuation_model(ticks, mkt, ind, mode='db'):
     """
     Main method for valuation model
     """
+    pdb.set_trace()
     full_data = {}
     other = [mkt, ind]
     # Get Historical Price data
@@ -825,7 +824,6 @@ def valuation_model(ticks, mkt, ind, mode='db'):
     ticks = [stock] + peers
 
     for ind_t in ticks:
-        pdb.set_trace()
         data = {}
         data['is'] = get_ticker_info([ind_t], 'inc_statement',
                                      ['year', 'month', 'tick'])
@@ -855,6 +853,7 @@ def valuation_model(ticks, mkt, ind, mode='db'):
         data['ols'] = model_est_ols(10, data)
 
         # get price info
+        pdb.set_trace()
         data = match_px(data, hist_px, ind_t)
         if DEBUG or (STOCK_DEBUG and ind_t == stock):
             date_px = data['ols']['date_px'].dropna().iloc[-1]
@@ -865,7 +864,7 @@ def valuation_model(ticks, mkt, ind, mode='db'):
                   "".format(date_px_idx[0], date_px_idx[2], date_px))
             print("LAST PRICE ({}):  {}".format(last_px_date, last_px))
         data = get_beta(data, hist_px, ind_t, other[0], other[1])
-        
+
         period = [i for i in data['is'].index.values if "E" not in i[2]][-1]
         # Get Historical Ratios for valuation
         hist_rats, ests = historical_ratios(data, period, hist_px, stock)
@@ -875,37 +874,35 @@ def valuation_model(ticks, mkt, ind, mode='db'):
 
     # calculate performance metrics based on price
     px_df = price_perf_anal(period, mkt, ind, hist_px)
-    for ind, px_tick in px_df.iterrows():
-        if DEBUG or (STOCK_DEBUG and ind == stock):
+    for idx, px_tick in px_df.iterrows():
+        if DEBUG or (STOCK_DEBUG and idx == stock):
             print("{} for year: {}  Return: {}  Rel Mkt Ret: {},  Rel Bmk Ret: {}"
-                  "".format(ind[0], ind[1], '%.3f' % px_tick['ytd_chg'],
+                  "".format(idx[0], idx[1], '%.3f' % px_tick['ytd_chg'],
                             '%.3f' % px_tick['mkt_rel_perf'], '%.3f' % px_tick['ind_rel_perf']))
 
     # Comparisons
     comp_anal = comparison_anal(full_data, period)
-    for ind, ind_ca in comp_anal.iterrows():
-        if DEBUG or (STOCK_DEBUG and ind[0] == stock):
-            if ind[1] == 'net_inc_g':
+    for idx, ind_ca in comp_anal.iterrows():
+        if DEBUG or (STOCK_DEBUG and idx[0] == stock):
+            if idx[1] == 'net_inc_g':
                 print("NET INCOME GROWTH for {}:  {}".format('2018', '%.3f' % ind_ca['2018']))
                 print("NET INCOME AVG 5Y GROWTH:  {}".format('%.3f' % ind_ca['avg_5y']))
                 print("NET INCOME GROWTH for {}:  {}".format('2019', '%.3f' % ind_ca['2019']))
                 print("NET INCOME GROWTH for {}:  {}".format('2020', '%.3f' % ind_ca['2020']))
-            if ind[1] == 'revenue_g':
+            if idx[1] == 'revenue_g':
                 print("REVENUE GROWTH for {}:  {}".format('2018', '%.3f' % ind_ca['2018']))
                 print("REVENUE AVG 5Y GROWTH:  {}".format('%.3f' % ind_ca['avg_5y']))
                 print("REVENUE GROWTH for {}:  {}".format('2019', '%.3f' %ind_ca['2019']))
                 print("REVENUE GROWTH for {}:  {}".format('2020', '%.3f' % ind_ca['2020']))
 
-    
-
     # Peer Derived Value
     full_data, pdv = peer_derived_value(full_data, period)
-    for ind, ind_pdv in pdv.iterrows():
-        if DEBUG or (STOCK_DEBUG and ind[0] == stock):
+    for idx, ind_pdv in pdv.iterrows():
+        if DEBUG or (STOCK_DEBUG and idx[0] == stock):
             print("{} Peer Derived Price (2019):  {}"
-                  "".format(PDV_MAP[ind[1]], ind_pdv['pdv_price_2019']))
+                  "".format(PDV_MAP[idx[1]], ind_pdv['pdv_price_2019']))
             print("{} Peer Derived Price (2020):  {}"
-                  "".format(PDV_MAP[ind[1]], ind_pdv['pdv_price_2020']))
+                  "".format(PDV_MAP[idx[1]], ind_pdv['pdv_price_2020']))
 
     # Analysis of all valuations
     analyze_ests(full_data, period)
@@ -926,19 +923,19 @@ def run_eq_valuation(ticks):
     then run thru equity valuation based on those inputs
     """
     read_val = read_analysis()
-    inputs = read_val[read_val.index.isin(ticks.index.values)]
-    for ix, vals in inputs.iterrows():
-        valuation_model([ix]+vals['peers'].strip().split(" "),
-                         vals['mkt'].strip(), vals['ind'].strip())
-    
+    inputs = read_val[read_val.index.isin(ticks.reset_index()['tick'].values)]
+    for idx, vals in inputs.iterrows():
+        valuation_model([idx]+vals['peers'].strip().split(" "),
+                        vals['mkt'].strip(), vals['ind'].strip())
+
 
 if __name__ == '__main__':
     # use this to pic your analysis setup
-    anal_row = 0
-    read_val = read_analysis().iloc[anal_row]
+    ANAL_ROW = 0
+    READ_VAL = read_analysis().iloc[ANAL_ROW]
     # valuation_model(['MSFT'])
     # valuation_model(['MSFT', 'AAPL', 'CSCO', 'INTC', 'ORCL'])
     # valuation_model(['MSFT', 'INTC'])
-    valuation_model([read_val[0]] + read_val[3].strip().split(" "), 
-                     read_val[1], read_val[2])
+    valuation_model([READ_VAL[0]] + READ_VAL[3].strip().split(" "),
+                    READ_VAL[1], READ_VAL[2])
     

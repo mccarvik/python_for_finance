@@ -25,8 +25,7 @@ from utils.ml_utils import plot_decision_regions, standardize, IMG_PATH, IMG_ROO
 
 
 # Sequential Backward Selection
-def sbs_run(train_df, xcols, k_feats=1, est=KNeighborsClassifier(n_neighbors=3), 
-            test=pd.DataFrame(), name=None):
+def sbs_run(train_df, xcols, k_feats=1, est=KNeighborsClassifier(n_neighbors=3), test=pd.DataFrame(), name=None):
     """
     Starting from the full set, sequentially remove the feature 𝑥
     that least reduces (or most increases) the value of the predictive score

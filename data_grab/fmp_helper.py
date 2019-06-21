@@ -1,5 +1,8 @@
+"""
+Helper func for downloading data from financial modeling prep
+"""
 import pdb
-import sys
+import re
 import datetime as dt
 import numpy as np
 from dateutil.relativedelta import relativedelta
@@ -297,11 +300,13 @@ CF_STATEMENT_MAP = {
     'Accounts receivable':  'accounts_receivable',
     'Acquisitions, net': 'acq_net',
     'Capital expenditure': 'cap_exp',
+    'Capital Expenditure': 'cap_exp',
     'Cash at beginning of period': 'cash_begin',
     'Cash at end of period': 'cash_end',
     'Change in working capital': 'chg_working_cap',
     'Preferred stock issued': 'pref_stock_iss',
     'Common stock issued': 'stock_iss',
+    'Issuance (buybacks) of shares': 'stock_iss',
     'Long-term debt issued': 'long_term_debt_iss',
     'Warrant issued': 'warrant_iss',
     'Loans issued': 'loans_iss',
@@ -311,6 +316,7 @@ CF_STATEMENT_MAP = {
     'Redemption of preferred stock': 'pref_stock_repurchase',
     'Preferred stock repaid': 'pref_stock_repurchase',
     'Debt issued': 'debt_iss',
+    'Issuance (repayment) of debt': 'debt_iss',
     'Debt repayment': 'debt_repay',
     'Deferred income taxes': 'def_inc_tax',
     'Deferred tax (benefit) expense': 'def_inc_tax',
@@ -320,20 +326,27 @@ CF_STATEMENT_MAP = {
     'Income taxes payable': 'tax_payable',
     'Interest payable': 'int_payable',
     'Depreciation & amortization': 'dep_amort',
+    'Depreciation & Amortization': 'dep_amort',
     'Dividend paid': 'divs_paid',
+    'Dividend payments': 'divs_paid',
     'Cash dividends paid': 'divs_paid',
     'Dividend payable': 'divs_paid',
     'Free cash flow': 'fcf',
+    'Free Cash Flow': 'fcf',
     'Inventory': 'inv',
     'Investments in property, plant, and equipment': 'inv_ppe',
     'Property, plant, and equipment reductions': 'reduction_ppe',
     'Property, and equipments, net': 'net_ppe',
     'Net cash provided by (used for) financing activities': 'net_cash_financing',
+    'Financing Cash Flow': 'net_cash_financing',
     'Net cash provided by operating activities': 'net_cash_oper',
     'Net cash used for investing activities': 'net_cash_inv',
+    'Investing Cash flow': 'net_cash_inv',
     'Net change in cash': 'net_chg_cash',
+    'Net cash flow / Change in cash': 'net_chg_cash',
     'Net income': 'net_inc',
     'Operating cash flow': 'oper_cf',
+    'Operating Cash Flow': 'oper_cf',
     'Other financing activities': 'other_financing_act',
     'Other investing activities': 'other_inv_act',
     'Other investing charges': 'other_inv_act',
@@ -344,10 +357,12 @@ CF_STATEMENT_MAP = {
     'Other assets and liabilities': 'other_assets_liabs',
     'Purchases of intangibles': 'purch_intangibles',
     'Purchases of investments': 'purch_inv',
+    'Investment purchases and sales': 'purch_inv',
     'Sales/Maturities of investments': 'sales_mat_inv',
     'Sales/maturity of investments': 'sales_mat_inv',
     'Sales/maturities of fixed maturity and equity securities': 'sales_mat_inv',
     'Stock based compensation': 'stock_comp',
+    'Stock-based compensation': 'stock_comp',
     'Excess tax benefit from stock based compensation': 'stock_comp',
     'Effect of exchange rate changes': 'effect_fx_chg',
     'Investments losses (gains)': 'inv_losses',
@@ -372,6 +387,7 @@ CF_STATEMENT_MAP = {
     'Payables': 'payables',
     'Receivable': 'receivables',
     'Acquisitions and dispositions': 'acq_disp',
+    'Acquisitions and disposals': 'acq_disp',
     '(Gains) loss on disposition of businesses': 'loss_disp_business',
     'Capitalization of deferred policy acquisition costs': 'cap_def_policy_acq_costs',
     'Equity in (income) loss from equity method investments': 'eq_loss_equity_method_inv',
@@ -386,12 +402,15 @@ CF_STATEMENT_MAP = {
     'Trading securities': 'trading_secs',
     'Other current assets': 'other_curr_assets',
     'Other current liabilities': 'other_curr_liabs',
+    'Effect of forex changes on cash': 'eff_forex_on_cash',
+    'Net Cash/Marketcap': 'net_cash_to_marketcap',
 }
 
 
 FIN_RATIOS_MAP = {
     'currentRatio': 'curr_ratio',
     'Current ratio': 'curr_ratio',
+    'quickRatio': 'quick_ratio',
     'grossProfitMargin': 'gross_prof_marg',
     'operatingProfitMargin': 'oper_prof_marg',
     'pretaxProfitMargin': 'pretax_prof_marg',
@@ -409,8 +428,11 @@ FIN_RATIOS_MAP = {
     'longtermDebtToCapitalization': 'longterm_debt_to_capitalization',
     'totalDebtToCapitalization': 'totaldebt_to_capitalization',
     'interestCoverageRatio': 'interest_coverage_ratio',
+    'interestCoverage': 'interest_coverage_ratio',
     'cashFlowToDebtRatio': 'cf_to_debt_ratio',
     'companyEquityMultiplier': 'company_equity_multiplier',
+    'cashConversionCycle': 'cash_conversion_cycle',
+    'operatingCycle': 'oper_cycle',
     'fixedAssetTurnover': 'fixed_asset_turnover',
     'assetTurnover': 'asset_turnover',
     'operatingCashFlowSalesRatio': 'oper_cf_sales_ratio',
@@ -420,15 +442,19 @@ FIN_RATIOS_MAP = {
     'capitalExpenditureCoverageRatios': 'capex_coverage_ratio',
     'dividendpaidAndCapexCoverageRatios': 'div_paid_and_capex_coverage_ratio',
     'dividendPayoutRatio': 'div_payout_ratio',
-    'priceBookValueRatio': 'pb_ratio',
-    'priceCashFlowRatio': 'pfcf_ratio',
+    'priceBookValueRatio': 'pbv_ratio',
+    'priceCashFlowRatio': 'pcf_ratio',
     'priceEarningsRatio': 'pe_ratio',
     'priceEarningsToGrowthRatio': 'peg_ratio',
-    'priceSalesRatio': 'price_to_sales',
+    'priceFairValue': 'price_fv',
+    'priceToSalesRatio': 'ps_ratio',
+    'priceToBookRatio': 'pb_ratio',
+    'priceToFreeCashFlowsRatio': 'pfcf_ratio',
+    'priceToOperatingCashFlowsRatio': 'pocf_ratio',
+    'priceSalesRatio': 'price_sales_ratio',
     'dividendYield': 'div_yield',
     'Dividend Yield': 'div_yield',
     'enterpriseValueMultiple': 'ev_multiple',
-    'priceFairValue': 'price_fv',
     'Average Inventory': 'avg_inv',
     'Average Payables': 'avg_payables',
     'Average Receivables': 'avg_receivables',
@@ -438,9 +464,15 @@ FIN_RATIOS_MAP = {
     'Capex to Operating Cash Flow': 'capex_to_oper_cf',
     'Capex to Revenue': 'capex_to_rev',
     'Cash per Share': 'cash_per_share',
+    'cashPerShare': 'cash_per_share',
+    'operatingCashFlowPerShare': 'oper_cf_per_share',
+    'Operating Cash Flow per Share': 'oper_cf_per_share',
     'Days Payables Outstanding': 'days_payables_outstanding',
+    'daysOfPayablesOutstanding': 'days_payables_outstanding',
     'Days Sales Outstanding': 'days_sales_outstanding',
+    'daysOfSalesOutstanding': 'days_sales_outstanding',
     'Days of Inventory on Hand': 'days_of_inv_on_hand',
+    'daysOfInventoryOutstanding': 'days_of_inv_on_hand',
     'Debt to Assets': 'debt_to_assets',
     'EV to Free cash flow': 'ev_to_fcf',
     'EV to Operating cash flow': 'ev_to_oper_cf',
@@ -450,6 +482,7 @@ FIN_RATIOS_MAP = {
     'Enterprise Value over EBITDA': 'enterprise_val_over_ebitda',
     'Free Cash Flow Yield': 'fcf_yld',
     'Free Cash Flow per Share': 'fcf_per_share',
+    'freeCashFlowPerShare': 'fcf_per_share',
     'Graham Net-Net': 'graham_net_net',
     'Graham Number': 'graham_number',
     'Income Quality': 'income_quality',
@@ -457,24 +490,28 @@ FIN_RATIOS_MAP = {
     'Interest Coverage': 'int_coverage',
     'Interest Debt per Share': 'int_debt_per_share',
     'Inventory Turnover': 'inv_turnover',
+    'inventoryTurnover': 'inv_turnover',
     'Invested Capital': 'invested_cap',
     'Market Cap': 'market_cap',
     'Net Current Asset Value': 'net_current_asset_value',
     'Net Debt to EBITDA': 'net_debt_to_ebitda',
     'Net Income per Share': 'net_income_per_share',
-    'Operating Cash Flow per Share': 'oper_cf_per_share',
     'PB ratio': 'pb_ratio',
     'PE ratio': 'pe_ratio',
     'PFCF ratio': 'pfcf_ratio',
     'POCF ratio': 'pocf_ratio',
     'PTB ratio': 'ptb_ratio',
     'Payables Turnover': 'payables_turnover',
+    'payablesTurnover': 'payables_turnover',
     'Payout Ratio': 'payout_ratio',
+    'payoutRatio': 'payout_ratio',
     'Price to Sales Ratio': 'ps_ratio',
+    'cashRatio': 'cash_ratio',
     'R&D to Revenue': 'rnd_to_revenue',
     'ROE': 'roe',
     'ROIC': 'roic',
     'Receivables Turnover': 'receivables_turnover',
+    'receivablesTurnover': 'receivables_turnover',
     'Return on Tangible Assets': 'return_on_tangible_assets',
     'Revenue per Share': 'rev_per_share',
     'SG&A to Revenue': 'sga_to_rev',
@@ -495,17 +532,21 @@ COL_MAPS = {
 
 
 def map_columns(data_set, cols):
-    # for cc in cols: 
-        # print("'" + cc + "': '" + cc.lower().replace(" ", "_") + "',")
+    """
+    Map columns from api to columns in DB
+    """
+    # for ccc in cols:
+    #     print("'" + ccc + "': '" + convert_camel_to_snake(ccc) + "',")
     col_map = COL_MAPS[data_set]
     new_cols = []
     for col in cols:
         try:
             new_cols.append(col_map[col])
-        except Exception as exc:
-            print("'" + col + "': '" + col.lower().replace(" ", "_") + "',")
+        except KeyError:
+            # print("'" + col + "': '" + col.lower().replace(" ", "_") + "',")
+            print("'" + col + "': '" + convert_camel_to_snake(col) + "',")
             pdb.set_trace()
-            print(exc)
+            print("Missing Column")
     return new_cols
 
 
@@ -520,8 +561,8 @@ def add_px_ret_to_fr(pxs, fr_table):
                    'retfwd_1y', 'retfwd_2y', 'retfwd_3y', 'retfwd_5y']
     for col in cols_to_add:
         fr_table[col] = 0.0
-    
-    dates = [[y,m] for y,m in zip(fr_table['year'].values, fr_table['month'])]
+
+    dates = [[y, m] for y, m in zip(fr_table['year'].values, fr_table['month'])]
     fr_table = fr_table.set_index(['year', 'tick', 'month'])
     yrs_offset = [0, -1, -2, -3, -5, 1, 2, 3, 5]
     for ind_d in dates:
@@ -566,3 +607,10 @@ def get_closest_date_px(pxs, day, yr_offset=0):
                 # print("no px value for {}".format(day))
                 return np.nan
 
+
+def convert_camel_to_snake(name):
+    """
+    convert camel case to snake case
+    """
+    ss1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', ss1).lower()

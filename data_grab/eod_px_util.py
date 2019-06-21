@@ -12,7 +12,7 @@ import requests
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper
 
-FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/'
+FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/inputs/'
 FILE_NAME_SYM = 'fmp_avail_symbols_{}.txt'
 FILE_NAME_STOCK = 'fmp_avail_stocks_{}.txt'
 
@@ -115,7 +115,7 @@ def load_db(start=None):
 
         print("starting load for {}".format(ind_t))
         try:
-            t_data = get_time_series(ind_t, start).reset_index()
+            t_data = get_time_series(ind_t).reset_index()
             t_data['tick'] = ind_t
             t_data = t_data.drop(['index'], axis=1)
             t_data.columns = ['px', 'date', 'tick']
@@ -202,14 +202,15 @@ def get_db_pxs(ticks=None, s_date=None, e_date=None):
 
 
 if __name__ == '__main__':
-    S_DT = dt.datetime(2019, 5, 1)
+    # S_DT = dt.datetime(2019, 5, 1)
     # E_DT = dt.datetime(2019, 2, 22)
 
     # get_time_series('F')
     # get_list_of_symbols()
     # get_list_of_stocks()
 
-    load_db(start=S_DT)
+    # load_db(start=S_DT)
+    load_db()
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)
     # print(get_db_pxs(["A", "MSFT"]))

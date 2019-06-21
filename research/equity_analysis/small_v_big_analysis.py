@@ -2,7 +2,7 @@
 Calculate the size factor and ranking amongst peers for equity valuation
 """
 import sys
-# import pdb
+import pdb
 import time
 import datetime as dt
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
@@ -27,6 +27,7 @@ def calc_small_v_big(trade_dt):
     tick_clause = "', '".join(stocks) + "')"
     where_clause += tick_clause
 
+    pdb.set_trace()
     print("starting query")
     time0 = time.time()
     with DBHelper() as dbh:
