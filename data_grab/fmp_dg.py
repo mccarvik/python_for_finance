@@ -46,7 +46,8 @@ def get_fmp_data(dataset="fin_ratios", tickers=None):
     """
     tasks = []
     if not tickers:
-        with open("/home/ec2-user/environment/python_for_finance/data_grab/fmp_available_stocks_20190507.txt", "r") as file:
+        with open("/home/ec2-user/environment/python_for_finance/data_grab/{}"
+                  "".format(FILE_NAME.format("20190620")), "r") as file:
             for line in file:
                 tasks.append(line.strip())
     else:
@@ -55,8 +56,16 @@ def get_fmp_data(dataset="fin_ratios", tickers=None):
     print("total stocks: {}".format(len(tasks)))
 
     count = 0
+    already_have = True
+    # already_have = False
     for tick in tasks:
         print(tick)
+        if tick == 'SPY':
+            already_have = False
+        if already_have:
+            count += 1
+            print("skipping {}  already have data".format(tick))
+            continue
         if count % 25 == 0:
             print(str(count) + " stocks completed so far")
         try:
@@ -126,7 +135,6 @@ def bal_sheet_api(tick):
     """
     reach out to the balance sheet API on FMP
     """
-    pdb.set_trace()
     url = DATA_MAP['bal_sheet'][1].format(tick)
     try:
         raw = requests.get(url).content
@@ -136,7 +144,7 @@ def bal_sheet_api(tick):
         print(exc)
         print("May be an etf where this isnt applicable")
         raise
-    data['month'] = data['date'].str.slice(5)
+    data['month'] = data['date'].str.slice(5, 7)
     data['year'] = data['date'].str.slice(0, 4)
     data = data.drop('date', axis=1)
     data['tick'] = tick
@@ -158,7 +166,7 @@ def inc_statement_api(tick):
         print(exc)
         print("May be an etf where this isnt applicable")
         raise
-    data['month'] = data['date'].str.slice(5)
+    data['month'] = data['date'].str.slice(5, 7)
     data['year'] = data['date'].str.slice(0, 4)
     data = data.drop('date', axis=1)
     data['tick'] = tick
@@ -251,12 +259,12 @@ DATA_MAP = {
 
 if __name__ == "__main__":
     # get_available_ticks()
-    # get_fmp_data('fin_ratios')
     # get_fmp_data('fin_ratios', ['MAIN'])
-    get_fmp_data('bal_sheet', ['MAIN'])
+    # get_fmp_data('fin_ratios')
+    # get_fmp_data('bal_sheet', ['MAIN'])
     # get_fmp_data('bal_sheet')
     # get_fmp_data('inc_statement', ['AAPL'])
-    # get_fmp_data('inc_statement')
+    get_fmp_data('inc_statement')
     # get_fmp_data('cf_statement', ['MAIN'])
     # get_fmp_data('cf_statement')
     # send_px_ret_to_db()
