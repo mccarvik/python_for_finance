@@ -9,11 +9,10 @@ import warnings
 import datetime as dt
 import requests
 import pandas as pd
-import urllib.request
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper, get_ticker_table_data
 from data_grab.fmp_helper import map_columns, add_px_ret_to_fr
-from data_grab.eod_px_util import get_db_pxs
+from data_grab.eod_px_util import get_db_pxs, FILE_NAME_STOCK
 
 warnings.filterwarnings("ignore")
 SUCCESS = []
@@ -58,7 +57,7 @@ def get_fmp_data(dataset="fin_ratios", tickers=None):
     # already_have = False
     for tick in tasks:
         print(tick)
-        if tick == 'MPC':
+        if tick == 'RIG':
             already_have = False
         if already_have:
             count += 1
@@ -75,7 +74,7 @@ def get_fmp_data(dataset="fin_ratios", tickers=None):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print("Error in task loop: {0}, {1}, {2}".format(exc_type, exc_tb.tb_lineno, exc_obj))
         except Exception as exc:
-            pdb.set_trace()
+            # pdb.set_trace()
             print("Failed " + tick + "\t")
             print(exc)
         count += 1
@@ -189,13 +188,11 @@ def cf_statement_api(tick):
     url = DATA_MAP['cf_statement'][1].format(tick)
     try:
         raw = requests.get(url).content
-        # raw = urllib.request.urlopen(url)
         while True:
             if "Bad Gateway" in str(raw):
-                print("{} Bad Gateway - sleeping for 5 second".format(tick))
-                time.sleep(5)
+                print("{} Bad Gateway - sleeping for 1 second".format(tick))
+                time.sleep(1)
                 raw = requests.get(url).content
-                # raw = urllib.request.urlopen(url).read()
             else:
                 break
 
@@ -235,8 +232,7 @@ def send_px_ret_to_db(ticks=None):
     """
     if not ticks:
         ticks = []
-        stock_file_name = 'iex_available_{}_2019_05_29.txt'
-        with open(FILE_PATH + FILE_NAME.format("20190619"), "r") as file:
+        with open(FILE_PATH + FILE_NAME_STOCK.format("20190619"), "r") as file:
             for line in file:
                 ticks.append(line.strip())
     # px_df = get_db_pxs(ticks)
@@ -245,22 +241,34 @@ def send_px_ret_to_db(ticks=None):
     print("{} stocks to load".format(len(ticks)))
     empties = []
     already_done = True
+    fr_tot = get_ticker_table_data(ticks, 'fin_ratios').set_index('tick')
+    # ticks = ['A', 'AA', 'AAPL']
+    # px_tot = get_db_pxs(ticks).reset_index().set_index('tick')
+    
     for ind_t in ticks:
-        if ind_t == 'MGM':
+        if ind_t == 'PEGA':
             already_done = False
         if already_done:
             count += 1
             continue
+        # pdb.set_trace()
         print("calcs for {}".format(ind_t))
-        px_df = get_db_pxs([ind_t])
-        fr_df = get_ticker_table_data([ind_t], 'fin_ratios')
+        try:
+            fr_df = fr_tot.loc[ind_t]
+            # px_df = px_tot.loc[ind_t]
+            px_df = get_db_pxs([ind_t]).reset_index().set_index('tick')
+        except KeyError:
+            print("no prices for {}\n".format(ind_t))
+            empties.append(ind_t)
+            count += 1
+            continue
+        
         if px_df.empty or fr_df.empty:
             print("empty df for {}\n".format(ind_t))
             empties.append(ind_t)
             count += 1
             continue
-        ret_table = add_px_ret_to_fr(px_df, fr_df)
-        # pdb.set_trace()
+        ret_table = add_px_ret_to_fr(px_df, fr_df.reset_index())
         send_to_db(ret_table, 'fin_ratios', ['tick', 'year', 'month'])
         print("loaded {} stocks, just loaded {}".format(count, ind_t))
         count += 1
@@ -284,8 +292,8 @@ if __name__ == "__main__":
     # get_fmp_data('bal_sheet')
     # get_fmp_data('inc_statement', ['AAPL'])
     # get_fmp_data('inc_statement')
-    # get_fmp_data('cf_statement', ['AAPL'])
-    get_fmp_data('cf_statement')
     # get_fmp_data('fin_ratios', ['AAPL'])
     # get_fmp_data('fin_ratios')
-    # send_px_ret_to_db()
+    # get_fmp_data('cf_statement', ['AAPL'])
+    # get_fmp_data('cf_statement')
+    send_px_ret_to_db()

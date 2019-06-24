@@ -26,9 +26,9 @@ from utils.ml_utils import standardize
 from utils.data_utils import DAY_COUNTS, PER_SHARE, RETURNS, FWD_RETURNS, \
                              MARGINS, INDEX, RATIOS, OTHER
 
-from ml_algorithms import AdalineSGD, AdalineGD
+from ml_algorithms import AdalineSGD, AdalineGD, run_perceptron
 # from scripts.model_evaluation import *
-from scripts.feature_selection import sbs_run
+from scripts.feature_selection import sbs_run, random_forest_feature_importance
 # from scripts.ensemble_methods import *
 # from scripts.continuous_variables import *
 
@@ -36,15 +36,17 @@ FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/inputs/'
 FILE_NAME = 'fmp_avail_stocks_20190619.txt'
 
 
-def run(inputs, label='retfwd_2y', cust_ticks=None):
+def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
     """
     Main function to run analytics
     """
-
     if cust_ticks:
         tickers = cust_ticks
     else:
         tickers = list(pd.read_csv(FILE_PATH + FILE_NAME, header=None)[0].values)
+        
+    if test:
+        tickers = tickers[:200]
 
     # Getting Dataframe
     time0 = time.time()
@@ -84,21 +86,20 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
           "".format(len(train_df), size_before - len(train_df)))
 
     # Select features
-    pdb.set_trace()
     feature_selection(train_df, inputs)
 
     # Feature Extraction
     # feature_extraction(df, inputs)
 
     # Algorithms
-    # timeme(run_perceptron)(df, tuple(inputs))
-    # timeme(adalineGD)(df, tuple(inputs))
-    # timeme(adalineSGD)(df, tuple(inputs))
-    # timeme(run_perceptron_multi)(df, tuple(inputs))
-    # model = timeme(logisticRegression)(df, tuple(inputs), C=100, penalty='l2')
+    # timeme(run_perceptron)(train_df, tuple(inputs))
+    # timeme(adalineGD)(train_df, tuple(inputs))
+    # timeme(adalineSGD)(train_df, tuple(inputs))
+    # timeme(run_perceptron_multi)(train_df, tuple(inputs))
+    # model = timeme(logisticRegression)(train_df, tuple(inputs), C=100, penalty='l2')
 
     # model = timeme(k_nearest_neighbors)(df, tuple(inputs), k=8)
-    model = timeme(random_forest)(df, tuple(inputs), estimators=3)
+    # model = timeme(random_forest)(train_df, tuple(inputs), estimators=3)
     # model = timeme(support_vector_machines)(df, tuple(inputs), C=100)
     # timeme(nonlinear_svm)(df, tuple(inputs), C=1)
     # timeme(decision_tree)(df, tuple(inputs), md=4)
@@ -119,12 +120,12 @@ def run(inputs, label='retfwd_2y', cust_ticks=None):
     # timeme(random_forest_regression)(df, tuple(inputs))
 
     # test on recent data
-    preds = evalOnCurrentCompanies(model, filtered_cur_df, inputs)
-    pdb.set_trace()
+    # preds = eval_on_curr_companies(model, filtered_cur_df, inputs)
+    # pdb.set_trace()
     print()
 
 
-def evalOnCurrentCompanies(model, df, inputs):
+def eval_on_curr_companies(model, df, inputs):
     pdb.set_trace()
     df_ind = df[['ticker', 'date', 'month']]
     df_trimmed = pd.DataFrame(standardize(df[inputs]), columns=inputs)
@@ -165,7 +166,7 @@ def feature_selection(train_df, inputs):
     # ests.append([AdalineGD(n_iter=20, eta=0.001), 'AdalineGD'])
     ests.append([KNeighborsClassifier(n_neighbors=3), 'Kmeans'])
 
-    # ranks = []
+    ranks = []
     # for ind_est in ests:
     #     print("running for {}".format(ind_est[1]))
     #     ranks.append([ind_est[1], timeme(sbs_run)(train_df, tuple(inputs),
@@ -289,6 +290,7 @@ def clean_data(train_df):
     train_df = train_df[train_df['pb_ratio'] > 0]
 
     # To filter out outliers
+    train_df = train_df[train_df['pe_ratio'] < 100]
     # train_df = train_df[train_df['capExToSales'] < 20]
     # train_df = train_df[abs(train_df['revenueGrowth']) < 200]
     # train_df = train_df[train_df['trailingPE'] > 0]
@@ -313,9 +315,12 @@ def clean_data(train_df):
 
 if __name__ == "__main__":
     # Most Relevant columns
-    COLS = ['roe', 'roa', 'pb_ratio', 'div_yield', 'ps_ratio',
-            'pe_ratio', 'gross_prof_marg', 'net_prof_marg', 'peg_ratio',
-            'ret_1y', 'ret_2y']
-    # TICKS = ['A', 'AAPL']
-    run(COLS)
+    # COLS = ['roe', 'roa', 'pb_ratio', 'div_yield', 'ps_ratio',
+    #         'pe_ratio', 'gross_prof_marg', 'net_prof_marg', 'peg_ratio',
+    #         'ret_1y', 'ret_2y']
+    COLS = ['pe_ratio', 'ret_on_cap']
+    # TICKS = ['A', 'AAPL', 'AA', 'MSFT']
+    
+    run(COLS, test=True)
+    # run(COLS)
     

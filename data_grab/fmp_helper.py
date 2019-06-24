@@ -556,7 +556,6 @@ def add_px_ret_to_fr(pxs, fr_table):
     """
     fr_table = fr_table[['year', 'month', 'tick']]
     tick = fr_table['tick'].values[0]
-    print()
     cols_to_add = ['date_px', 'ret_1y', 'ret_2y', 'ret_3y', 'ret_5y',
                    'retfwd_1y', 'retfwd_2y', 'retfwd_3y', 'retfwd_5y']
     for col in cols_to_add:
@@ -597,7 +596,7 @@ def get_closest_date_px(pxs, day, yr_offset=0):
     day = day + relativedelta(years=yr_offset)
     while True:
         try:
-            px_val = pxs.loc[day]['px'].values[0]
+            px_val = pxs.loc[day.strftime("%Y-%m-%d")]['px'].values[0]
             return px_val
         except KeyError:
             # holiday or weekend probably

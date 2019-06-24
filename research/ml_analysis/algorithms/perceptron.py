@@ -52,9 +52,11 @@ class Perceptron(object):
             for xi, target in zip(X, y):
                 temp = tuple(self.w_)
                 # self.predict can only be 1 0r 0 --> different than Adaline
-                # update only occurs if prediction is wrong, recalibrates weights accordingly
+                # update only occurs if prediction is wrong,
+                # recalibrates weights accordingly
                 update = self.eta * (target - self.predict(xi))
-                # update each coefficient weight by amount prediction was off (update) * learning rate (eta)  * factor value (xi)
+                # update each coefficient weight by amount prediction was off
+                # (update) * learning rate (eta)  * factor value (xi)
                 self.w_[1:] += update * xi
                 # update intercept by amount prediction was off * learning rate
                 self.w_[0] += update

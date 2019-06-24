@@ -7,12 +7,10 @@ import time
 import warnings
 import datetime as dt
 import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import PCA, KernelPCA
 from sklearn.model_selection import cross_val_score, train_test_split, StratifiedKFold
@@ -23,6 +21,8 @@ from sklearn.linear_model import LogisticRegression
 from algorithms.SBS import SBS
 from utils.ml_utils import plot_decision_regions, standardize, IMG_PATH, IMG_ROOT
 
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+mpl.use('Agg')
 
 # Sequential Backward Selection
 def sbs_run(train_df, xcols, k_feats=1, est=KNeighborsClassifier(n_neighbors=3), test=pd.DataFrame(), name=None):
@@ -92,15 +92,14 @@ def sbs_run(train_df, xcols, k_feats=1, est=KNeighborsClassifier(n_neighbors=3),
 
 
 def random_forest_feature_importance(df, xcols):
-    pdb.set_trace()
     y_s = df['target']
     x_s = df[list(xcols)]
 
     # Standardize and split the training nad test data
     x_std = standardize(x_s)
-    ts = 0.3
-    x_train, x_test, y_train, y_test = train_test_split(x_std, y, test_size=ts, random_state=0)
-
+    t_s = 0.3
+    x_train, x_test, y_train, y_test = train_test_split(x_std, y_s, test_size=t_s, random_state=0)
+    
     feat_labels = df[list(xcols)].columns
     forest = RandomForestClassifier(n_estimators=100, random_state=0, n_jobs=-1)
     forest.fit(x_train, y_train)
@@ -109,14 +108,15 @@ def random_forest_feature_importance(df, xcols):
 
     for f in range(x_train.shape[1]):
         print("%2d) %-*s %f" % (f + 1, 30, feat_labels[indices[f]], importances[indices[f]]))
-
+    
     plt.title('Feature Importances')
     plt.bar(range(x_train.shape[1]), importances[indices],color='lightblue', align='center')
 
     plt.xticks(range(x_train.shape[1]), feat_labels[indices], rotation=90)
     plt.xlim([-1, x_train.shape[1]])
     plt.tight_layout()
-    plt.savefig(IMG_ROOT + 'snp/random_forest_feat.png', dpi=300)
+    plt.savefig(IMG_ROOT + 'random_forest_{}.png'
+                "".format(dt.datetime.now().strftime("%Y%m%d")), dpi=300)
     plt.close()
 
     x_selected = forest.transform(x_train, threshold=0.05)
