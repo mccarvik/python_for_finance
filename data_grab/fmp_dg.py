@@ -11,7 +11,8 @@ import requests
 import pandas as pd
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.db_utils import DBHelper, get_ticker_table_data
-from data_grab.fmp_helper import map_columns, add_px_ret_to_fr
+from data_grab.fmp_helper import map_columns, add_px_ret_to_fr, \
+                                 add_px_vol_to_fr
 from data_grab.eod_px_util import get_db_pxs, FILE_NAME_STOCK
 
 warnings.filterwarnings("ignore")
@@ -237,42 +238,56 @@ def send_px_ret_to_db(ticks=None):
                 ticks.append(line.strip())
     # px_df = get_db_pxs(ticks)
 
-    count = 1
+    count = 0
+    batch_size = 100
     print("{} stocks to load".format(len(ticks)))
     empties = []
     already_done = True
-    fr_tot = get_ticker_table_data(ticks, 'fin_ratios').set_index('tick')
-    # ticks = ['A', 'AA', 'AAPL']
-    # px_tot = get_db_pxs(ticks).reset_index().set_index('tick')
     
-    for ind_t in ticks:
-        if ind_t == 'PEGA':
-            already_done = False
-        if already_done:
-            count += 1
-            continue
-        # pdb.set_trace()
-        print("calcs for {}".format(ind_t))
-        try:
-            fr_df = fr_tot.loc[ind_t]
-            # px_df = px_tot.loc[ind_t]
-            px_df = get_db_pxs([ind_t]).reset_index().set_index('tick')
-        except KeyError:
-            print("no prices for {}\n".format(ind_t))
-            empties.append(ind_t)
-            count += 1
-            continue
-        
-        if px_df.empty or fr_df.empty:
-            print("empty df for {}\n".format(ind_t))
-            empties.append(ind_t)
-            count += 1
-            continue
-        ret_table = add_px_ret_to_fr(px_df, fr_df.reset_index())
-        send_to_db(ret_table, 'fin_ratios', ['tick', 'year', 'month'])
-        print("loaded {} stocks, just loaded {}".format(count, ind_t))
-        count += 1
-    print(empties)
+    # Get all of the financial Ratios table
+    fr_tot = get_ticker_table_data(ticks, 'fin_ratios').set_index('tick')
+    
+    while count + batch_size < len(ticks):
+        batch_ticks = ticks[count:count+batch_size]
+        batch_ticks = ['A', 'AA', 'AAPL']
+        px_tot = get_db_pxs(batch_ticks).reset_index().set_index('tick')
+    
+        for ind_t in batch_ticks:
+            if ind_t == 'A':
+                already_done = False
+            if already_done:
+                count += 1
+                continue
+            # pdb.set_trace()
+            print("calcs for {}".format(ind_t))
+            try:
+                fr_df = fr_tot.loc[ind_t]
+                px_df = px_tot.loc[ind_t]
+                # px_df = get_db_pxs([ind_t]).reset_index().set_index('tick')
+            except KeyError:
+                print("no prices for {}\n".format(ind_t))
+                empties.append(ind_t)
+                count += 1
+                continue
+            
+            if px_df.empty or fr_df.empty:
+                print("empty df for {}\n".format(ind_t))
+                empties.append(ind_t)
+                count += 1
+                continue
+            try:
+                ret_table = add_px_ret_to_fr(px_df, fr_df.reset_index())
+                ret_table = add_px_vol_to_fr(px_df, ret_table.reset_index())
+                ret_table = add_sharpe_to_fr(px_df, ret_table.reset_index())
+                send_to_db(ret_table, 'fin_ratios', ['tick', 'year', 'month'])
+                print("loaded {} stocks, just loaded {}".format(count, ind_t))
+                count += 1
+            except KeyError:
+                print("May have just one year for {}\n".format(ind_t))
+                empties.append(ind_t)
+                count += 1
+                continue
+        print(empties)
 
 
 DATA_MAP = {

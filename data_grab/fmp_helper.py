@@ -3,8 +3,10 @@ Helper func for downloading data from financial modeling prep
 """
 import pdb
 import re
+import sys
 import datetime as dt
 import numpy as np
+import pandas as pd
 from dateutil.relativedelta import relativedelta
 
 
@@ -554,6 +556,7 @@ def add_px_ret_to_fr(pxs, fr_table):
     """
     Do the calcs for price returns
     """
+    pdb.set_trace()
     fr_table = fr_table[['year', 'month', 'tick']]
     tick = fr_table['tick'].values[0]
     cols_to_add = ['date_px', 'ret_1y', 'ret_2y', 'ret_3y', 'ret_5y',
@@ -581,6 +584,48 @@ def add_px_ret_to_fr(pxs, fr_table):
                     else:
                         ret_val = ((fr_table['date_px'][idx] / day_px) - 1) * 100
                     fr_table.at[idx, col] = ret_val
+    return fr_table
+
+
+def add_px_vol_to_fr(pxs, fr_table):
+    """
+    Do the calcs for price returns
+    """
+    pdb.set_trace()
+    fr_table = fr_table[['year', 'month', 'tick', 'ret_1y', 'ret_2y', 
+                         'ret_3y', 'ret_5y']]
+    tick = fr_table['tick'].values[0]
+    cols_to_add = ['vol_1y', 'vol_2y', 'vol_3y', 'ret_5y'
+                   'sharpe_1y', 'sharpe_2y', 'sharpe_3y', 'sharpe_5y']
+    for col in cols_to_add:
+        fr_table[col] = 0.0
+    
+    # This will get the week end price and do a pct change
+    px_dts = pxs.loc[tick].reset_index().drop(columns=['tick']).set_index('date')
+    tick_px_wk_chg = px_dts.rename(columns={'px': tick}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
+    
+    pdb.set_trace()
+    yrs_offset = [1, 2, 3, 5]
+    rep_dates = get_report_dates(fr_table.set_index(['year', 'tick', 'month']))
+    for ind_dt in rep_dates:
+        for offset in yrs_offset:
+            date_back = ind_dt - relativedelta(years=offset)
+            batch_px_dts = tick_px_wk_chg.loc[date_back: ind_dt]
+            
+            # minimum half the observations of the whole period (aka 6 ish months)
+            if len(batch_px_dts) < offset * 25:
+                continue
+            
+            # vol = standard dev of data
+            # to annualize --> multiply by the square root of the number of
+            # samples per year (52 for weekly data) 
+            vol = batch_px_dts.std() * (len(batch_px_dts) / offset)**(1/2)
+            
+            # assume 2% risk free rate
+            sharpe = (fr_table["ret_{}y".format(offset)] - 0.02) / vol
+            pdb.set_trace()
+            fr_table.at[(str(ind_dt.year), ticker, ind_dt.strftime("%m")), "vol_{}y".format(offset)] = vol
+            fr_table.at[(str(ind_dt.year), ticker, ind_dt.strftime("%m")), "sharpe_{}y".format(offset)] = sharpe
     return fr_table
 
 
@@ -613,3 +658,13 @@ def convert_camel_to_snake(name):
     """
     ss1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', ss1).lower()
+
+
+def get_report_dates(data):
+    """
+    Gets the report dates from the financial statements
+    """
+    dates = []
+    for ind, _ in data.iterrows():
+        dates.append(dt.datetime(int(ind[0]), int(ind[2]), 1))
+    return dates

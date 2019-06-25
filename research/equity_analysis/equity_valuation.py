@@ -23,6 +23,7 @@ from dx.frame import get_year_deltas
 IDX = ['year', 'tick', 'month']
 DEBUG = False
 STOCK_DEBUG = True
+STEP_THRU = True
 warnings.filterwarnings("ignore")
 
 PDV_MAP = {
@@ -43,6 +44,10 @@ def peer_derived_value(data, period):
     vals = ['ps_ratio', 'pe_avg_hist', 'pb_ratio', 'pfcf_ratio']
     ticks = list(data.keys())
 
+    if STEP_THRU:
+        pdb.set_trace()
+        pass
+
     # get group market cap
     group_mkt_cap = 0
     for key, data_df in data.items():
@@ -52,7 +57,7 @@ def peer_derived_value(data, period):
         except KeyError:
             # May not have reported yet for this year, if this also fails,
             # raise exception as may have bigger problem
-            pdb.set_trace()
+            # pdb.set_trace()
             per = tuple([str(int(period[0])), key, period[2]+"E"])
 
         # Need to project out vals
@@ -114,7 +119,7 @@ def peer_derived_value(data, period):
             except KeyError:
                 # May not have reported yet for this year, if this also fails,
                 # raise exception as may have bigger problem
-                pdb.set_trace()
+                # pdb.set_trace()
                 per = tuple([str(int(period[0])-1), tick,
                              data[tick][0].index.values[0][2]])
 
@@ -153,7 +158,7 @@ def peer_derived_value(data, period):
             except KeyError:
                 # May not have reported yet for this year, if this also fails,
                 # raise exception as may have bigger problem
-                pdb.set_trace()
+                # pdb.set_trace()
                 per = tuple([str(int(period[0])-1),
                              key, data[key][0].index.values[0][2]])
 
@@ -192,6 +197,11 @@ def comparison_anal(data, period):
     cols = ['net_inc', 'revenue', 'gross_prof_marg', 'pretax_prof_marg',
             'net_prof_marg', 'pe_avg_hist']
     cagr = ['net_inc', 'revenue']
+
+    if STEP_THRU:
+        pdb.set_trace()
+        pass
+
     for tick, dfs in data.items():
         indices = [d for d in list(dfs[0]['ols'].index.values)
                    if int(d[0]) > int(period[0]) - years_back
@@ -225,6 +235,10 @@ def price_perf_anal(period, mkt, ind, hist_px):
     """
     Compare performance of stocks to their indices
     """
+    if STEP_THRU:
+        pdb.set_trace()
+        pass
+
     px_df = pd.DataFrame()
     mkt_px = hist_px.loc[mkt]
     ind_px = hist_px.loc[ind]
@@ -269,7 +283,8 @@ def discount_fcf(data, period, ests, stock):
     market_risk_prem = 0.05
 
     # Take the periods beta, calc'd in res_utils
-    beta = data['ols'].loc[period]['beta']
+    # mean of last 3 years beta
+    beta = data['ols']['beta'].dropna()[-3:].mean()
     # CAPM
     cost_equity = r_free + beta * market_risk_prem
 
@@ -286,6 +301,10 @@ def discount_fcf(data, period, ests, stock):
             * (1 - tax_rate / 100))
     if DEBUG or (STOCK_DEBUG and stock == period[1]):
         print("WACC: " + str(wacc))
+
+    if STEP_THRU:
+        pdb.set_trace()
+        pass
 
     # todo: ENTER analysts projected EPS growth here
     eps_g_proj = 0.12
@@ -380,6 +399,10 @@ def historical_ratios(data, period, hist_px, stock):
     ests = []
     next_per = tuple(get_next_year(period))
     pers_2 = tuple(get_next_year(next_per))
+
+    if STEP_THRU:
+        pdb.set_trace()
+        pass
 
     # fill current price with latest measurement
     curr_px = hist_px.loc[period[1]].iloc[-1]['px']
@@ -735,7 +758,7 @@ def get_price_data(ticks, comps, method='db'):
     return pxs
 
 
-def analyze_ests(data, period, years_fwd=2):
+def analyze_ests(key, data_df, period, years_fwd=2):
     """
     Analyze the results of all the outputs from the valuation techniques
     """
@@ -745,65 +768,64 @@ def analyze_ests(data, period, years_fwd=2):
         'DFCF': 0.50,
         'PDV': 0.15
     }
-    for key, data_df in data.items():
-        per = tuple([period[0], key, data_df[0]['bs'].index.values[0][2]])
-        print("Tick: {}   Date: {} {}".format(key, per[0], per[2]))
-        print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
-        try:
-            data_df[0]['bs'].loc[per]
-        except KeyError:
-            # Company may havent reported yet in current year
-            per = tuple([str(int(period[0])-1), key,
-                         data_df[0]['bs'].index.values[0][2]])
+    per = tuple([period[0], key, data_df[0]['bs'].index.values[0][2]])
+    print("Tick: {}   Date: {} {}".format(key, per[0], per[2]))
+    print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
+    try:
+        data_df[0]['bs'].loc[per]
+    except KeyError:
+        # Company may havent reported yet in current year
+        per = tuple([str(int(period[0])-1), key,
+                     data_df[0]['bs'].index.values[0][2]])
 
-        for ind_y in range(1, years_fwd+1):
-            year = str(int(per[0]) + ind_y)
-            year_est = {}
-            for mod in val_models:
-                mod_est = []
-                for val in VALUATIONS[mod]:
-                    try:
-                        estimate = [float(est[3]) for est in data_df[1] if est[0] == val and
-                                    est[1] == key and est[2] == year][0]
-                    except KeyError:
-                        # Might not have this model for this year
-                        continue
-                    except IndexError:
-                        # Might not have year for this model
-                        continue
-                    mod_est.append(estimate)
-                    print("Model: {}  tick: {}  year: {}  EST: {}"
-                          "".format(val, key, year, estimate))
-                if not mod_est:
+    for ind_y in range(1, years_fwd+1):
+        year = str(int(per[0]) + ind_y)
+        year_est = {}
+        for mod in val_models:
+            mod_est = []
+            for val in VALUATIONS[mod]:
+                try:
+                    estimate = [float(est[3]) for est in data_df[1] if est[0] == val and
+                                est[1] == key and est[2] == year][0]
+                except KeyError:
+                    # Might not have this model for this year
                     continue
-                year_est[mod] = sum(mod_est)/len(mod_est)
-                print("Models AVG: {}  tick: {}  year: {}  EST: {}"
-                      "".format(mod, key, year, '%.4f' % year_est[mod]))
-                prem_disc = (year_est[mod] / data_df[0]['ols']['date_px'][per]) - 1
-                # Divide by beta
-                risk_adj = (((year_est[mod]
-                              / data_df[0]['ols']['date_px'][per]) - 1)
-                            / data_df[0]['ols']['beta'][per])
-                print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
-                      "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
-
-            # Assume 50% DFCF, 35% Hist comparables, 15% for peer derived
-            year_avg_est = 0
-            if len(list(year_est.keys())) < 3:
-                # dont have values for all models
+                except IndexError:
+                    # Might not have year for this model
+                    continue
+                mod_est.append(estimate)
+                print("Model: {}  tick: {}  year: {}  EST: {}"
+                      "".format(val, key, year, estimate))
+            if not mod_est:
                 continue
-            for yr_key, estimate in year_est.items():
-                year_avg_est += estimate * val_weights[yr_key]
-            print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
-            print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}"
-                  "".format(key, year, '%.4f'% year_avg_est))
-            prem_disc = (year_avg_est
-                         / data_df[0]['ols']['date_px'][per]) - 1
+            year_est[mod] = sum(mod_est)/len(mod_est)
+            print("Models AVG: {}  tick: {}  year: {}  EST: {}"
+                  "".format(mod, key, year, '%.4f' % year_est[mod]))
+            prem_disc = (year_est[mod] / data_df[0]['ols']['date_px'][per]) - 1
             # Divide by beta
-            risk_adj = (((year_avg_est / data_df[0]['ols']['date_px'][per])
-                         - 1) / data_df[0]['ols']['beta'][per])
+            risk_adj = (((year_est[mod]
+                          / data_df[0]['ols']['date_px'][per]) - 1)
+                        / data_df[0]['ols']['beta'][per])
             print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
                   "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
+
+        # Assume 50% DFCF, 35% Hist comparables, 15% for peer derived
+        year_avg_est = 0
+        if len(list(year_est.keys())) < 3:
+            # dont have values for all models
+            continue
+        for yr_key, estimate in year_est.items():
+            year_avg_est += estimate * val_weights[yr_key]
+        print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
+        print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}"
+              "".format(key, year, '%.4f'% year_avg_est))
+        prem_disc = (year_avg_est
+                     / data_df[0]['ols']['date_px'][per]) - 1
+        # Divide by beta
+        risk_adj = (((year_avg_est / data_df[0]['ols']['date_px'][per])
+                     - 1) / data_df[0]['ols']['beta'][per])
+        print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
+              "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
 
 
 def valuation_model(ticks, mkt, ind, mode='db'):
@@ -822,8 +844,10 @@ def valuation_model(ticks, mkt, ind, mode='db'):
         if ind_p not in list(hist_px.index.levels[0].values):
             peers.remove(ind_p)
     ticks = [stock] + peers
+    print("CURRENT STOCK:  {}".format(stock))
 
     for ind_t in ticks:
+        print("--- running calcs for {} ---".format(ind_t))
         data = {}
         data['is'] = get_ticker_info([ind_t], 'inc_statement',
                                      ['year', 'month', 'tick'])
@@ -853,7 +877,6 @@ def valuation_model(ticks, mkt, ind, mode='db'):
         data['ols'] = model_est_ols(10, data)
 
         # get price info
-        pdb.set_trace()
         data = match_px(data, hist_px, ind_t)
         if DEBUG or (STOCK_DEBUG and ind_t == stock):
             date_px = data['ols']['date_px'].dropna().iloc[-1]
@@ -905,7 +928,9 @@ def valuation_model(ticks, mkt, ind, mode='db'):
                   "".format(PDV_MAP[idx[1]], ind_pdv['pdv_price_2020']))
 
     # Analysis of all valuations
-    analyze_ests(full_data, period)
+    for key, data_df in full_data.items():
+        if DEBUG or (STOCK_DEBUG and key == stock):
+            analyze_ests(key, data_df, period)
 
 
 def read_analysis():
