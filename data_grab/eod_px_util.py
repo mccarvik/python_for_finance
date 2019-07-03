@@ -91,7 +91,7 @@ def get_list_of_symbols():
             file.write("%s\n" % item)
 
 
-def load_db(start=None):
+def load_db(start=None, cust_ticks=None):
     """
     Gathers px data one by one through the ticks
     """
@@ -101,6 +101,9 @@ def load_db(start=None):
         for line in file:
             ticks.append(line.strip())
 
+    if cust_ticks:
+        ticks = cust_ticks
+
     data = pd.DataFrame()
     count = 0
     batch = 50
@@ -108,7 +111,7 @@ def load_db(start=None):
     for ind_t in ticks:
         if ind_t == 'NBB':
             already_have = False
-        if already_have:
+        if already_have and not cust_ticks:
             count += 1
             print("skipping {}  already have data".format(ind_t))
             continue
@@ -129,8 +132,8 @@ def load_db(start=None):
                     data = pd.concat([data, t_data])
             else:
                 print("Failed for {}".format(ind_t))
-
-            if count % batch == 0 and not data.empty:
+            
+            if (count % batch == 0 and not data.empty) or cust_ticks:
                 send_to_db(data)
                 loaded_ticks = list(data['tick'].unique())
                 print("Completed load for {}".format(", ".join(loaded_ticks)))
@@ -210,7 +213,7 @@ if __name__ == '__main__':
     # get_list_of_stocks()
 
     # load_db(start=S_DT)
-    load_db()
+    load_db(cust_ticks=['SACH'])
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)
     # print(get_db_pxs(["A", "MSFT"]))

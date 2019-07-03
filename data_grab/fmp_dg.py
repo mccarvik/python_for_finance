@@ -58,12 +58,12 @@ def get_fmp_data(dataset="fin_ratios", tickers=None):
     # already_have = False
     for tick in tasks:
         print(tick)
-        if tick == 'RIG':
-            already_have = False
-        if already_have:
-            count += 1
-            print("skipping {}  already have data".format(tick))
-            continue
+        # if tick == 'RIG':
+        #     already_have = False
+        # if already_have:
+        #     count += 1
+        #     print("skipping {}  already have data".format(tick))
+        #     continue
         if count % 25 == 0:
             print(str(count) + " stocks completed so far")
         try:
@@ -249,11 +249,11 @@ def send_px_ret_to_db(ticks=None):
     
     while count + batch_size < len(ticks):
         batch_ticks = ticks[count:count+batch_size]
-        batch_ticks = ['A', 'AA', 'AAPL']
+        # batch_ticks = ['A', 'AA', 'AAPL']
         px_tot = get_db_pxs(batch_ticks).reset_index().set_index('tick')
     
         for ind_t in batch_ticks:
-            if ind_t == 'A':
+            if ind_t == 'SLP':
                 already_done = False
             if already_done:
                 count += 1
@@ -262,7 +262,7 @@ def send_px_ret_to_db(ticks=None):
             print("calcs for {}".format(ind_t))
             try:
                 fr_df = fr_tot.loc[ind_t]
-                px_df = px_tot.loc[ind_t]
+                px_df = px_tot.loc[ind_t].reset_index()[['date','px']].set_index('date')
                 # px_df = get_db_pxs([ind_t]).reset_index().set_index('tick')
             except KeyError:
                 print("no prices for {}\n".format(ind_t))
@@ -278,7 +278,6 @@ def send_px_ret_to_db(ticks=None):
             try:
                 ret_table = add_px_ret_to_fr(px_df, fr_df.reset_index())
                 ret_table = add_px_vol_to_fr(px_df, ret_table.reset_index())
-                ret_table = add_sharpe_to_fr(px_df, ret_table.reset_index())
                 send_to_db(ret_table, 'fin_ratios', ['tick', 'year', 'month'])
                 print("loaded {} stocks, just loaded {}".format(count, ind_t))
                 count += 1
@@ -287,7 +286,7 @@ def send_px_ret_to_db(ticks=None):
                 empties.append(ind_t)
                 count += 1
                 continue
-        print(empties)
+        print("Missed tickers: {}".format(empties))
 
 
 DATA_MAP = {
@@ -301,14 +300,12 @@ DATA_MAP = {
 
 if __name__ == "__main__":
     # get_available_ticks()
-    # get_fmp_data('fin_ratios', ['AAPL'])
-    # get_fmp_data('fin_ratios')
-    # get_fmp_data('bal_sheet', ['AAPL'])
+    # get_fmp_data('bal_sheet', ['RASF'])
     # get_fmp_data('bal_sheet')
-    # get_fmp_data('inc_statement', ['AAPL'])
+    get_fmp_data('inc_statement', ['RASF'])
     # get_fmp_data('inc_statement')
-    # get_fmp_data('fin_ratios', ['AAPL'])
+    # get_fmp_data('fin_ratios', ['RASF'])
     # get_fmp_data('fin_ratios')
-    # get_fmp_data('cf_statement', ['AAPL'])
+    # get_fmp_data('cf_statement', ['RASF'])
     # get_fmp_data('cf_statement')
-    send_px_ret_to_db()
+    # send_px_ret_to_db()

@@ -556,7 +556,6 @@ def add_px_ret_to_fr(pxs, fr_table):
     """
     Do the calcs for price returns
     """
-    pdb.set_trace()
     fr_table = fr_table[['year', 'month', 'tick']]
     tick = fr_table['tick'].values[0]
     cols_to_add = ['date_px', 'ret_1y', 'ret_2y', 'ret_3y', 'ret_5y',
@@ -591,41 +590,62 @@ def add_px_vol_to_fr(pxs, fr_table):
     """
     Do the calcs for price returns
     """
-    pdb.set_trace()
     fr_table = fr_table[['year', 'month', 'tick', 'ret_1y', 'ret_2y', 
-                         'ret_3y', 'ret_5y']]
-    tick = fr_table['tick'].values[0]
-    cols_to_add = ['vol_1y', 'vol_2y', 'vol_3y', 'ret_5y'
-                   'sharpe_1y', 'sharpe_2y', 'sharpe_3y', 'sharpe_5y']
+                         'ret_3y', 'ret_5y', 'retfwd_1y', 'retfwd_2y', 
+                         'retfwd_3y', 'retfwd_5y']]
+    fr_table = fr_table.set_index(['year', 'tick', 'month'])
+    tick = fr_table.index[0][1]
+    cols_to_add = ['vol_1y', 'vol_2y', 'vol_3y', 'vol_5y',
+                   'sharpe_1y', 'sharpe_2y', 'sharpe_3y', 'sharpe_5y',
+                   'sharpefwd_1y', 'sharpefwd_2y', 'sharpefwd_3y', 'sharpefwd_5y']
     for col in cols_to_add:
         fr_table[col] = 0.0
     
     # This will get the week end price and do a pct change
-    px_dts = pxs.loc[tick].reset_index().drop(columns=['tick']).set_index('date')
-    tick_px_wk_chg = px_dts.rename(columns={'px': tick}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
+    tick_px_wk_chg = pxs.rename(columns={'px': tick}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
     
-    pdb.set_trace()
-    yrs_offset = [1, 2, 3, 5]
-    rep_dates = get_report_dates(fr_table.set_index(['year', 'tick', 'month']))
+    yrs_offset = [-1, -2, -3, -5, 1, 2, 3, 5]
+    rep_dates = get_report_dates(fr_table)
     for ind_dt in rep_dates:
         for offset in yrs_offset:
             date_back = ind_dt - relativedelta(years=offset)
-            batch_px_dts = tick_px_wk_chg.loc[date_back: ind_dt]
+            if offset > 0:
+                batch_px_dts = tick_px_wk_chg.loc[date_back: ind_dt]
+            else:
+                batch_px_dts = tick_px_wk_chg.loc[ind_dt: date_back]
             
             # minimum half the observations of the whole period (aka 6 ish months)
-            if len(batch_px_dts) < offset * 25:
+            if len(batch_px_dts) < abs(offset) * 25:
                 continue
             
             # vol = standard dev of data
             # to annualize --> multiply by the square root of the number of
-            # samples per year (52 for weekly data) 
-            vol = batch_px_dts.std() * (len(batch_px_dts) / offset)**(1/2)
+            # samples per year (52 for weekly data)
+            vol = batch_px_dts.std() * (len(batch_px_dts) / abs(offset))**(1/2)
             
-            # assume 2% risk free rate
-            sharpe = (fr_table["ret_{}y".format(offset)] - 0.02) / vol
-            pdb.set_trace()
-            fr_table.at[(str(ind_dt.year), ticker, ind_dt.strftime("%m")), "vol_{}y".format(offset)] = vol
-            fr_table.at[(str(ind_dt.year), ticker, ind_dt.strftime("%m")), "sharpe_{}y".format(offset)] = sharpe
+            
+            if offset > 0:
+                ret = fr_table.loc[(ind_dt.strftime("%Y"), tick, 
+                                    ind_dt.strftime("%m"))]["ret_{}y".format(offset)]
+                if np.isnan(ret):
+                    continue
+                # get annualized rate, /52 assuming weekly returns
+                ret = (1 + (ret/100))**(1 / ((len(batch_px_dts) / 52))) - 1
+                # assume 2% risk free rate
+                sharpe = (ret - 0.02) / vol
+                fr_table.at[(str(ind_dt.year), tick, ind_dt.strftime("%m")), "vol_{}y".format(offset)] = vol
+                fr_table.at[(str(ind_dt.year), tick, ind_dt.strftime("%m")), "sharpe_{}y".format(offset)] = sharpe
+            else:
+                offset = abs(offset)
+                ret = fr_table.loc[(ind_dt.strftime("%Y"), tick, 
+                                    ind_dt.strftime("%m"))]["retfwd_{}y".format(offset)]
+                if np.isnan(ret):
+                    continue
+                # get annualized rate, /52 assuming weekly returns
+                ret = (1 + (ret/100))**(1 / ((len(batch_px_dts) / 52))) - 1
+                # assume 2% risk free rate
+                sharpe = (ret - 0.02) / vol
+                fr_table.at[(str(ind_dt.year), tick, ind_dt.strftime("%m")), "sharpefwd_{}y".format(offset)] = sharpe
     return fr_table
 
 
@@ -641,7 +661,7 @@ def get_closest_date_px(pxs, day, yr_offset=0):
     day = day + relativedelta(years=yr_offset)
     while True:
         try:
-            px_val = pxs.loc[day.strftime("%Y-%m-%d")]['px'].values[0]
+            px_val = pxs.loc[day.strftime("%Y-%m-%d")]['px']
             return px_val
         except KeyError:
             # holiday or weekend probably

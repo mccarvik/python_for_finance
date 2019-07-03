@@ -25,12 +25,12 @@ def run_analysis():
 
     # check recent momentum returns
     print("Running Momentum Check:")
-    ticks = timeme(check_momentum)('20190621', ticks)
+    ticks = timeme(check_momentum)('20190703', ticks)
     print("{} stocks thru momentum checks\n".format(len(ticks)))
 
     # check recent big vs small results
     print("Running Big vs. Small Filter:")
-    ticks = timeme(check_big_v_small)('20190621', ticks.reset_index())
+    ticks = timeme(check_big_v_small)('20190703', ticks.reset_index())
     print("{} stocks thru big vs small filter\n".format(len(ticks)))
 
     # remove ticks that should be ignored
@@ -39,8 +39,7 @@ def run_analysis():
     print("{} stocks thru ignore filter\n".format(len(ticks)))
 
     # Run equity valuation
-    # pdb.set_trace()
-    print("Running Equity Valuation:")
+    print("Running Equity Valuation on:  {}".format(ticks.index.levels[0].values))
     timeme(run_eq_valuation)(ticks)
     print()
 
@@ -50,7 +49,8 @@ def ignore_ticks(ticks):
     Function to remove certain securities that got through the checks
     but arent good investments
     """
-    ignore_syms = ['CDOR', 'BOTJ']
+    # might be good - SACH
+    ignore_syms = ['CDOR', 'BOTJ', 'DRAD', 'SACH']
     ticks = ticks.set_index('tick')
     ticks = ticks[~ticks.index.isin(ignore_syms)]
     ticks = ticks.reset_index().set_index(["tick", "month", "year"])

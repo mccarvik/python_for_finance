@@ -285,9 +285,19 @@ def discount_fcf(data, period, ests, stock):
     # Take the periods beta, calc'd in res_utils
     # mean of last 3 years beta
     beta = data['ols']['beta'].dropna()[-3:].mean()
-    # CAPM
-    cost_equity = r_free + beta * market_risk_prem
-
+    
+    model = 'DIV_CAP'
+    if model == 'CAPM':
+        # CAPM
+        cost_equity = r_free + beta * market_risk_prem
+    elif model == 'DIV_CAP':
+        # Dividend Capitalization Model
+        div_g = 0.15
+        cost_equity = (data['ols']['div_per_share'][period]
+                       / data['ols']['date_px'][period]) + div_g
+    
+    
+    
     mv_eq = data['fr']['market_cap'][period]
     # mv_debt = HARD TO GET
     bv_debt = (data['bs']['short_term_debt'][period]
@@ -302,7 +312,7 @@ def discount_fcf(data, period, ests, stock):
     if DEBUG or (STOCK_DEBUG and stock == period[1]):
         print("WACC: " + str(wacc))
 
-    if STEP_THRU:
+    if STEP_THRU and stock == period[1]:
         pdb.set_trace()
         pass
 
@@ -400,7 +410,7 @@ def historical_ratios(data, period, hist_px, stock):
     next_per = tuple(get_next_year(period))
     pers_2 = tuple(get_next_year(next_per))
 
-    if STEP_THRU:
+    if STEP_THRU and stock == period[1]:
         pdb.set_trace()
         pass
 
@@ -522,7 +532,6 @@ def ratios_and_valuation(data):
     """
     Add some necessary columns
     """
-
     # Balance Sheet Columns
     data['bs']['div_per_share'] = (data['cf']['divs_paid']
                                    / data['is']['weight_avg_shares'])

@@ -500,6 +500,7 @@ def replace_needed_cols(data):
     check_replace.append(['bs', 'accounts_payable'])
     check_replace.append(['bs', 'inv'])
     check_replace.append(['cf', 'chg_working_cap'])
+    check_replace.append(['cf', 'divs_paid'])
     for ind_check in check_replace:
         if ind_check[1] not in data[ind_check[0]].columns:
             data[ind_check[0]][ind_check[1]] = 0
@@ -607,7 +608,7 @@ def get_beta(data, eod_px, ticker, mkt, ind):
     window = 52
     # This will get the week end price and do a pct change
     tick = eod_px.loc[ticker].rename(columns={'px': ticker}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
-    ind = eod_px.loc[ind].rename(columns={'px': ind}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
+    # ind = eod_px.loc[ind].rename(columns={'px': ind}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
     mkt = eod_px.loc[mkt].rename(columns={'px': mkt}).groupby(pd.TimeGrouper('W')).nth(0).pct_change()
     cov_df = pd.merge(tick, mkt, left_index=True, right_index=True).rolling(window, min_periods=1).cov()
     cov_df = cov_df[[cov_df.columns[1]]]
