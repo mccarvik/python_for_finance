@@ -1,7 +1,7 @@
 """
 This util will grab data to and from the db with eod prices
 """
-# import pdb
+import pdb
 import sys
 import time
 import json
@@ -91,7 +91,7 @@ def get_list_of_symbols():
             file.write("%s\n" % item)
 
 
-def load_db(start=None, cust_ticks=None):
+def load_db(start=None, cust_ticks=None, batch=100):
     """
     Gathers px data one by one through the ticks
     """
@@ -106,10 +106,9 @@ def load_db(start=None, cust_ticks=None):
 
     data = pd.DataFrame()
     count = 0
-    batch = 50
     already_have = True
     for ind_t in ticks:
-        if ind_t == 'NBB':
+        if ind_t == 'NOV':
             already_have = False
         if already_have and not cust_ticks:
             count += 1
@@ -119,6 +118,10 @@ def load_db(start=None, cust_ticks=None):
         print("starting load for {}".format(ind_t))
         try:
             t_data = get_time_series(ind_t).reset_index()
+            if t_data.empty:
+                print("Data empty for {}".format(ind_t))
+                count += 1
+                continue
             t_data['tick'] = ind_t
             t_data = t_data.drop(['index'], axis=1)
             t_data.columns = ['px', 'date', 'tick']
@@ -205,7 +208,7 @@ def get_db_pxs(ticks=None, s_date=None, e_date=None):
 
 
 if __name__ == '__main__':
-    # S_DT = dt.datetime(2019, 5, 1)
+    S_DT = dt.datetime(2019, 6, 1)
     # E_DT = dt.datetime(2019, 2, 22)
 
     # get_time_series('F')
@@ -213,7 +216,7 @@ if __name__ == '__main__':
     # get_list_of_stocks()
 
     # load_db(start=S_DT)
-    load_db(cust_ticks=['SACH'])
+    load_db(cust_ticks=['SNFCA'])
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)
     # print(get_db_pxs(["A", "MSFT"]))

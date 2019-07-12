@@ -17,8 +17,6 @@ from res_utils import get_ticker_info, remove_empty_cols, setup_comp_cols, \
                       get_beta, setup_pdv_cols, match_px, replace_needed_cols
 from dx.frame import get_year_deltas
 
-# NOTES:
-# simulate api call --> http://financials.morningstar.com/ajax/exportKR2CSV.html?t=BA
 
 IDX = ['year', 'tick', 'month']
 DEBUG = False
@@ -641,6 +639,7 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
     hist = pd.concat([data_ols, hist])
     hist['net_inc'] = pd.concat([data['is']['net_inc'],
                                  hist['net_inc'].dropna()])
+    # hist = hist.replace({pd.np.nan: None})
     return hist
 
 
@@ -841,7 +840,6 @@ def valuation_model(ticks, mkt, ind, mode='db'):
     """
     Main method for valuation model
     """
-    pdb.set_trace()
     full_data = {}
     other = [mkt, ind]
     # Get Historical Price data
@@ -854,6 +852,7 @@ def valuation_model(ticks, mkt, ind, mode='db'):
             peers.remove(ind_p)
     ticks = [stock] + peers
     print("CURRENT STOCK:  {}".format(stock))
+    pdb.set_trace()
 
     for ind_t in ticks:
         print("--- running calcs for {} ---".format(ind_t))
@@ -887,7 +886,9 @@ def valuation_model(ticks, mkt, ind, mode='db'):
 
         # get price info
         data = match_px(data, hist_px, ind_t)
+
         if DEBUG or (STOCK_DEBUG and ind_t == stock):
+            pdb.set_trace()
             date_px = data['ols']['date_px'].dropna().iloc[-1]
             date_px_idx = data['ols']['date_px'].dropna().index[-1]
             last_px = hist_px.loc[stock].iloc[-1]['px']
@@ -896,6 +897,9 @@ def valuation_model(ticks, mkt, ind, mode='db'):
                   "".format(date_px_idx[0], date_px_idx[2], date_px))
             print("LAST PRICE ({}):  {}".format(last_px_date, last_px))
         data = get_beta(data, hist_px, ind_t, other[0], other[1])
+
+        # Need to remove years where the company wasnt public
+        # data['ols'] = data['ols'][data['ols']['weight_avg_shares'] > 0]
 
         period = [i for i in data['is'].index.values if "E" not in i[2]][-1]
         # Get Historical Ratios for valuation

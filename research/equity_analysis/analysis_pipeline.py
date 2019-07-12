@@ -25,7 +25,7 @@ def run_analysis():
 
     # check recent momentum returns
     print("Running Momentum Check:")
-    ticks = timeme(check_momentum)('20190703', ticks)
+    ticks = timeme(check_momentum)('20190712', ticks)
     print("{} stocks thru momentum checks\n".format(len(ticks)))
 
     # check recent big vs small results
@@ -50,7 +50,7 @@ def ignore_ticks(ticks):
     but arent good investments
     """
     # might be good - SACH
-    ignore_syms = ['CDOR', 'BOTJ', 'DRAD', 'SACH']
+    ignore_syms = ['CDOR', 'BOTJ', 'DRAD', 'SACH', 'CELP', 'ASFI']
     ticks = ticks.set_index('tick')
     ticks = ticks[~ticks.index.isin(ignore_syms)]
     ticks = ticks.reset_index().set_index(["tick", "month", "year"])

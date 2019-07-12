@@ -572,10 +572,10 @@ def match_px(data, eod_px, tick):
     """
     dates = data['bs'].reset_index()[['year', 'month']]
     eod_px = eod_px.loc[tick]
-    data['ols']['date_px'] = None
-    data['ols']['hi_52wk'] = None
-    data['ols']['lo_52wk'] = None
-    data['ols']['avg_52wk'] = None
+    data['ols']['date_px'] = np.nan
+    data['ols']['hi_52wk'] = np.nan
+    data['ols']['lo_52wk'] = np.nan
+    data['ols']['avg_52wk'] = np.nan
 
     for _, vals in dates.iterrows():
         # get the closest price to the data date
