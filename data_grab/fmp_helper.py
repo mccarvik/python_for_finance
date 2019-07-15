@@ -11,7 +11,7 @@ from dateutil.relativedelta import relativedelta
 
 
 BAL_SHEET_MAP = {
-    'Accounts payable': 'accounts_payable',
+    'Accounts payable': 'payables',
     'Accrued liabilities': 'accrued_liabs',
     'Accrued expenses and liabilities': 'accrued_liabs',
     'accrued expenses and liabilities': 'accrued_liabs',
@@ -305,7 +305,6 @@ CF_STATEMENT_MAP = {
     'Capital Expenditure': 'cap_exp',
     'Cash at beginning of period': 'cash_begin',
     'Cash at end of period': 'cash_end',
-    'Change in working capital': 'chg_working_cap',
     'Preferred stock issued': 'pref_stock_iss',
     'Common stock issued': 'stock_iss',
     'Issuance (buybacks) of shares': 'stock_iss',

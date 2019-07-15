@@ -213,10 +213,10 @@ if __name__ == '__main__':
 
     # get_time_series('F')
     # get_list_of_symbols()
-    # get_list_of_stocks()
+    get_list_of_stocks()
 
     # load_db(start=S_DT)
-    load_db(cust_ticks=['SNFCA'])
+    # load_db(cust_ticks=['SNFCA'])
     # END_DT = dt.datetime.today
     # START_DT = END_DT - datetime.timedelta(days=365)
     # print(get_db_pxs(["A", "MSFT"]))

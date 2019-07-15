@@ -45,7 +45,7 @@ def get_fmp_data(dataset="fin_ratios", tickers=None):
     """
     tasks = []
     if not tickers:
-        with open(FILE_PATH + FILE_NAME.format("20190619"), "r") as file:
+        with open(FILE_PATH + FILE_NAME.format("20190715"), "r") as file:
             for line in file:
                 tasks.append(line.strip())
     else:
@@ -233,7 +233,7 @@ def send_px_ret_to_db(ticks=None):
     """
     if not ticks:
         ticks = []
-        with open(FILE_PATH + FILE_NAME_STOCK.format("20190619"), "r") as file:
+        with open(FILE_PATH + FILE_NAME_STOCK.format("20190715"), "r") as file:
             for line in file:
                 ticks.append(line.strip())
     # px_df = get_db_pxs(ticks)
@@ -253,11 +253,11 @@ def send_px_ret_to_db(ticks=None):
         px_tot = get_db_pxs(batch_ticks).reset_index().set_index('tick')
     
         for ind_t in batch_ticks:
-            if ind_t == 'SLP':
-                already_done = False
-            if already_done:
-                count += 1
-                continue
+            # if ind_t == 'SLP':
+            #     already_done = False
+            # if already_done:
+            #     count += 1
+            #     continue
             # pdb.set_trace()
             print("calcs for {}".format(ind_t))
             try:
@@ -299,13 +299,13 @@ DATA_MAP = {
 
 
 if __name__ == "__main__":
-    # get_available_ticks()
-    # get_fmp_data('bal_sheet', ['RASF'])
+    get_available_ticks()
+    get_fmp_data('bal_sheet', ['OBCI'])
     # get_fmp_data('bal_sheet')
-    get_fmp_data('inc_statement', ['RASF'])
+    get_fmp_data('inc_statement', ['OBCI'])
     # get_fmp_data('inc_statement')
-    # get_fmp_data('fin_ratios', ['RASF'])
+    get_fmp_data('fin_ratios', ['OBCI'])
     # get_fmp_data('fin_ratios')
-    # get_fmp_data('cf_statement', ['RASF'])
+    get_fmp_data('cf_statement', ['OBCI'])
     # get_fmp_data('cf_statement')
-    # send_px_ret_to_db()
+    send_px_ret_to_db(['OBCI'])

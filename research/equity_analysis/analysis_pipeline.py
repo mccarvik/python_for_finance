@@ -49,8 +49,8 @@ def ignore_ticks(ticks):
     Function to remove certain securities that got through the checks
     but arent good investments
     """
-    # might be good - SACH
-    ignore_syms = ['CDOR', 'BOTJ', 'DRAD', 'SACH', 'CELP', 'ASFI']
+    # might be good - SACH, OBCI, ACU
+    ignore_syms = ['CDOR', 'BOTJ', 'DRAD', 'SACH', 'CELP', 'ASFI', 'OBCI', 'ACU']
     ticks = ticks.set_index('tick')
     ticks = ticks[~ticks.index.isin(ignore_syms)]
     ticks = ticks.reset_index().set_index(["tick", "month", "year"])
