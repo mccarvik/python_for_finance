@@ -439,7 +439,7 @@ def get_next_year(index):
     """
     Get next years index key
     """
-    return [str(int(index[0])+1), index[1], str(int(float(str(index[2]).replace("E", ""))))+"E"]
+    return [str(int(index[0])+1), index[1], str(index[2]).replace("E", "")+"E"]
 
 
 def get_ticker_info(ticks, table, idx=None):

@@ -32,7 +32,7 @@ PDV_MAP = {
 }
 
 
-def peer_derived_value(data, period):
+def peer_derived_value(data, period, stock):
     """
     Get the value of the stock as compared to its peers
     """
@@ -44,21 +44,12 @@ def peer_derived_value(data, period):
 
     if STEP_THRU:
         pdb.set_trace()
-        pass
 
     # get group market cap
-    # TODO only go back years of history for current stock
-    pdb.set_trace()
     group_mkt_cap = 0
     for key, data_df in data.items():
         per = tuple([period[0], key, data[key][0]['ols'].index.values[0][2]])
-        try:
-            group_mkt_cap += (data_df[0]['fr']['market_cap']).reset_index().set_index('year')['market_cap']
-        except KeyError:
-            # May not have reported yet for this year, if this also fails,
-            # raise exception as may have bigger problem
-            # pdb.set_trace()
-            per = tuple([str(int(period[0])), key, period[2]+"E"])
+        group_mkt_cap += (data_df[0]['fr']['market_cap']).reset_index().set_index('year')['market_cap']
 
         # Need to project out vals
         for ind_val in vals + ['market_cap']:
@@ -67,7 +58,7 @@ def peer_derived_value(data, period):
             else:
                 sheet = 'fr'
             xvals = data_df[0][sheet][ind_val].dropna().reset_index()[['year', 'month']]
-            month = xvals['month'].values[0]
+            month = xvals['month'].values[-1]
             slope, yint = ols_calc(xvals,
                                    data_df[0][sheet][ind_val].dropna().astype('float'))
             for fwd in range(1, years_fwd + 1):
@@ -79,11 +70,12 @@ def peer_derived_value(data, period):
                 data_df[0][sheet].at[per, ind_val] = (yint + new_x * slope)
 
     # ols for group market cap
-    xvals = group_mkt_cap.dropna().reset_index()
+    group_mkt_cap = group_mkt_cap.dropna()
+    xvals = group_mkt_cap.reset_index()
     xvals['month'] = '06'
     month = '06'
     xvals = xvals[['year', 'month']]
-    slope, yint = ols_calc(xvals,group_mkt_cap.dropna().astype('float'))
+    slope, yint = ols_calc(xvals, group_mkt_cap.dropna().astype('float'))
     for fwd in range(1, years_fwd + 1):
         start = dt.datetime(int(xvals.values[0][0]),
                             int(xvals.values[0][1]), 1).date()
@@ -105,30 +97,23 @@ def peer_derived_value(data, period):
 
         for tick in ticks:
             per = tuple([period[0], tick,
-                         data[tick][0][sheet].index.values[0][2]])
+                         [val[2] for val in data[tick][0][sheet].index.values if val[0]==period[0]][0]])
             fwd_pers = [tuple([str(int(period[0]) + yf), tick,
-                               data[tick][0][sheet].index.values[0][2] + "E"])
+                              [val[2] for val in data[tick][0][sheet].index.values if val[0]==str(int(period[0]) + yf)][0]])
                         for yf in range(1, years_fwd + 1)]
-            try:
-                # 5yr avgs, simple and weighted
-                group_vals[ind_val] += data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=5).mean()[per] / len(ticks)
-                group_vals[ind_val + "_w_avg"] += (data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=5).mean()[per]
-                                                   * (data[tick][0]['fr']['market_cap'][per]
-                                                      / group_mkt_cap[per[0]]))
-            except KeyError:
-                # May not have reported yet for this year, if this also fails,
-                # raise exception as may have bigger problem
-                # pdb.set_trace()
-                per = tuple([str(int(period[0])-1), tick,
-                             data[tick][0].index.values[0][2]])
+
+            # 5yr avgs, simple and weighted
+            # pdb.set_trace()
+            group_vals[ind_val] += data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=5, min_periods=1).mean()[per] / len(ticks)
+            group_vals[ind_val + "_w_avg"] += (data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=5, min_periods=1).mean()[per]
+                                               * (data[tick][0]['fr']['market_cap'][per] / group_mkt_cap[per[0]]))
 
             for fwd in fwd_pers:
                 year_diff = int(fwd[0]) - int(per[0])
                 # fwd avgs, simple and weighted
-                group_vals[ind_val + "_" + str(year_diff) + "fwd"] += data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=years_fwd).mean()[fwd] / len(ticks)
-                group_vals[ind_val + "_" + str(year_diff) + "fwd_w_avg"] += (data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=years_fwd).mean()[fwd]
-                                                                             * (data[tick][0]['fr']['market_cap'][fwd]
-                                                                                / group_mkt_cap[fwd[0]]))
+                group_vals[ind_val + "_" + str(year_diff) + "fwd"] += data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=years_fwd, min_periods=1).mean()[fwd] / len(ticks)
+                group_vals[ind_val + "_" + str(year_diff) + "fwd_w_avg"] += (data[tick][0][sheet][ind_val].dropna().rolling(center=False, window=years_fwd, min_periods=1).mean()[fwd]
+                                                                             * (data[tick][0]['fr']['market_cap'][fwd] / group_mkt_cap[fwd[0]]))
         if DEBUG:
             print("{} 5Y simple avg: {}".format(ind_val, '%.3f' % group_vals[ind_val]))
             print("{} 5Y weighted avg: {}".format(ind_val, '%.3f' % group_vals[ind_val + "_w_avg"]))
@@ -139,9 +124,11 @@ def peer_derived_value(data, period):
                 print("{} {}Y fwd weighted avg: {}"
                       "".format(ind_val, str(yrf),
                                 '%.3f' % group_vals[ind_val + "_" + str(yrf) + "fwd_w_avg"]))
-    
+
     comp_df = pd.DataFrame()
     for key, data_df in data.items():
+        if key != stock:
+            continue
         per = tuple([period[0], key, data_df[0]['ols'].index.values[0][2]])
         for ratio in vals:
             if ratio in ['pe_avg_hist']:
@@ -151,15 +138,8 @@ def peer_derived_value(data, period):
             if comp_df.empty:
                 comp_df = pd.DataFrame(columns=setup_pdv_cols(per, years_fwd))
             row = [key, ratio]
-            try:
-                # 5y average
-                row.append(data_df[0][sheet][ratio].dropna().rolling(center=False, window=5).mean()[per])
-            except KeyError:
-                # May not have reported yet for this year, if this also fails,
-                # raise exception as may have bigger problem
-                # pdb.set_trace()
-                per = tuple([str(int(period[0])-1),
-                             key, data[key][0].index.values[0][2]])
+            # 5y average
+            row.append(data_df[0][sheet][ratio].dropna().rolling(center=False, window=5, min_periods=1).mean()[per])
 
             # 5y avg vs weighted avg
             row.append(row[-1] / group_vals[ratio + "_w_avg"])
@@ -171,7 +151,7 @@ def peer_derived_value(data, period):
             for fwd in fwd_pers:
                 year_diff = int(fwd[0]) - int(per[0])
                 # fwd multiple
-                row.append(data_df[0][sheet][ratio].dropna().rolling(center=False, window=year_diff).mean()[fwd])
+                row.append(data_df[0][sheet][ratio].dropna().rolling(center=False, window=year_diff, min_periods=1).mean()[fwd])
                 # fwd mult vs fwd group average
                 row.append(row[-1] / group_vals[ratio + "_" + str(year_diff) + "fwd_w_avg"])
                 # premium / discount: (5yr avg / group wgt avg)
@@ -191,7 +171,7 @@ def comparison_anal(data, period, stock):
     doing comparison analysis on security
     """
     comp_df = pd.DataFrame()
-    years_back = min(5, int(period[0]) - int(data['PBHC'][0]['ols'].index[0][0]))
+    years_back = min(5, int(period[0]) - int(data[stock][0]['ols'].index[0][0]))
     years_fwd = 2
     cols = ['net_inc', 'revenue', 'gross_prof_marg', 'pretax_prof_marg',
             'net_prof_marg', 'pe_avg_hist']
@@ -199,7 +179,6 @@ def comparison_anal(data, period, stock):
 
     if STEP_THRU:
         pdb.set_trace()
-        pass
 
     for tick, dfs in data.items():
         if tick != stock:
@@ -238,7 +217,6 @@ def price_perf_anal(period, mkt, ind, hist_px):
     """
     if STEP_THRU:
         pdb.set_trace()
-        pass
 
     px_df = pd.DataFrame()
     mkt_px = hist_px.loc[mkt]
@@ -286,7 +264,7 @@ def discount_fcf(data, period, ests, stock):
     # Take the periods beta, calc'd in res_utils
     # mean of last 3 years beta
     beta = data['ols']['beta'].dropna()[-3:].mean()
-    
+
     model = 'DIV_CAP'
     if model == 'CAPM':
         # CAPM
@@ -296,8 +274,7 @@ def discount_fcf(data, period, ests, stock):
         div_g = 0.15
         cost_equity = (data['ols']['div_per_share'][period]
                        / data['ols']['date_px'][period]) + div_g
-    
-    
+
     mv_eq = data['fr']['market_cap'][period]
     # mv_debt = HARD TO GET
     bv_debt = (data['bs']['short_term_debt'][period]
@@ -314,7 +291,6 @@ def discount_fcf(data, period, ests, stock):
 
     if STEP_THRU and stock == period[1]:
         pdb.set_trace()
-        pass
 
     # todo: ENTER analysts projected EPS growth here
     eps_g_proj = 0.12
@@ -343,7 +319,7 @@ def discount_fcf(data, period, ests, stock):
     term_val = ((data['ols']['fcf_min_twc'][indices[-1]]
                  / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth))
     final_val = term_val + sum_of_disc_cf
-    
+
     est_years = [1, 2]
     for est_y in est_years:
         # assume price moves linearly from last price to estimated price
@@ -380,7 +356,7 @@ def discount_fcf(data, period, ests, stock):
     term_val = ((data['ols']['fcf_min_twc'][indices[-1]]
                  / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth))
     final_val = term_val + sum_of_disc_cf
-    
+
     est_years = [1, 2]
     for est_y in est_years:
         # assume price moves linearly from last price to estimated price
@@ -392,7 +368,7 @@ def discount_fcf(data, period, ests, stock):
         if DEBUG or (STOCK_DEBUG and stock == period[1]):
             print("3 Stage Val Est {} {}: {}".format(indices[-1][1],
                                                      year, '%.3f'%(est_val)))
-    
+
     # Component DFCF
     years_to_terminal = 5
     # use the OLS growth calcs for FCFs instead of growth forecasts
@@ -405,7 +381,7 @@ def discount_fcf(data, period, ests, stock):
     term_val = (data['ols']['fcf_min_twc'][indices[-1]]
                 / data['is']['weight_avg_shares'][period]) / (cost_equity - term_growth)
     final_val = term_val + sum_of_disc_cf
-    
+
     est_years = [1, 2]
     for est_y in est_years:
         # assume price moves linearly from last price to estimated price
@@ -430,7 +406,6 @@ def historical_ratios(data, period, hist_px, stock):
 
     if STEP_THRU and stock == period[1]:
         pdb.set_trace()
-        pass
 
     # fill current price with latest measurement
     curr_px = hist_px.loc[period[1]].iloc[-1]['px']
@@ -551,7 +526,6 @@ def ratios_and_valuation(data):
     Add some necessary columns
     """
     # Balance Sheet Columns
-    # pdb.set_trace()
     data['bs']['div_per_share'] = (data['cf']['divs_paid']
                                    / data['is']['weight_avg_shares'])
 
@@ -598,7 +572,6 @@ def model_est_ols(years, data, avg_cols=None, use_last=None):
     for sheet in ['is', 'bs', 'cf', 'fr']:
         data[sheet] = data[sheet].reset_index()[data[sheet].reset_index().year
                                                 != 'TTM'].set_index(IDX)
-
     # next qurater est is equal to revenue * average est margin
     # over the last year
     for _ in range(years):
@@ -770,10 +743,10 @@ def get_price_data(ticks, comps, method='db'):
     # Cant find an API I can trust for EOD stock data
     for ind_t in ticks + comps:
         if method == 'api':
-            pass
-            # start = dt.date(2000, 1, 1).strftime("%Y-%m-%d")
-            # end = dt.datetime.today().date().strftime("%Y-%m-%d")
-            # url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(ind_t, start, end)
+            start = dt.date(2000, 1, 1).strftime("%Y-%m-%d")
+            end = dt.datetime.today().date().strftime("%Y-%m-%d")
+            url = "https://www.quandl.com/api/v1/datasets/WIKI/{0}.csv?column=4&sort_order=asc&trim_start={1}&trim_end={2}".format(ind_t, start, end)
+            print(url)
         elif method == 'file':
             qrd = pd.read_csv("/home/ubuntu/workspace/python_for_finance/research/data_grab/{}.csv".format(ind_t))
             qrd = qrd.rename(columns={'close': ind_t}).set_index(['date'])
@@ -847,7 +820,7 @@ def analyze_ests(key, data_df, period, years_fwd=2):
         for yr_key, estimate in year_est.items():
             year_avg_est += estimate * val_weights[yr_key]
         print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
-        print("Weighted AVG Estimate   tick: {}  year: {}  EST: {}"
+        print("WEIGHTED AVG ESTIMATE   tick: {}  year: {}  EST: {}"
               "".format(key, year, '%.4f'% year_avg_est))
         prem_disc = (year_avg_est
                      / data_df[0]['ols']['date_px'][per]) - 1
@@ -953,7 +926,7 @@ def valuation_model(ticks, mkt, ind, mode='db'):
                 print("REVENUE GROWTH for {}:  {}".format('2020', '%.3f' % ind_ca['2020']))
 
     # Peer Derived Value
-    full_data, pdv = peer_derived_value(full_data, period)
+    full_data, pdv = peer_derived_value(full_data, period, stock)
     for idx, ind_pdv in pdv.iterrows():
         if DEBUG or (STOCK_DEBUG and idx[0] == stock):
             print("{} Peer Derived Price (2019):  {}"

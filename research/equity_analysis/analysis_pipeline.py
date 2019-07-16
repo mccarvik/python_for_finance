@@ -50,7 +50,8 @@ def ignore_ticks(ticks):
     but arent good investments
     """
     # might be good - SACH, OBCI, ACU
-    ignore_syms = ['CDOR', 'BOTJ', 'DRAD', 'SACH', 'CELP', 'ASFI', 'OBCI', 'ACU']
+    ignore_syms = ['CDOR', 'BOTJ', 'DRAD', 'SACH', 'CELP', 'ASFI', 'OBCI', 'ACU'
+                   'PBHC']
     ticks = ticks.set_index('tick')
     ticks = ticks[~ticks.index.isin(ignore_syms)]
     ticks = ticks.reset_index().set_index(["tick", "month", "year"])
