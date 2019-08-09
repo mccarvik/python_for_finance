@@ -363,7 +363,7 @@ def discount_fcf(data, period, ests, stock):
         last_px = data['ols']['date_px'][period]
         est_val = last_px + (((final_val - last_px) / years_to_terminal_3stage[1]) * est_y)
         year = str(int(period[0]) + est_y)
-        ests.append(("2stage", indices[-1][1], year,
+        ests.append(("3stage", indices[-1][1], year,
                      '%.3f' % (est_val)))
         if DEBUG or (STOCK_DEBUG and stock == period[1]):
             print("3 Stage Val Est {} {}: {}".format(indices[-1][1],
@@ -761,7 +761,7 @@ def get_price_data(ticks, comps, method='db'):
     return pxs
 
 
-def analyze_ests(key, data_df, period, years_fwd=2):
+def analyze_ests(key, data_df, period, last_px, years_fwd=2):
     """
     Analyze the results of all the outputs from the valuation techniques
     """
@@ -773,7 +773,7 @@ def analyze_ests(key, data_df, period, years_fwd=2):
     }
     per = tuple([period[0], key, data_df[0]['bs'].index.values[0][2]])
     print("Tick: {}   Date: {} {}".format(key, per[0], per[2]))
-    print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
+    print("LAST PRICE ({}):  {}".format(last_px[0], last_px[1]))
     try:
         data_df[0]['bs'].loc[per]
     except KeyError:
@@ -804,10 +804,10 @@ def analyze_ests(key, data_df, period, years_fwd=2):
             year_est[mod] = sum(mod_est)/len(mod_est)
             print("Models AVG: {}  tick: {}  year: {}  EST: {}"
                   "".format(mod, key, year, '%.4f' % year_est[mod]))
-            prem_disc = (year_est[mod] / data_df[0]['ols']['date_px'][per]) - 1
+            prem_disc = (year_est[mod] / last_px[1]) - 1
             # Divide by beta
             risk_adj = (((year_est[mod]
-                          / data_df[0]['ols']['date_px'][per]) - 1)
+                          / last_px[1]) - 1)
                         / data_df[0]['ols']['beta'][per])
             print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
                   "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
@@ -819,13 +819,13 @@ def analyze_ests(key, data_df, period, years_fwd=2):
             continue
         for yr_key, estimate in year_est.items():
             year_avg_est += estimate * val_weights[yr_key]
-        print("Current Price: {}".format(data_df[0]['ols']['date_px'][per]))
+        print("LAST PRICE ({}):  {}".format(last_px[0], last_px[1]))
         print("WEIGHTED AVG ESTIMATE   tick: {}  year: {}  EST: {}"
               "".format(key, year, '%.4f'% year_avg_est))
         prem_disc = (year_avg_est
-                     / data_df[0]['ols']['date_px'][per]) - 1
+                     / last_px[1]) - 1
         # Divide by beta
-        risk_adj = (((year_avg_est / data_df[0]['ols']['date_px'][per])
+        risk_adj = (((year_avg_est / last_px[1])
                      - 1) / data_df[0]['ols']['beta'][per])
         print("Prem/Disc to Current PX: {}  Risk Adj Prem/Disc: {}"
               "".format('%.4f' % prem_disc, '%.4f' % risk_adj))
@@ -882,11 +882,11 @@ def valuation_model(ticks, mkt, ind, mode='db'):
         # get price info
         data = match_px(data, hist_px, ind_t)
 
+        last_px = hist_px.loc[stock].iloc[-1]['px']
+        last_px_date = hist_px.loc[stock].iloc[-1].name.strftime("%Y-%m-%d")
         if DEBUG or (STOCK_DEBUG and ind_t == stock):
             date_px = data['ols']['date_px'].dropna().iloc[-1]
             date_px_idx = data['ols']['date_px'].dropna().index[-1]
-            last_px = hist_px.loc[stock].iloc[-1]['px']
-            last_px_date = hist_px.loc[stock].iloc[-1].name.strftime("%Y-%m-%d")
             print("PRICE AT LAST STATEMENT ({}-{}):  {}"
                   "".format(date_px_idx[0], date_px_idx[2], date_px))
             print("LAST PRICE ({}):  {}".format(last_px_date, last_px))
@@ -937,7 +937,7 @@ def valuation_model(ticks, mkt, ind, mode='db'):
     # Analysis of all valuations
     for key, data_df in full_data.items():
         if DEBUG or (STOCK_DEBUG and key == stock):
-            analyze_ests(key, data_df, period)
+            analyze_ests(key, data_df, period, [last_px_date, last_px])
 
 
 def read_analysis():
