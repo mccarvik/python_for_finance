@@ -15,6 +15,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
 # SVM = support vector machine, SVC = support vector classifier
 from sklearn.svm import SVC
 
@@ -25,6 +26,7 @@ from utils.db_utils import DBHelper
 from utils.ml_utils import standardize
 from utils.data_utils import DAY_COUNTS, PER_SHARE, RETURNS, FWD_RETURNS, \
                              MARGINS, INDEX, RATIOS, OTHER
+from dev_work.knn import cross_val
 
 from ml_algorithms import AdalineSGD, AdalineGD, run_perceptron
 # from scripts.model_evaluation import *
@@ -46,7 +48,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
         tickers = list(pd.read_csv(FILE_PATH + FILE_NAME, header=None)[0].values)
         
     if test:
-        tickers = tickers[:200]
+        tickers = tickers[:500]
 
     # Getting Dataframe
     time0 = time.time()
@@ -56,16 +58,26 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
         for tick in tickers:
             lis += "'" + tick + "', "
         print("starting data retrieval")
+        # removes data points that are unlabeled
         df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')'
                             'and {} != 0'.format(label))
+        # returns all data points even if labeled 
+        # df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')')
 
     time1 = time.time()
     print("Done Retrieving data, took {0} seconds".format(time1-time0))
 
     # grab the more recent data for testing later
     # these wont have a target becuase the data is too recent
-    test_df, train_df = separate_train_test(df_ret)
-    filtered_test_df = filter_live(test_df)
+    if not test:
+        test_df, train_df = separate_train_test(df_ret)
+        filtered_test_df = filter_live(test_df)
+    else:
+        train_df = df_ret
+        # x_train, x_test, y_train, y_test = train_test_split(df_ret.drop(label, axis=1), 
+        #                                                     df_ret[label], test_size=0.1, random_state=0)
+        # train_df = pd.merge(x_train, y_train, right_index=True, left_index=True)
+        # test_df = pd.merge(x_test, y_test, right_index=True, left_index=True)
 
     # clean data
     train_df = remove_unnecessary_columns(train_df)
@@ -75,7 +87,6 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
           "".format(len(train_df)))
 
     # Add the label column, set the index, and designate inputs for learning
-    # train_df = add_target(train_df, label, custom_breaks=[33, 67])
     train_df = add_target(train_df, label, breaks=1)
     train_df = train_df.set_index(['tick', 'year', 'month'])
     train_df = select_inputs(train_df, inputs)
@@ -85,6 +96,9 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
     print("There are {0} samples (removed {1} NA rows)"
           "".format(len(train_df), size_before - len(train_df)))
 
+    cross_val(train_df)
+    return
+    
     # Select features
     feature_selection(train_df, inputs)
 
@@ -214,8 +228,8 @@ def separate_train_test(data):
     """
     Separate the training and testing data
     """
-    test_df = data[data.year == '2018']
-    train_df = data[data.year != '2018']
+    test_df = data[data.year == '2019']
+    train_df = data[data.year != '2019']
     return test_df, train_df
 
 
