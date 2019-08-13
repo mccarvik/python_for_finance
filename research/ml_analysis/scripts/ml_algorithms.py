@@ -56,7 +56,8 @@ def run_perceptron(train_df, xcols, eta=0.1, n_iter=10):
 
     print('Training accuracy:', ppn.score(x_train, y_train))
     print('Test accuracy:', ppn.score(x_test, y_test))
-
+    
+    pdb.set_trace()
     plot_decision_regions(x_train, y_train.values, classifier=ppn)
     # plot_decision_regions(x_df.values, y_df.values, classifier=ppn)
     plt.xlabel(x_df.columns[0])

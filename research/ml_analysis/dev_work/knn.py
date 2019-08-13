@@ -5,14 +5,18 @@ import pdb
 import math
 import sys
 from random import random, randint
+import datetime as dt
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from sklearn import datasets
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
-from utils.ml_utils import plot_decision_regions
+from utils.ml_utils import plot_decision_regions, IMG_ROOT
+from optimization import anneal_opt, genetic_opt
 
+# NOTES: Throughout script assume last item in the dataset is the label
 
 def wineprice(rating, age):
     """
@@ -42,21 +46,19 @@ def wineset1():
         # Create a random age and rating
         rating = random()*50+50
         age = random()*50
-
         # Get reference price
         price = wineprice(rating, age)
-
         # Add some noise
         price *= (random() * 0.2 + 0.9)
-
         # Add to the dataset
-        rows.append({'input':(rating, age),
-                     'result':price})
-    return rows
+        rows.append((rating, age, price))
+    return np.array(rows)
 
 
 def wineset2():
     """
+    same as set 1 but adding irrelevant and heterogenous data
+    bottlesize = heterogenous, aisle = irrelevant
     """
     rows = []
     for _ in range(300):
@@ -67,9 +69,8 @@ def wineset2():
         price = wineprice(rating, age)
         price *= (bottlesize / 750)
         price *= (random() * 0.2 + 0.9)
-        rows.append({'input':(rating, age, aisle, bottlesize),
-                     'result':price})
-    return rows
+        rows.append((rating, age, aisle, bottlesize, price))
+    return np.array(rows)
 
 
 def wineset3():
@@ -87,13 +88,14 @@ class KNN():
     """
     K-Nearest neighbor Classifier
     """
-    def __init__(self, data, k_nbrs=3, weight_func=False, knn_func=False, cat=False):
+    def __init__(self, data, k_nbrs=3, weight_func=False, knn_func=False, cat=False, opt=False, opt_func=anneal_opt):
         """
         Constructor function
         """
         self.k_nbrs = k_nbrs
-        self.data = data
         self.cat = cat
+        self.data = data
+        
         if weight_func:
             self.weightf = weight_func
         else:
@@ -102,19 +104,44 @@ class KNN():
             self.knn_func = knn_func
         else:
             self.knn_func = self.wgt_knn_est
+        
+        pdb.set_trace()
+        if opt:
+            wgt_domain = [(0, 10)] * 4
+            costf = self.create_cost_func()
+            scales = opt_func(wgt_domain, costf, step=2)
+            pdb.set_trace()
+            self.data = self.rescale_data(scales)
+        self.train, self.test = self.div_data()
 
-    def div_data(self, test=0.05):
+    def rescale_data(self, scale):
+        """
+        Rescale the data based on scale
+        Helps eliminate irrelevant data and minimize outscaled heterogenous data
+        """
+        scaleddata = []
+        for row in self.data:
+            scaled = [scale[i] * row[i] for i in range(len(scale))]
+            scaleddata.append(scaled + [row[-1]])
+        return np.array(scaleddata)
+
+    def div_data(self, test=0.3, data=np.array([])):
         """
         divide data into test and train
         """
-        trainset = pd.DataFrame(columns=self.data.columns)
-        testset = pd.DataFrame(columns=self.data.columns)
-        for _, row in self.data.iterrows():
+        trainset = []
+        testset = []
+        if data.size != 0:
+            row_iter = data
+        else:
+            row_iter = self.data
+
+        for row in row_iter:
             if random() < test:
-                testset.loc[len(testset)] = row
+                testset.append(row)
             else:
-                trainset.loc[len(trainset)] = row
-        return trainset, testset
+                trainset.append(row)
+        return np.array(trainset), np.array(testset)
 
     def wgt_knn_est(self, vec1):
         """
@@ -126,22 +153,23 @@ class KNN():
             avg = 0.0
         else:
             avg = {}
-        totalweight = 0.0
 
+        totalweight = 0.0
         # Get weighted average
         for cnt in range(self.k_nbrs):
             dist = dlist[cnt][0]
             idx = dlist[cnt][1]
             weight = self.weightf(dist)
-            # Adds up all the results and multiplies more for closer data points, 
+            # Adds up all the results and multiplies more for closer data points,
             # than averages over all the k nodes
+            # Assumes label is the last item in the list
             if not self.cat:
-                avg += weight * self.train.ix[idx]['label']
+                avg += weight * self.train[idx][-1]
             else:
-                if self.train.ix[idx]['label'] in avg:
-                    avg[self.train.ix[idx]['label']] += weight
+                if self.train[idx][-1] in avg:
+                    avg[self.train[idx][-1]] += weight
                 else:
-                    avg[self.train.ix[idx]['label']] = weight
+                    avg[self.train[idx][-1]] = weight
             totalweight += weight
 
         if totalweight == 0:
@@ -178,7 +206,7 @@ class KNN():
         dist = 0.0
         for ind in range(len(vec1)):
             dist += (vec1[ind] - vec2[ind])**2
-        return dist**(1/(len(vec1)))
+        return math.sqrt(dist)
 
     def get_dist(self, vec1):
         """
@@ -187,10 +215,12 @@ class KNN():
         """
         distancelist = []
         # Loop over every item in the dataset
-        for idx, row in self.train.iterrows():
-            vec2 = row.drop('label')
+        idx = 0
+        for row in self.train:
+            vec2 = row[:-1]
             # Add the distance and the index
-            distancelist.append((self.euclidean(vec1.drop('label'), vec2), idx))
+            distancelist.append((self.euclidean(vec1[:-1], vec2), idx))
+            idx += 1
 
         # Sort by distance
         distancelist.sort()
@@ -209,8 +239,7 @@ class KNN():
         """
         if dist > const:
             return 0
-        else:
-            return const - dist
+        return const - dist
 
     def gaussian_wgt(self, dist, sigma=5.0):
         """
@@ -219,14 +248,16 @@ class KNN():
         """
         return math.e**(-dist**2 / (2 * sigma**2))
 
-    def predict(self, vec):
+    def predict(self, vectors):
         """
-        Predicts the outcome of an individual entry
+        Predicts the outcome of a list of entries
         """
-        guess = self.knn_func(vec)
-        return guess
+        ests = []
+        for vec in vectors:
+            ests.append(self.knn_func(vec))
+        return np.array(ests)
 
-    def run(self, trials=10):
+    def run(self, trials=10, data=np.array([])):
         """
         run the algorithm
         """
@@ -234,35 +265,38 @@ class KNN():
         for cnt in range(trials):
             error = 0.0
             print("Trial number: {}".format(cnt+1))
-            self.train, self.test = self.div_data()
-            for _, row in self.test.iterrows():
-                guess = self.predict(row)
-                if not self.cat:
-                    error += (row['label'] - guess)**2
+            if trials != 1:
+                if data.size != 0:
+                    self.train, self.test = self.div_data(data=data)
                 else:
-                    if row['label'] != guess:
+                    self.train, self.test = self.div_data()
+            guesses = self.predict(self.test)
+            ind = 0
+            for est in guesses:
+                if not self.cat:
+                    error += (self.test[ind][-1] - est)**2
+                else:
+                    if self.test[ind][-1] != est:
                         error += 1
+                ind += 1
             print("test error: {}".format(error / len(self.test)))
             total_error += error / len(self.test)
         return total_error / trials
 
-
-def rescale(data,scale):
-  scaleddata=[]
-  for row in data:
-    scaled=[scale[i]*row['input'][i] for i in range(len(scale))]
-    scaleddata.append({'input':scaled,'result':row['result']})
-  return scaleddata
-
-
-def createcostfunction(algf,data):
-  def costf(scale):
-    sdata=rescale(data,scale)
-    return crossvalidate(algf,sdata,trials=20)
-  return costf
+    def create_cost_func(self):
+        """
+        Creating a cost function to use for optimization
+        """
+        def costf(scale):
+            """
+            Shell for a function to be used as a cost function for optimization
+            """
+            sdata = self.rescale_data(scale)
+            return self.run(trials=10, data=sdata)
+        return costf
 
 
-weightdomain=[(0,10)]*4
+
 
 
 # Returns the probability that the price is in the range specified based on the nearby nodes
@@ -270,19 +304,19 @@ weightdomain=[(0,10)]*4
 #   dlist=getdistances(data,vec1)
 #   nweight=0.0
 #   tweight=0.0
-  
+
 #   for i in range(k):
 #     dist=dlist[i][0]
 #     idx=dlist[i][1]
 #     weight=weightf(dist)
 #     v=data[idx]['result']
-    
+
 #     # Is this point in the range?
 #     if v>=low and v<=high:
 #       nweight+=weight
 #     tweight+=weight
 #   if tweight==0: return 0
-  
+
 #   # The probability is the weights in the range divided by all the weights
 #   return nweight/tweight
 
@@ -299,10 +333,10 @@ weightdomain=[(0,10)]*4
 # def probabilitygraph(data,vec1,high,k=5,weightf=gaussian_wgt,ss=5.0):
 #   # Make a range for the prices
 #   t1=arange(0.0,high,0.1)
-  
+
 #   # Get the probabilities for the entire range
 #   probs=[probguess(data,vec1,v,v+0.1,k,weightf) for v in t1]
-  
+
 #   # Smooth them by adding the gaussian of the nearby probabilites
 #   smoothed=[]
 #   for i in range(len(probs)):
@@ -314,59 +348,52 @@ weightdomain=[(0,10)]*4
 #       sv+=weight*probs[j]
 #     smoothed.append(sv)
 #   smoothed=array(smoothed)
-    
+
 #   plot(t1,smoothed)
 #   plt.savefig('/home/ubuntu/workspace/collective_intelligence/8ch/prob_density.jpg')
 #   plt.close()
-  
+
 
 if __name__ == '__main__':
+    # regression based data
     # data = wineset1()
+    DATA = wineset2()
+    KNN_INST = KNN(np.array(DATA), opt=True)
+    print(KNN_INST.run(10))
+
+    # categorical data
+    pdb.set_trace()
     IRIS = datasets.load_iris()
-    IRIS = pd.merge(pd.DataFrame(IRIS.data[:,:2]), pd.DataFrame(IRIS.target), 
+    IRIS = pd.merge(pd.DataFrame(IRIS.data[:, :2]), pd.DataFrame(IRIS.target),
                     left_index=True, right_index=True)
-    # iris.columns = ['sep_l', 'sep_w', 'pet_l', 'pet_w', 'label']
-    IRIS.columns = ['sep_l', 'sep_w', 'label']
-    
-    KNN_INST = KNN(IRIS)
-    print(KNN_INST.run())
-    
-    pdb.set_trace()
-    plot_decision_regions(KNN_INST.train.drop('label'), 
-                          KNN_INST.train['label'].values, classifier=KNN)
-    # plot_decision_regions(x_df.values, y_df.values, classifier=ppn)
-    plt.xlabel(KNN_INST.train.columns[0])
-    plt.ylabel(KNN_INST.train.columns[1])
-    pdb.set_trace()
-    plt.savefig(IMG_ROOT + "perceptron_{}.png"
+
+    KNN_INST = KNN(IRIS.values, cat=True)
+    print(KNN_INST.run(10))
+
+    plot_decision_regions(KNN_INST.train[:, :-1], KNN_INST.train[:, -1],
+                          classifier=KNN_INST)
+    plt.xlabel('sepal length')
+    plt.ylabel('sepal width')
+    plt.savefig(IMG_ROOT + "knn_custom_{}.png"
                            "".format(dt.datetime.now().strftime("%Y%m%d")))
     plt.close()
-    
-    # Scaling Variables
-    # knn3 = lambda d, v: knnestimate(d, v, k=3)
-    # print(crossvalidate(knn3, data))
-    # print(crossvalidate(weightedknn, data))
-    
-    # sdata = rescale(data, [10, 10, 0, 0.5])
-    # print(crossvalidate(knn3, sdata))
-    # print(crossvalidate(weightedknn, sdata))
-    
+
     # Optimization
     # costf = createcostfunction(knnestimate,data)
     # print(optimization.annealingoptimize(weightdomain, costf, step=2))
     # print(optimization.geneticoptimize(weightdomain, costf, popsize=5, elite=0.2, maxiter=20))
-    
+
     # Uneven Distributions
     # print(wineprice(99.0, 20.0))
     # print(weightedknn(data, [99.0, 20.0]))
     # print(crossvalidate(weightedknn, data))
-    
+
     # Probability Density
     # print(probguess(data, [99, 20], 40, 80))
     # print(probguess(data, [99, 20], 80, 120))
     # print(probguess(data, [99, 20], 120, 1000))
     # print(probguess(data, [99, 20], 30, 120))
-    
+
     # Graphing Density
     # cumulativegraph(data, (1,1), 120)
     # probabilitygraph(data, (99,20), 120)

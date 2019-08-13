@@ -26,8 +26,6 @@ from utils.db_utils import DBHelper
 from utils.ml_utils import standardize
 from utils.data_utils import DAY_COUNTS, PER_SHARE, RETURNS, FWD_RETURNS, \
                              MARGINS, INDEX, RATIOS, OTHER
-from dev_work.knn import cross_val
-
 from ml_algorithms import AdalineSGD, AdalineGD, run_perceptron
 # from scripts.model_evaluation import *
 from scripts.feature_selection import sbs_run, random_forest_feature_importance
@@ -96,17 +94,14 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
     print("There are {0} samples (removed {1} NA rows)"
           "".format(len(train_df), size_before - len(train_df)))
 
-    cross_val(train_df)
-    return
-    
     # Select features
-    feature_selection(train_df, inputs)
+    # feature_selection(train_df, inputs)
 
     # Feature Extraction
     # feature_extraction(df, inputs)
 
     # Algorithms
-    # timeme(run_perceptron)(train_df, tuple(inputs))
+    timeme(run_perceptron)(train_df, tuple(inputs))
     # timeme(adalineGD)(train_df, tuple(inputs))
     # timeme(adalineSGD)(train_df, tuple(inputs))
     # timeme(run_perceptron_multi)(train_df, tuple(inputs))
