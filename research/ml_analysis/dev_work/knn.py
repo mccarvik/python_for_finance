@@ -6,14 +6,15 @@ import math
 import sys
 from random import random, randint
 import datetime as dt
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn import datasets
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+
 sys.path.append("/home/ec2-user/environment/python_for_finance/")
-from utils.ml_utils import plot_decision_regions, IMG_ROOT
+from utils.ml_utils import plot_decision_regions, IMG_PATH
 from optimization import anneal_opt, genetic_opt
 
 # NOTES: Throughout script assume last item in the dataset is the label
@@ -75,12 +76,13 @@ def wineset2():
 
 def wineset3():
     """
+    Uneven distribution - ex: "some bought wine at a discount"
     """
     rows = wineset1()
     for row in rows:
         if random() < 0.5:
             # Wine was bought at a discount store
-            row['result'] *= 0.6
+            row[-1] *= 0.6
     return rows
 
 
@@ -95,19 +97,18 @@ class KNN():
         self.k_nbrs = k_nbrs
         self.cat = cat
         self.data = data
-        
+
         if weight_func:
             self.weightf = weight_func
         else:
-            self.weightf = self.gaussian_wgt
+            self.weightf = gaussian_wgt
         if knn_func:
             self.knn_func = knn_func
         else:
             self.knn_func = self.wgt_knn_est
-        
-        pdb.set_trace()
+
         if opt:
-            wgt_domain = [(0, 10)] * 4
+            wgt_domain = [(0, 20)] * 4
             costf = self.create_cost_func()
             scales = opt_func(wgt_domain, costf, step=2)
             pdb.set_trace()
@@ -148,7 +149,7 @@ class KNN():
         knn with the distances weighted for the outcome
         """
         # Get distances
-        dlist = self.get_dist(vec1)
+        dlist = self.get_dist(vec1[-1])
         if not self.cat:
             avg = 0.0
         else:
@@ -199,15 +200,6 @@ class KNN():
         avg = avg / self.k_nbrs
         return avg
 
-    def euclidean(self, vec1, vec2):
-        """
-        Pythagorean Theorem for distances
-        """
-        dist = 0.0
-        for ind in range(len(vec1)):
-            dist += (vec1[ind] - vec2[ind])**2
-        return math.sqrt(dist)
-
     def get_dist(self, vec1):
         """
         Calcs the distance from a the given vector compared with every other vector
@@ -219,34 +211,12 @@ class KNN():
         for row in self.train:
             vec2 = row[:-1]
             # Add the distance and the index
-            distancelist.append((self.euclidean(vec1[:-1], vec2), idx))
+            distancelist.append((euclidean(vec1, vec2), idx))
             idx += 1
 
         # Sort by distance
         distancelist.sort()
         return distancelist
-
-    def inverse_wgt(self, dist, num=1.0, const=0.1):
-        """
-        weight function - as dist gets smaller, so does denominator and weight grows
-        """
-        return num / (dist + const)
-
-    def subtract_wgt(self, dist, const=1.0):
-        """
-        subtracts distance from a constant, so smaller dist, higher weight
-        if dist is greater than const, won't return any weight
-        """
-        if dist > const:
-            return 0
-        return const - dist
-
-    def gaussian_wgt(self, dist, sigma=5.0):
-        """
-        weight is 1 when distance is 0
-        weight never falls all the way to 0
-        """
-        return math.e**(-dist**2 / (2 * sigma**2))
 
     def predict(self, vectors):
         """
@@ -295,74 +265,125 @@ class KNN():
             return self.run(trials=10, data=sdata)
         return costf
 
+    def probguess(self, vec1, low, high):
+        """
+        Returns the probability that price is in the range given based on nearby nodes
+        """
+        dlist = self.get_dist(vec1)
+        nweight = 0.0
+        tweight = 0.0
+
+        for ind in range(self.k_nbrs):
+            # pdb.set_trace()
+            dist = dlist[ind][0]
+            idx = dlist[ind][1]
+            weight = self.weightf(dist)
+            val = self.data[idx][-1]
+
+            # Is this point in the range?
+            if val >= low and val <= high:
+                nweight += weight
+            tweight += weight
+        if tweight == 0:
+            return 0
+        # The probability is the weights in the range divided by all the weights
+        return nweight / tweight
+
+    def cum_graph(self, vec1, high):
+        """
+        cumulative probability graph
+        """
+        time1 = np.arange(0.0, high, 0.1)
+        cprob = np.array([self.probguess(vec1, 0, v) for v in time1])
+        plt.plot(time1, cprob)
+        plt.ylim(0, 1)
+        plt.savefig(IMG_PATH + "cum_density_{}.png"
+                    "".format(dt.datetime.now().strftime("%Y%m%d")))
+        plt.close()
+
+    def prob_graph(self, vec1, high, s_split=5.0):
+        """
+        probability distribution graph
+        """
+        # Make a range for the prices
+        time1 = np.arange(0.0, high, 0.1)
+
+        # Get the probabilities for the entire range
+        probs = [self.probguess(vec1, v, v+0.1) for v in time1]
+
+        # Smooth them by adding the gaussian of the nearby probabilites
+        smoothed = []
+        # for ind in range(len(probs)):
+        for ind, _ in enumerate(probs):
+            s_vals = 0.0
+            # for ind2 in range(0, len(probs)):
+            for ind2, _ in enumerate(probs):
+                # farther away points have greater dist which mutes their weight
+                dist = abs(ind - ind2) * 0.1
+                weight = gaussian_wgt(dist, sigma=s_split)
+                s_vals += weight * probs[ind2]
+            smoothed.append(s_vals)
+        smoothed = np.array(smoothed)
+
+        plt.plot(time1, smoothed)
+        plt.savefig(IMG_PATH + "prob_density_{}.png"
+                    "".format(dt.datetime.now().strftime("%Y%m%d")))
+        plt.close()
 
 
+def gaussian_wgt(dist, sigma=5.0):
+    """
+    weight is 1 when distance is 0
+    weight never falls all the way to 0
+    """
+    return math.e**(-dist**2 / (2 * sigma**2))
 
 
-# Returns the probability that the price is in the range specified based on the nearby nodes
-# def probguess(data,vec1,low,high,k=5,weightf=gaussian_wgt):
-#   dlist=getdistances(data,vec1)
-#   nweight=0.0
-#   tweight=0.0
-
-#   for i in range(k):
-#     dist=dlist[i][0]
-#     idx=dlist[i][1]
-#     weight=weightf(dist)
-#     v=data[idx]['result']
-
-#     # Is this point in the range?
-#     if v>=low and v<=high:
-#       nweight+=weight
-#     tweight+=weight
-#   if tweight==0: return 0
-
-#   # The probability is the weights in the range divided by all the weights
-#   return nweight/tweight
+def inverse_wgt(dist, num=1.0, const=0.1):
+    """
+    weight function - as dist gets smaller, so does denominator and weight grows
+    """
+    return num / (dist + const)
 
 
-# def cumulativegraph(data,vec1,high,k=5,weightf=gaussian_wgt):
-#   t1=arange(0.0,high,0.1)
-#   cprob=array([probguess(data,vec1,0,v,k,weightf) for v in t1])
-#   plt.plot(t1,cprob)
-#   plt.ylim(0,1)
-#   plt.savefig('/home/ubuntu/workspace/collective_intelligence/8ch/cum_density.jpg')
-#   plt.close()
+def subtract_wgt(dist, const=1.0):
+    """
+    subtracts distance from a constant, so smaller dist, higher weight
+    if dist is greater than const, won't return any weight
+    """
+    if dist > const:
+        return 0
+    return const - dist
 
 
-# def probabilitygraph(data,vec1,high,k=5,weightf=gaussian_wgt,ss=5.0):
-#   # Make a range for the prices
-#   t1=arange(0.0,high,0.1)
-
-#   # Get the probabilities for the entire range
-#   probs=[probguess(data,vec1,v,v+0.1,k,weightf) for v in t1]
-
-#   # Smooth them by adding the gaussian of the nearby probabilites
-#   smoothed=[]
-#   for i in range(len(probs)):
-#     sv=0.0
-#     for j in range(0,len(probs)):
-#       # farther away points have greater dist which mutes their weight
-#       dist=abs(i-j)*0.1
-#       weight=gaussian(dist,sigma=ss)
-#       sv+=weight*probs[j]
-#     smoothed.append(sv)
-#   smoothed=array(smoothed)
-
-#   plot(t1,smoothed)
-#   plt.savefig('/home/ubuntu/workspace/collective_intelligence/8ch/prob_density.jpg')
-#   plt.close()
+def euclidean(vec1, vec2):
+    """
+    Pythagorean Theorem for distances
+    """
+    dist = 0.0
+    for ind, _ in enumerate(vec1):
+        dist += (vec1[ind] - vec2[ind])**2
+    return math.sqrt(dist)
 
 
 if __name__ == '__main__':
     # regression based data
-    # data = wineset1()
+    DATA = wineset3()
+    DATA = wineset1()
     DATA = wineset2()
-    KNN_INST = KNN(np.array(DATA), opt=True)
-    print(KNN_INST.run(10))
+    # KNN_INST = KNN(np.array(DATA), opt=True, opt_func=genetic_opt)
+    KNN_INST = KNN(np.array(DATA))
+    # print(KNN_INST.run(10))
+
+    # probability guess
+    # print(KNN_INST.probguess([99, 20], 40, 80))
+    # print(KNN_INST.probguess([99, 20], 80, 120))
+    # print(KNN_INST.probguess([99, 20], 120, 1000))
+    # print(KNN_INST.probguess([99, 20], 30, 120))
+    # KNN_INST.cum_graph([1, 1], 120)
+    KNN_INST.prob_graph([99, 20], 120)
 
     # categorical data
-    pdb.set_trace()
     IRIS = datasets.load_iris()
     IRIS = pd.merge(pd.DataFrame(IRIS.data[:, :2]), pd.DataFrame(IRIS.target),
                     left_index=True, right_index=True)
@@ -374,26 +395,6 @@ if __name__ == '__main__':
                           classifier=KNN_INST)
     plt.xlabel('sepal length')
     plt.ylabel('sepal width')
-    plt.savefig(IMG_ROOT + "knn_custom_{}.png"
+    plt.savefig(IMG_PATH + "knn_custom_{}.png"
                            "".format(dt.datetime.now().strftime("%Y%m%d")))
     plt.close()
-
-    # Optimization
-    # costf = createcostfunction(knnestimate,data)
-    # print(optimization.annealingoptimize(weightdomain, costf, step=2))
-    # print(optimization.geneticoptimize(weightdomain, costf, popsize=5, elite=0.2, maxiter=20))
-
-    # Uneven Distributions
-    # print(wineprice(99.0, 20.0))
-    # print(weightedknn(data, [99.0, 20.0]))
-    # print(crossvalidate(weightedknn, data))
-
-    # Probability Density
-    # print(probguess(data, [99, 20], 40, 80))
-    # print(probguess(data, [99, 20], 80, 120))
-    # print(probguess(data, [99, 20], 120, 1000))
-    # print(probguess(data, [99, 20], 30, 120))
-
-    # Graphing Density
-    # cumulativegraph(data, (1,1), 120)
-    # probabilitygraph(data, (99,20), 120)
