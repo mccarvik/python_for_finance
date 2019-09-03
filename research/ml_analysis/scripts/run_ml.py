@@ -3,7 +3,6 @@ Main functon to kick off the machine learning analysis
 """
 import pdb
 import time
-import sys
 # import warnings
 # import datetime as dt
 # import matplotlib as mpl
@@ -19,18 +18,20 @@ from sklearn.model_selection import train_test_split
 # SVM = support vector machine, SVC = support vector classifier
 from sklearn.svm import SVC
 
-sys.path.append("/home/ec2-user/environment/python_for_finance/")
-sys.path.append("/home/ec2-user/environment/python_for_finance/research/ml_analysis/")
 from utils.helper_funcs import timeme
 from utils.db_utils import DBHelper
-from utils.ml_utils import standardize
+from utils.ml_utils import standardize, plot_decision_regions, IMG_PATH
 from utils.data_utils import DAY_COUNTS, PER_SHARE, RETURNS, FWD_RETURNS, \
                              MARGINS, INDEX, RATIOS, OTHER
-from ml_algorithms import AdalineSGD, AdalineGD, run_perceptron
-# from scripts.model_evaluation import *
-from scripts.feature_selection import sbs_run, random_forest_feature_importance
-# from scripts.ensemble_methods import *
-# from scripts.continuous_variables import *
+from research.ml_analysis.dev_work.knn import KNN
+from research.ml_analysis.algorithms.adalinegd import AdalineGD
+from research.ml_analysis.algorithms.adalinesgd import AdalineSGD
+from research.ml_analysis.scripts.ml_algorithms import run_perceptron
+from research.ml_analysis.scripts.model_evaluation import kfold_cross_validation
+from research.ml_analysis.scripts.feature_selection import sbs_run, \
+                                                           random_forest_feature_importance, \
+                                                           logistic_regression_feature_importance, \
+                                                           principal_component_analysis
 
 FILE_PATH = '/home/ec2-user/environment/python_for_finance/data_grab/inputs/'
 FILE_NAME = 'fmp_avail_stocks_20190619.txt'
@@ -44,7 +45,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
         tickers = cust_ticks
     else:
         tickers = list(pd.read_csv(FILE_PATH + FILE_NAME, header=None)[0].values)
-        
+
     if test:
         tickers = tickers[:500]
 
@@ -59,7 +60,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
         # removes data points that are unlabeled
         df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')'
                             'and {} != 0'.format(label))
-        # returns all data points even if labeled 
+        # returns all data points even if labeled
         # df_ret = dbh.select('fin_ratios', where='tick in (' + lis[:-2] + ')')
 
     time1 = time.time()
@@ -69,11 +70,12 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
     # these wont have a target becuase the data is too recent
     if not test:
         test_df, train_df = separate_train_test(df_ret)
-        filtered_test_df = filter_live(test_df)
+        # filtered_test_df = filter_live(test_df)
     else:
         train_df = df_ret
-        # x_train, x_test, y_train, y_test = train_test_split(df_ret.drop(label, axis=1), 
-        #                                                     df_ret[label], test_size=0.1, random_state=0)
+        # x_train, x_test, y_train, y_test = train_test_split(df_ret.drop(label, axis=1),
+        #                                                     df_ret[label], test_size=0.1,
+        #                                                     random_state=0)
         # train_df = pd.merge(x_train, y_train, right_index=True, left_index=True)
         # test_df = pd.merge(x_test, y_test, right_index=True, left_index=True)
 
@@ -94,6 +96,9 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
     print("There are {0} samples (removed {1} NA rows)"
           "".format(len(train_df), size_before - len(train_df)))
 
+    # run data on custom algos
+    custom_algos(train_df)
+
     # Select features
     # feature_selection(train_df, inputs)
 
@@ -101,7 +106,7 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
     # feature_extraction(df, inputs)
 
     # Algorithms
-    timeme(run_perceptron)(train_df, tuple(inputs))
+    # timeme(run_perceptron)(train_df, tuple(inputs))
     # timeme(adalineGD)(train_df, tuple(inputs))
     # timeme(adalineSGD)(train_df, tuple(inputs))
     # timeme(run_perceptron_multi)(train_df, tuple(inputs))
@@ -134,13 +139,27 @@ def run(inputs, label='retfwd_2y', cust_ticks=None, test=False):
     print()
 
 
-def eval_on_curr_companies(model, df, inputs):
+def custom_algos(train):
+    """
+    Method to run on custom ML algorithms
+    """
+    cust_data = train.drop("target_proxy", axis=1).values
+    knn_inst = KNN(cust_data, cat=True)
+    print(knn_inst.run())
+    knn_inst.plot_knn(train.columns[0], train.columns[1])
     pdb.set_trace()
-    df_ind = df[['ticker', 'date', 'month']]
-    df_trimmed = pd.DataFrame(standardize(df[inputs]), columns=inputs)
+    knn_inst = KNN(cust_data, cat=True, opt=True)
+    pdb.set_trace()
+    print()
+
+
+def eval_on_curr_companies(model, data_df, inputs):
+    pdb.set_trace()
+    df_ind = data_df[['ticker', 'date', 'month']]
+    df_trimmed = pd.DataFrame(standardize(data_df[inputs]), columns=inputs)
     df_combine = pd.concat([df_ind.reset_index(drop=True), df_trimmed], axis=1)
     predictions = {}
-    for ix, row in df_combine.iterrows():
+    for _, row in df_combine.iterrows():
         print(row['ticker'] + "   " + row['date'] + "   " + str(row['month']), end="")
         pred = model.predict(row[inputs])[0]
         try:
@@ -198,33 +217,36 @@ def feature_selection(train_df, inputs):
         print(rank[0])
 
 
-def feature_extraction(df, inputs):
+def feature_extraction(data_df, inputs):
     """
     feature extraction --> Transform the existing features
                            into a lower dimensional space
     Transforms the data - can be used to linearly separate
                           data thru dimensionality reduction
     """
-    timeme(principal_component_analysis)(df, tuple(inputs))
-    # timeme(pca_scikit)(df, tuple(inputs))
-    # timeme(linear_discriminant_analysis)(df, tuple(inputs))
-    # timeme(lda_scikit)(df, tuple(inputs))
+    timeme(principal_component_analysis)(data_df, tuple(inputs))
+    # timeme(pca_scikit)(data_df, tuple(inputs))
+    # timeme(linear_discriminant_analysis)(data_df, tuple(inputs))
+    # timeme(lda_scikit)(data_df, tuple(inputs))
 
 
-def model_evaluation(df, inputs):
-    timeme(kfold_cross_validation)(df, tuple(inputs))
-    # timeme(learning_curves)(df, tuple(inputs))
-    # timeme(validation_curves)(df, tuple(inputs))
-    # timeme(grid_search_analysis)(df, tuple(inputs))
-    # timeme(precision_vs_recall)(df, tuple(inputs))
+def model_evaluation(data_df, inputs):
+    """
+    Evaluate the performance of your model thru different techniques
+    """
+    timeme(kfold_cross_validation)(data_df, tuple(inputs))
+    # timeme(learning_curves)(data_df, tuple(inputs))
+    # timeme(validation_curves)(data_df, tuple(inputs))
+    # timeme(grid_search_analysis)(data_df, tuple(inputs))
+    # timeme(precision_vs_recall)(data_df, tuple(inputs))
 
 
-def separate_train_test(data):
+def separate_train_test(data_df):
     """
     Separate the training and testing data
     """
-    test_df = data[data.year == '2019']
-    train_df = data[data.year != '2019']
+    test_df = data_df[data_df.year == '2019']
+    train_df = data_df[data_df.year != '2019']
     return test_df, train_df
 
 
@@ -257,13 +279,13 @@ def add_target(data_df, tgt, breaks=2, custom_breaks=None):
     return data_df
 
 
-def target_to_cat_multi(x, breaks):
+def target_to_cat_multi(proxy, breaks):
     """
     make the breaks between categories for a label
     """
     cat = 0
-    for b in breaks:
-        if x < b:
+    for ind_b in breaks:
+        if proxy < ind_b:
             return cat
         cat += 1
     return cat
@@ -329,7 +351,7 @@ if __name__ == "__main__":
     #         'ret_1y', 'ret_2y']
     COLS = ['pe_ratio', 'ret_on_cap']
     # TICKS = ['A', 'AAPL', 'AA', 'MSFT']
-    
+
     run(COLS, test=True)
     # run(COLS)
     

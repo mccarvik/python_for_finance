@@ -215,6 +215,8 @@ class DecisionTree():
             for value in column_values:
                 # 1. divide the rows up for each value in this column
                 # set 1 - where given col = given value,   set 2 - where it does not
+                # For numerical values - loops through all values in dataset and
+                # separates >= and < for each value and checks for best gain
                 (set1, set2) = divide_set(rows, col, value)
 
                 # 2. See how much Information gain from this split
@@ -361,7 +363,6 @@ def draw_tree(tree, jpeg='tree_{}.jpg'):
     draw = ImageDraw.Draw(img)
 
     draw_node(draw, tree, width / 2, 20)
-    pdb.set_trace()
     img.save(IMG_PATH + jpeg.format(dt.datetime.now().strftime("%Y%m%d")), 'JPEG')
 
 

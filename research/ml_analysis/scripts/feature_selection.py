@@ -18,7 +18,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 
-from algorithms.SBS import SBS
+from research.ml_analysis.algorithms.SBS import SBS
 from utils.ml_utils import plot_decision_regions, standardize, IMG_PATH, IMG_ROOT
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)

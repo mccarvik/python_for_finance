@@ -17,9 +17,8 @@ from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
-from algorithms.perceptron import Perceptron
-from algorithms.adalinegd import AdalineGD
-from algorithms.adalinesgd import AdalineSGD
+from research.ml_analysis.algorithms.adalinegd import AdalineGD
+from research.ml_analysis.algorithms.adalinesgd import AdalineSGD
 from utils.ml_utils import plot_decision_regions, standardize, IMG_PATH, IMG_ROOT
 
 

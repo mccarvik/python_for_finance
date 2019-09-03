@@ -17,8 +17,9 @@ PEOPLE = [('Seymour', 'BOS'),
 # and then will return to their origin on the same day
 DESTINATION = 'LGA'
 FLIGHTS = {}
+PATH = "/home/ec2-user/environment/python_for_finance/research/ml_analysis/dev_work/"
 
-with open('schedule.txt') as file:
+with open(PATH + 'schedule.txt') as file:
     LINES = file.readlines()
     for line in LINES:
         origin, dest, depart, arrive, price = line.strip().split(',')

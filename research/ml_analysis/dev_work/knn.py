@@ -13,9 +13,8 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.ml_utils import plot_decision_regions, IMG_PATH
-from optimization import anneal_opt, genetic_opt
+from research.ml_analysis.dev_work.optimization import anneal_opt, genetic_opt
 
 # NOTES: Throughout script assume last item in the dataset is the label
 
@@ -108,10 +107,10 @@ class KNN():
             self.knn_func = self.wgt_knn_est
 
         if opt:
-            wgt_domain = [(0, 20)] * 4
+            pdb.set_trace()
+            wgt_domain = [(0, 20)] * (len(self.data[0])-1)
             costf = self.create_cost_func()
             scales = opt_func(wgt_domain, costf, step=2)
-            pdb.set_trace()
             self.data = self.rescale_data(scales)
         self.train, self.test = self.div_data()
 
@@ -128,7 +127,8 @@ class KNN():
 
     def div_data(self, test=0.3, data=np.array([])):
         """
-        divide data into test and train
+        Divide data into test and train
+        Not necessarily an even split, done on random number generator
         """
         trainset = []
         testset = []
@@ -149,7 +149,7 @@ class KNN():
         knn with the distances weighted for the outcome
         """
         # Get distances
-        dlist = self.get_dist(vec1[-1])
+        dlist = self.get_dist(vec1[:-1])
         if not self.cat:
             avg = 0.0
         else:
@@ -330,6 +330,18 @@ class KNN():
                     "".format(dt.datetime.now().strftime("%Y%m%d")))
         plt.close()
 
+    def plot_knn(self, col1='col1', col2='col2', name="knn_custom_{}"):
+        """
+        plot the decision boundaries of this knn instance
+        """
+        pdb.set_trace()
+        plot_decision_regions(self.train[:, :-1], self.train[:, -1],
+                          classifier=self)
+        plt.xlabel(col1)
+        plt.ylabel(col2)
+        plt.savefig(IMG_PATH + name + ".png"
+                           "".format(dt.datetime.now().strftime("%Y%m%d")))
+        plt.close()
 
 def gaussian_wgt(dist, sigma=5.0):
     """
