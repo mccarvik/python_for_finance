@@ -3,18 +3,16 @@ module to perform k nearest neighbor
 """
 import pdb
 import math
-import sys
 from random import random, randint
 import datetime as dt
 import numpy as np
-import pandas as pd
 from sklearn import datasets
 import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from utils.ml_utils import plot_decision_regions, IMG_PATH
 from research.ml_analysis.dev_work.optimization import anneal_opt, genetic_opt
+mpl.use('Agg')
 
 # NOTES: Throughout script assume last item in the dataset is the label
 
@@ -330,17 +328,17 @@ class KNN():
                     "".format(dt.datetime.now().strftime("%Y%m%d")))
         plt.close()
 
-    def plot_knn(self, col1='col1', col2='col2', name="knn_custom_{}"):
+    def plot_knn(self, col1='col1', col2='col2', name="knn_custom_"):
         """
         plot the decision boundaries of this knn instance
         """
-        pdb.set_trace()
         plot_decision_regions(self.train[:, :-1], self.train[:, -1],
-                          classifier=self)
+                              classifier=self)
+        pdb.set_trace()
         plt.xlabel(col1)
         plt.ylabel(col2)
-        plt.savefig(IMG_PATH + name + ".png"
-                           "".format(dt.datetime.now().strftime("%Y%m%d")))
+        plt.savefig(IMG_PATH + name +
+                    "{}.png".format(dt.datetime.now().strftime("%Y%m%d")))
         plt.close()
 
 def gaussian_wgt(dist, sigma=5.0):
@@ -396,17 +394,17 @@ if __name__ == '__main__':
     KNN_INST.prob_graph([99, 20], 120)
 
     # categorical data
-    IRIS = datasets.load_iris()
-    IRIS = pd.merge(pd.DataFrame(IRIS.data[:, :2]), pd.DataFrame(IRIS.target),
-                    left_index=True, right_index=True)
+    # IRIS = datasets.load_iris()
+    # IRIS = pd.merge(pd.DataFrame(IRIS.data[:, :2]), pd.DataFrame(IRIS.target),
+    #                 left_index=True, right_index=True)
 
-    KNN_INST = KNN(IRIS.values, cat=True)
-    print(KNN_INST.run(10))
+    # KNN_INST = KNN(IRIS.values, cat=True)
+    # print(KNN_INST.run(10))
 
-    plot_decision_regions(KNN_INST.train[:, :-1], KNN_INST.train[:, -1],
-                          classifier=KNN_INST)
-    plt.xlabel('sepal length')
-    plt.ylabel('sepal width')
-    plt.savefig(IMG_PATH + "knn_custom_{}.png"
-                           "".format(dt.datetime.now().strftime("%Y%m%d")))
-    plt.close()
+    # plot_decision_regions(KNN_INST.train[:, :-1], KNN_INST.train[:, -1],
+    #                       classifier=KNN_INST)
+    # plt.xlabel('sepal length')
+    # plt.ylabel('sepal width')
+    # plt.savefig(IMG_PATH + "knn_custom_{}.png"
+    #                       "".format(dt.datetime.now().strftime("%Y%m%d")))
+    # plt.close()

@@ -2,13 +2,11 @@
 Module for creating Decision Trees
 """
 import pdb
-import sys
 import datetime as dt
 from math import log
 import pandas as pd
 import numpy as np
 from PIL import Image, ImageDraw
-sys.path.append("/home/ec2-user/environment/python_for_finance/")
 from utils.ml_utils import IMG_PATH
 
 DATA = [['slashdot', 'USA', 'yes', 18, 'None'],
@@ -29,7 +27,7 @@ DATA = [['slashdot', 'USA', 'yes', 18, 'None'],
         ['kiwitobes', 'France', 'yes', 19, 'Basic']]
 
 HOUSING_DATA = []
-with open('housing_data.csv') as file:
+with open("/home/ec2-user/environment/python_for_finance/research/ml_analysis/dev_work/dev_data/housing_data.csv") as file:
     LINES = file.readlines()
     FIRST = True
     CASTS = []

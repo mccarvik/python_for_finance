@@ -24,6 +24,7 @@ from utils.ml_utils import standardize, plot_decision_regions, IMG_PATH
 from utils.data_utils import DAY_COUNTS, PER_SHARE, RETURNS, FWD_RETURNS, \
                              MARGINS, INDEX, RATIOS, OTHER
 from research.ml_analysis.dev_work.knn import KNN
+from research.ml_analysis.dev_work.dec_trees import DecisionTree, draw_tree
 from research.ml_analysis.algorithms.adalinegd import AdalineGD
 from research.ml_analysis.algorithms.adalinesgd import AdalineSGD
 from research.ml_analysis.scripts.ml_algorithms import run_perceptron
@@ -144,11 +145,15 @@ def custom_algos(train):
     Method to run on custom ML algorithms
     """
     cust_data = train.drop("target_proxy", axis=1).values
-    knn_inst = KNN(cust_data, cat=True)
-    print(knn_inst.run())
-    knn_inst.plot_knn(train.columns[0], train.columns[1])
-    pdb.set_trace()
-    knn_inst = KNN(cust_data, cat=True, opt=True)
+    # knn_inst = KNN(cust_data, cat=True)
+    # print(knn_inst.run())
+    # knn_inst.plot_knn(train.columns[0], train.columns[1])
+    # knn_inst = KNN(cust_data, cat=True, opt=True)
+    # knn_inst.plot_knn(train.columns[0], train.columns[1])
+    tree = DecisionTree(data=cust_data)
+    tree.prune(mingain=1.05)
+    tree.print_tree()
+    draw_tree(tree, jpeg='tree_cust_{}.jpg')
     pdb.set_trace()
     print()
 
