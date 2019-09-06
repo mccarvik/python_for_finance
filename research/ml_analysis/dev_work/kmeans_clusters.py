@@ -2,6 +2,7 @@
 Module to calculate kmeans clusters
 """
 import pdb
+import random
 from math import sqrt
 from PIL import Image, ImageDraw
 
@@ -223,9 +224,170 @@ def draw_node(draw, clust, x_val, y_val, scaling, labels):
             print("Probably a unicode symbol issue" + str(exc))
 
 
+def rotate_matrix(data):
+    """
+    rotates the matrix
+    """
+    newdata = []
+    for i, _ in enumerate(data[0]):
+        newrow = [data[j][i] for j in range(len(data))]
+        newdata.append(newrow)
+    return newdata
+
+
+def kcluster(rows, distance=pearson_corr, k=4):
+    """
+    Algorithm for developing the location of the k clusters for the dataset
+    """
+    # Determine the minimum and maximum values of each vector
+    ranges = [(min([row[i] for row in rows]), max([row[i] for row in rows]))
+              for i in range(len(rows[0]))]
+
+    # Create k randomly placed centroids
+    clusters = [[random.random() * (ranges[i][1] - ranges[i][0]) + ranges[i][0]
+                 for i in range(len(rows[0]))] for j in range(k)]
+
+    lastmatches = None
+    iterations = 100
+    # Go through x number of iterations to place centroids
+    for _ in range(iterations):
+        print('Iteration %d' % _)
+        bestmatches = [[] for i in range(k)]
+
+        # Find which centroid is the closest for each row
+        for j, _ in enumerate(rows):
+            row = rows[j]
+            bestmatch = 0
+            # find the closest centroid for this row
+            for i in range(k):
+                ind_dist = distance(clusters[i], row)
+                if ind_dist < distance(clusters[bestmatch], row):
+                    bestmatch = i
+            bestmatches[bestmatch].append(j)
+
+        # If the results are the same as last time, algo is done
+        if bestmatches == lastmatches:
+            break
+        lastmatches = bestmatches
+
+        # Move the centroids to the average of their members
+        for i in range(k):
+            avgs = [0.0] * len(rows[0])
+            if bestmatches[i]:
+                # only grab rows belonging to this centroid
+                for rowid in bestmatches[i]:
+                    for val, _ in enumerate(rows[rowid]):
+                        # add each val in each vector to the avgs
+                        avgs[val] += rows[rowid][val]
+                for j, _ in enumerate(avgs):
+                    # divide by number of vectors to get the average
+                    avgs[j] /= len(bestmatches[i])
+                # this becomes the location of the centroid
+                clusters[i] = avgs
+    return bestmatches
+
+
+def tanamoto(vec1, vec2):
+    """
+    ratio of the intersection set to the union set
+    """
+    (class1, class2, shr) = (0, 0, 0)
+    for i in enumerate(vec1):
+        # in vector 1
+        if vec1[i] != 0:
+            class1 += 1
+        # in vector 2
+        if vec2[i] != 0:
+            class2 += 1
+        # in both
+        if vec1[i] != 0 and vec2[i] != 0:
+            shr += 1
+    return 1.0 - float(shr) / (class1 + class2 - shr)
+
+
+def scaledown(data, distance=pearson_corr, rate=0.01):
+    """
+    Tries to find a two dimentional representation of dataset
+    Tries to create a chart where the distances between items match their
+    multidimenstional distance
+    """
+    num = len(data)
+
+    # The real distances between every pair of items
+    realdist = [[distance(data[i], data[j]) for j in range(num)] for i in
+                range(0, num)]
+
+    # Randomly initialize the starting points of the locations in 2D
+    loc = [[random.random(), random.random()] for i in range(num)]
+    fakedist = [[0.0 for j in range(num)] for i in range(num)]
+
+    lasterror = None
+    for _ in range(0, 1000):
+        # Find projected distances
+        for i in range(num):
+            for j in range(num):
+                fakedist[i][j] = sqrt(sum([pow(loc[i][x] - loc[j][x], 2)
+                                           for x in range(len(loc[i]))]))
+
+        # Move points
+        grad = [[0.0, 0.0] for i in range(num)]
+
+        totalerror = 0
+        for k in range(num):
+            for j in range(num):
+                if j == k:
+                    continue
+                # Get the error % difference between the real and est dists
+                errorterm = (fakedist[j][k] - realdist[j][k]) / realdist[j][k]
+
+                # Each point needs to be moved away from or towards the other
+                # point in proportion to how much error it has
+                grad[k][0] += (loc[k][0] - loc[j][0]) / fakedist[j][k] * errorterm
+                grad[k][1] += (loc[k][1] - loc[j][1]) / fakedist[j][k] * errorterm
+
+                # Keep track of the total error
+                totalerror += abs(errorterm)
+        print(totalerror)
+
+        # If the answer got worse by moving the points, we are done
+        if lasterror and lasterror < totalerror:
+            break
+        lasterror = totalerror
+
+        # Move each of the points by the learning rate times the gradient
+        for k in range(num):
+            loc[k][0] -= rate * grad[k][0]
+            loc[k][1] -= rate * grad[k][1]
+    return loc
+
+
+def draw2d(data, labels, jpeg='mds2d.jpg'):
+    """
+    draw the 2 dimensional description of multidimensonal data
+    """
+    img = Image.new('RGB', (2000, 2000), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    for i, _ in enumerate(data):
+        x_val = (data[i][0] + 0.5) * 1000
+        y_val = (data[i][1] + 0.5) * 1000
+        draw.text((x_val, y_val), labels[i], (0, 0, 0))
+    img.save(PATH + jpeg, 'JPEG')
+
 
 if __name__ == "__main__":
     BLOGNAMES, WORDS, DATA = read_blog_file()
-    CLUST = hcluster(DATA)
-    print_clust(CLUST, labels=BLOGNAMES)
-    draw_dendrogram(CLUST, BLOGNAMES, jpeg='blogclust.jpg')
+
+    # Hierarchical clustering
+    # CLUST = hcluster(DATA)
+    # print_clust(CLUST, labels=BLOGNAMES)
+    # draw_dendrogram(CLUST, BLOGNAMES, jpeg='blogclust.jpg')
+
+    # Kmeans Clustering
+    # KCLUST = kcluster(DATA, k=10)
+    # print([BLOGNAMES[r] for r in KCLUST[0]])
+
+
+    ##### Two-D display example #####
+    COORDS = scaledown(DATA)
+    pdb.set_trace()
+    draw2d(COORDS, BLOGNAMES, jpeg='blogs2d.jpg')
