@@ -314,7 +314,7 @@ if __name__ == '__main__':
 
     # Fisher Classifier
     FISHC = FisherClassifier(get_words)
-    sampletrain(FISHC)
+    # sampletrain(FISHC)
     # print(FISHC.cprob('money', 'bad'))
     # print(FISHC.weighted_prob('money', 'bad', FISHC.cprob))
     # print(FISHC.cprob('quick', 'good'))
@@ -326,6 +326,10 @@ if __name__ == '__main__':
     # print(FISHC.classify('quick money'))
     # FISHC.setminimum('good', 0.5)
     # print(FISHC.classify('quick money'))
-    
+
     # Using Feed Filter
-    feed_filter.read('python_search.xml', FISHC)
+    # feed_filter.read('python_search.xml', FISHC)
+    
+    # Using expanded feature function
+    FISHC_FEAT = FisherClassifier(feed_filter.entryfeatures)
+    feed_filter.read('python_search.xml', FISHC_FEAT)
