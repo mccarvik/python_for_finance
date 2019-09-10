@@ -223,9 +223,9 @@ class Searcher:
     """
     def __init__(self, dbname):
         """
-        Constrcutor
+        Constructor
         """
-        self.con = sqlite3.connect(dbname)
+        self.con = sqlite3.connect(DATA_PATH + dbname)
 
     def __del__(self):
         """
@@ -235,6 +235,7 @@ class Searcher:
 
     def get_match_rows(self, string):
         """
+        Takes a query string and queries the DB for all the URLS with these words
         """
         # Strings to build the query
         fieldlist = 'w0.urlid'
@@ -250,6 +251,7 @@ class Searcher:
             # Get the word ID
             wordrow = self.con.execute("select rowid from wordlist where word='%s'"
                                        % word).fetchone()
+            # Builds the query
             if wordrow is not None:
                 wordid = wordrow[0]
                 wordids.append(wordid)
@@ -275,17 +277,21 @@ class Searcher:
 
     def get_scored_list(self, rows, wordids):
         """
+        Get the scores for each url and totals them based on weight
+        Rows has 3 elements - [url_id, loc of word 1, loc of word 2]
+        Will have every combination of locations between the two words
         """
         totalscores = dict([(row[0], 0) for row in rows])
-
         # This is where we'll put our scoring functions
-        weights = [(1.0, self.location_score(rows)),
-                   (1.0, self.frequency_score(rows)),
-                   (1.0, self.distance_score(rows)),
+        weights = [(1.0, location_score(rows)),
+                   (1.0, frequency_score(rows)),
+                   (1.0, distance_score(rows)),
                    (1.0, self.page_rank_score(rows)),
                    (1.0, self.link_text_score(rows, wordids)),
                    #  (5.0, self.nnscore(rows, wordids))
                   ]
+        # Sum up weighted scores
+        pdb.set_trace()
         for (weight, scores) in weights:
             for url in totalscores:
                 totalscores[url] += weight * scores[url]
@@ -293,6 +299,7 @@ class Searcher:
 
     def get_url_name(self, url_id):
         """
+        gets the url name from the urllist table based on url id
         """
         return self.con.execute("select url from urllist where rowid=%d"
                                 % url_id).fetchone()[0]
@@ -300,6 +307,7 @@ class Searcher:
     def query(self, string):
         """
         """
+        pdb.set_trace()
         rows, wordids = self.get_match_rows(string)
         scores = self.get_scored_list(rows, wordids)
         rankedscores = [(score, url) for (url, score) in scores.items()]
@@ -308,40 +316,6 @@ class Searcher:
         for (score, urlid) in rankedscores[0:10]:
             print('%f\t%s' % (score, self.get_url_name(urlid)))
         return wordids, [r[1] for r in rankedscores[0:10]]
-
-    def frequency_score(self, rows):
-        """
-        """
-        counts = dict([(row[0], 0) for row in rows])
-        for row in rows:
-            counts[row[0]] += 1
-        return normalize_scores(counts)
-
-    def location_score(self, rows):
-        """
-        """
-        locations = dict([(row[0], 1000000) for row in rows])
-        for row in rows:
-            loc = sum(row[1:])
-            if loc < locations[row[0]]:
-                locations[row[0]] = loc
-        return normalize_scores(locations, small_is_better=1)
-
-    def distance_score(self, rows):
-        """
-        """
-        # If there's only one word, everyone wins!
-        if len(rows[0]) <= 2:
-            return dict([(row[0], 1.0) for row in rows])
-
-        # Initialize the dictionary with large values
-        mindistance = dict([(row[0], 1000000) for row in rows])
-
-        for row in rows:
-            dist = sum([abs(row[i]-row[i-1]) for i in range(2, len(row))])
-            if dist < mindistance[row[0]]:
-                mindistance[row[0]] = dist
-        return normalize_scores(mindistance, small_is_better=1)
 
     def inbound_link_score(self, rows):
         """
@@ -354,14 +328,15 @@ class Searcher:
     def link_text_score(self, rows, wordids):
         """
         """
+        pdb.set_trace()
         linkscores = dict([(row[0], 0) for row in rows])
         for wordid in wordids:
             cur = self.con.execute('select link.fromid,link.toid from linkwords,link where wordid=%d and linkwords.linkid=link.rowid' % wordid)
             for (fromid, toid) in cur:
                 if toid in linkscores:
-                    pr = self.con.execute('select score from pagerank where urlid=%d'
-                                          % fromid).fetchone()[0]
-                    linkscores[toid] += pr
+                    page_rank = self.con.execute('select score from pagerank where urlid=%d'
+                                                 % fromid).fetchone()[0]
+                    linkscores[toid] += page_rank
         maxscore = max(linkscores.values())
         normalizedscores = dict([(u, float(l) / maxscore) for (u, l) in linkscores.items()])
         return normalizedscores
@@ -375,20 +350,15 @@ class Searcher:
         normalizedscores = dict([(u, float(l) / maxrank) for (u, l) in pageranks.items()])
         return normalizedscores
 
-    def nn_score(self, rows, wordids):
-        """
-        """
-        # Get unique URL IDs as an ordered list
-        urlids = [urlid for urlid in dict([(row[0], 1) for row in rows])]
-        nnres = mynet.getresult(wordids, urlids)
-        scores = dict([(urlids[i], nnres[i]) for i in range(len(urlids))])
-        return normalize_scores(scores)
 
-
-def normalize_scores(self, scores, small_is_better=0):
+def normalize_scores(scores, small_is_better=0):
     """
+    Some functions have a lower score as better, some a higher score
+    This function will always return a number between 1 and 0 where 1 is the best
+    score possible
     """
-    vsmall = 0.00001 # Avoid division by zero errors
+    # Avoid division by zero errors
+    vsmall = 0.00001
     if small_is_better:
         minscore = min(scores.values())
         return dict([(u, float(minscore) / max(vsmall, l)) for (u, l) in scores.items()])
@@ -397,6 +367,61 @@ def normalize_scores(self, scores, small_is_better=0):
         if maxscore == 0:
             maxscore = vsmall
         return dict([(u, float(c) / maxscore) for (u, c) in scores.items()])
+
+
+def frequency_score(rows):
+    """
+    Counts how many times a url comes up amongst these words
+    Not a true count as it counts combinations of the words involved not just
+    the absolute count. ex: will favor a url with 3 of each of 2 words vs. 5 and 1
+    """
+    counts = dict([(row[0], 0) for row in rows])
+    for row in rows:
+        counts[row[0]] += 1
+    return normalize_scores(counts)
+
+
+def location_score(rows):
+    """
+    How close the location of the word is to the beginning of the URL
+    """
+    # hard max of 1,000,000
+    locations = dict([(row[0], 1000000) for row in rows])
+    for row in rows:
+        # gets a sum of the locations of the word in each url
+        loc = sum(row[1:])
+        if loc < locations[row[0]]:
+            locations[row[0]] = loc
+    return normalize_scores(locations, small_is_better=1)
+
+
+def distance_score(rows):
+    """
+    how far appart the words in the query are in the URL
+    """
+    # If there's only one word, everyone wins!
+    if len(rows[0]) <= 2:
+        return dict([(row[0], 1.0) for row in rows])
+
+    # Initialize the dictionary with large values
+    mindistance = dict([(row[0], 1000000) for row in rows])
+
+    for row in rows:
+        dist = sum([abs(row[i]-row[i-1]) for i in range(2, len(row))])
+        # get the min distance for this url
+        if dist < mindistance[row[0]]:
+            mindistance[row[0]] = dist
+    return normalize_scores(mindistance, small_is_better=1)
+
+
+def nn_score(rows, wordids):
+    """
+    """
+    # Get unique URL IDs as an ordered list
+    urlids = [urlid for urlid in dict([(row[0], 1) for row in rows])]
+    nnres = mynet.getresult(wordids, urlids)
+    scores = dict([(urlids[i], nnres[i]) for i in range(len(urlids))])
+    return normalize_scores(scores)
 
 
 def separate_words(text):
@@ -409,7 +434,15 @@ def separate_words(text):
 
 if __name__ == '__main__':
     ##### Crawler demo #####
-    PAGE_LIST = ['https://en.wikipedia.org/wiki/Sport']
-    CRAWL = Crawler('page_index.db')
+    # PAGE_LIST = ['https://en.wikipedia.org/wiki/Sport']
+    # CRAWL = Crawler('page_index.db')
     # CRAWL.create_index_tables()
-    CRAWL.crawl(PAGE_LIST, depth=2)
+    # CRAWL.crawl(PAGE_LIST, depth=2)
+    # print([row for row in CRAWL.con.execute('select rowid from wordlocation where wordid=1')])
+
+    ##### Query Demo #####
+    SRCH = Searcher('page_index.db')
+    # print(SRCH.get_match_rows('search lucky'))
+
+    ##### Scoring Demo #####
+    print(SRCH.query('search google'))
