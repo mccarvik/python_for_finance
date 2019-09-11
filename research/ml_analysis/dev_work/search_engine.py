@@ -110,7 +110,8 @@ class Crawler:
 
     def add_link_ref(self, url_from, url_to, link_text):
         """
-        Add a link between two pages
+        Add a link between two pages and insert to linkwords indicating a query
+        word was in the link text
         """
         words = separate_words(link_text)
         fromid = self.get_entry_id('urllist', 'url', url_from)
@@ -185,8 +186,11 @@ class Crawler:
         self.con.execute('create index urlfromidx on link(fromid)')
         self.dbcommit()
 
-    def calculate_page_rank(self, iterations=20):
+    def calculate_page_rank(self, iterations=5):
         """
+        Calculates the page rank score based on how many other pages reference
+        this page and how popular those pages are, and how many links they have
+        on their page
         """
         # clear out the current page rank tables
         self.con.execute('drop table if exists pagerank')
@@ -198,20 +202,24 @@ class Crawler:
         self.dbcommit()
 
         for i in range(iterations):
+            # Need multiple iterations, as the page ranks of pages linked to this
+            # one will be consistently updated on each iteration
             print("Iteration %d" % i)
             for (urlid,) in self.con.execute('select rowid from urllist'):
+                # Default page rank
                 page_rank = 0.15
 
                 # Loop through all the pages that link to this one
-                for (linker,) in self.con.execute('select distinct fromid from link where'
-                                                  'toid=%d' % urlid):
+                for (linker,) in self.con.execute('select distinct fromid from link where toid=%d'
+                                                  % urlid):
                     # Get the page rank of the linker
-                    linkingpr = self.con.execute('select score from pagerank where'
-                                                 'urlid=%d' % linker).fetchone()[0]
+                    linkingpr = self.con.execute('select score from pagerank where urlid=%d'
+                                                 % linker).fetchone()[0]
 
                     # Get the total number of links from the linker
-                    linkingcount = self.con.execute('select count(*) from link where'
-                                                    'fromid=%d' % linker).fetchone()[0]
+                    linkingcount = self.con.execute('select count(*) from link where fromid=%d'
+                                                    % linker).fetchone()[0]
+                    # add to page rank, accounting for the link count
                     page_rank += 0.85 * (linkingpr / linkingcount)
                 self.con.execute('update pagerank set score=%f where urlid=%d'
                                  % (page_rank, urlid))
@@ -220,6 +228,7 @@ class Crawler:
 
 class Searcher:
     """
+    Class to query and edit data from the DBs created by the Crawler class
     """
     def __init__(self, dbname):
         """
@@ -291,7 +300,6 @@ class Searcher:
                    #  (5.0, self.nnscore(rows, wordids))
                   ]
         # Sum up weighted scores
-        pdb.set_trace()
         for (weight, scores) in weights:
             for url in totalscores:
                 totalscores[url] += weight * scores[url]
@@ -306,8 +314,8 @@ class Searcher:
 
     def query(self, string):
         """
+        Query for the page rank scores and return a sorted list
         """
-        pdb.set_trace()
         rows, wordids = self.get_match_rows(string)
         scores = self.get_scored_list(rows, wordids)
         rankedscores = [(score, url) for (url, score) in scores.items()]
@@ -320,6 +328,7 @@ class Searcher:
     def inbound_link_score(self, rows):
         """
         """
+        pdb.set_trace()
         uniqueurls = dict([(row[0], 1) for row in rows])
         inboundcount = dict([(u, self.con.execute('select count(*) from link where toid=%d'
                                                   % u).fetchone()[0]) for u in uniqueurls])
@@ -327,22 +336,28 @@ class Searcher:
 
     def link_text_score(self, rows, wordids):
         """
+        Uses the text of the links to a page to decide how relevant the page is
         """
-        pdb.set_trace()
+        # create default score of 0 fro each url
         linkscores = dict([(row[0], 0) for row in rows])
         for wordid in wordids:
+            # get all the links
             cur = self.con.execute('select link.fromid,link.toid from linkwords,link where wordid=%d and linkwords.linkid=link.rowid' % wordid)
             for (fromid, toid) in cur:
                 if toid in linkscores:
+                    # if word is in the link, get the links page score
                     page_rank = self.con.execute('select score from pagerank where urlid=%d'
                                                  % fromid).fetchone()[0]
                     linkscores[toid] += page_rank
         maxscore = max(linkscores.values())
+        if not maxscore:
+            maxscore = 0.00001
         normalizedscores = dict([(u, float(l) / maxscore) for (u, l) in linkscores.items()])
         return normalizedscores
 
     def page_rank_score(self, rows):
         """
+        Grabs the pageranks from the DB and then normalizes them
         """
         pageranks = dict([(row[0], self.con.execute('select score from pagerank where urlid=%d'
                                                     % row[0]).fetchone()[0]) for row in rows])
@@ -435,14 +450,15 @@ def separate_words(text):
 if __name__ == '__main__':
     ##### Crawler demo #####
     # PAGE_LIST = ['https://en.wikipedia.org/wiki/Sport']
-    # CRAWL = Crawler('page_index.db')
+    CRAWL = Crawler('page_index.db')
     # CRAWL.create_index_tables()
     # CRAWL.crawl(PAGE_LIST, depth=2)
     # print([row for row in CRAWL.con.execute('select rowid from wordlocation where wordid=1')])
+    # CRAWL.calculate_page_rank()
 
     ##### Query Demo #####
     SRCH = Searcher('page_index.db')
     # print(SRCH.get_match_rows('search lucky'))
 
     ##### Scoring Demo #####
-    print(SRCH.query('search google'))
+    print(SRCH.query('stadiums'))
