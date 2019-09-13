@@ -9,6 +9,8 @@ import urllib
 import urllib.request
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
+import nn
+MYNET = nn.NeuralNet('nn.db')
 
 warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -327,8 +329,8 @@ class Searcher:
 
     def inbound_link_score(self, rows):
         """
+        Count the number of inbound links on each page and use the total number as a metric
         """
-        pdb.set_trace()
         uniqueurls = dict([(row[0], 1) for row in rows])
         inboundcount = dict([(u, self.con.execute('select count(*) from link where toid=%d'
                                                   % u).fetchone()[0]) for u in uniqueurls])
@@ -431,10 +433,12 @@ def distance_score(rows):
 
 def nn_score(rows, wordids):
     """
+    Grab the score from the neural network
     """
+    pdb.set_trace()
     # Get unique URL IDs as an ordered list
     urlids = [urlid for urlid in dict([(row[0], 1) for row in rows])]
-    nnres = mynet.getresult(wordids, urlids)
+    nnres = MYNET.get_result(wordids, urlids)
     scores = dict([(urlids[i], nnres[i]) for i in range(len(urlids))])
     return normalize_scores(scores)
 

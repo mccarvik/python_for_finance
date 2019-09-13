@@ -1,7 +1,7 @@
 """
 Module to mimic a Neural Network
 """
-import pdb
+# import pdb
 from math import tanh
 import sqlite3
 
@@ -138,7 +138,7 @@ class NeuralNet:
         """
         # value lists
         self.wordids = wordids
-        self.hiddenids = self.get_all_hidden_ids(wordids, urlids)
+        self.hiddenids = list(self.get_all_hidden_ids(wordids, urlids))
         self.urlids = urlids
 
         # outputs of actual nodes (input, hidden, and output)
@@ -157,7 +157,7 @@ class NeuralNet:
     def feed_forward(self):
         """
         Takes a list of inputs, pushes them through the network, and returns the
-        output of all the nodes in the output layer
+        output of all the nodes in the output layer updating the node values in the process
         """
         # the only inputs are the query words
         for i in range(len(self.wordids)):
@@ -193,46 +193,48 @@ class NeuralNet:
 
     def back_propagate(self, targets, learn_rate=0.5):
         """
+        Updating weights from outputs back to input connections
+        N is an input variable to decide how quickly the updates get factored in
         """
-        pdb.set_trace()
         output_deltas = [0.0] * len(self.urlids)
 
-        # calculate errors for output
-        # output deltas --> dtanh(node value) * (target input - node value)
         # output deltas --> basically how much our guesses were off by
         for k in range(len(self.urlids)):
-            error = targets[k]-self.out_o[k]
+            # calculate the error for each output node
+            error = targets[k] - self.out_o[k]
+            # calculate how much the value should change
             output_deltas[k] = dtanh(self.out_o[k]) * error
 
-        # calculate errors for hidden layer
-        # hidden_deltas --> dtanh(node value) * (sum)
-        # sum = sum of all output_deltas * weights
         hidden_deltas = [0.0] * len(self.hiddenids)
         for j in range(len(self.hiddenids)):
             error = 0.0
             for k in range(len(self.urlids)):
-                error = error + output_deltas[k]*self.wgt_o[j][k]
+                # calculate errors for each hidden node --> sum of all output_deltas * wgts
+                error = error + output_deltas[k] * self.wgt_o[j][k]
+            # hidden_deltas --> dtanh(node value) * (sum)
             hidden_deltas[j] = dtanh(self.out_h[j]) * error
 
-        # update output weights
-        # weight update for each output--> output_delta * hidden node value * N
-        # N is an input variable to decide how quickly the updates get factored in
+        # update weights from hidden to output
         for j in range(len(self.hiddenids)):
             for k in range(len(self.urlids)):
-                change = output_deltas[k]*self.out_h[j]
+                # wgt update for each node --> output_delta * hidden node value * learn_rate
+                change = output_deltas[k] * self.out_h[j]
+                # wgt is adjusted from current value by the calculated change
                 self.wgt_o[j][k] = self.wgt_o[j][k] + learn_rate * change
 
-        # update input weights
-        # same calc for updating input weights as for output
+        # update weights from input to hidden
         for i in range(len(self.wordids)):
             for j in range(len(self.hiddenids)):
-                change = hidden_deltas[j]*self.out_i[i]
+                # wgt update for each node --> hidden_delta * input node value * learn_rate
+                change = hidden_deltas[j] * self.out_i[i]
+                # wgt is adjusted from current value by the calculated change
                 self.wgt_i[i][j] = self.wgt_i[i][j] + learn_rate * change
 
-    def train_query(self, wordids, urlids, selectedurl, prnt=True):
+    def train_query(self, wordids, urlids, selected_url, prnt=True):
         """
+        Take an input and labeled output and pass to back propagation to update
+        node values and connection weights
         """
-        pdb.set_trace()
         # generate a hidden node if necessary
         self.gen_hidden_node(wordids, urlids)
 
@@ -243,15 +245,16 @@ class NeuralNet:
 
         if prnt:
             print("training input: " + str(wordids) + "    training outputs: " + str(urlids) +
-                  "    selected output: " + str(selectedurl))
+                  "    labeled output: " + str(selected_url))
             print("Before:")
             self.print_weights()
 
-        # Set the chosen url to 1 and the rest to 0 and pass that to backpropigation
-        targets[urlids.index(selectedurl)] = 1.0
-        error = self.back_propagate(targets)
+        # Set the labeled url to 1 and the rest to 0 and pass that to backpropigation
+        targets[urlids.index(selected_url)] = 1.0
+        self.back_propagate(targets)
+        # error = self.back_propagate(targets)
         self.update_database()
-        # self.net_update(wordids, urlids, selectedurl)
+        # self.net_update(wordids, urlids, selected_url)
 
         if prnt:
             print("After:")
@@ -259,9 +262,11 @@ class NeuralNet:
 
     def print_weights(self):
         """
+        Print all of the connection weights between layers
         """
-        print("input weights (row 1 => all weights from input node 1, etc):")
+        print("input weights --> all weights from input layer to hidden layer:")
         k = 0
+        # Print the weights from the input layer to the hidden layer
         for i in self.wgt_i:
             inp_str = str(self.wordids[k]) + ": "
             for inp in i:
@@ -271,7 +276,8 @@ class NeuralNet:
             k += 1
 
         k = 0
-        print("output weights (row 1 => all weights from hidden node 1, etc)::")
+        # Print the weights from the input layer to the hidden layer
+        print("output weights --> all weights from hidden layer to output layer:")
         for wgt_out in self.wgt_o:
             out_str = str(self.get_hidden_key(self.hiddenids[k])[0]) + ": "
             # out_str = str(self.hiddenids[k]) + ": "
@@ -283,9 +289,8 @@ class NeuralNet:
 
     def update_database(self):
         """
+        Updates the database with the new weight strengths
         """
-        pdb.set_trace()
-        # set them to database values
         for i in range(len(self.wordids)):
             for j in range(len(self.hiddenids)):
                 self.set_strength(self.wordids[i], self.hiddenids[j], 0, self.wgt_i[i][j])
@@ -296,6 +301,7 @@ class NeuralNet:
 
     def get_hidden_key(self, hidden_id):
         """
+        Take a hidden node ID and return the node key
         """
         return self.con.execute("select create_key from hiddennode where rowid='%s'"
                                 % hidden_id).fetchone()
@@ -304,6 +310,7 @@ def dtanh(y_val):
     """
     Calculates the slope of the tanh function
     Which determines how much the node's total output has to change
+    Part of the sigmoid family of functions
     """
     return 1.0 - y_val * y_val
 
@@ -328,5 +335,15 @@ if __name__ == '__main__':
     # print(MYNET.get_result([WWORLD, WBANK], [UWORLDBANK, URIVER, UEARTH]))
 
     # Train query exercise
-    MYNET.train_query([WWORLD, WBANK], [UWORLDBANK, URIVER, UEARTH], UWORLDBANK)
-    print(MYNET.get_result([WWORLD, WBANK], [UWORLDBANK, URIVER, UEARTH]))
+    # MYNET.train_query([WWORLD, WBANK], [UWORLDBANK, URIVER, UEARTH], UWORLDBANK)
+    # print(MYNET.get_result([WWORLD, WBANK], [UWORLDBANK, URIVER, UEARTH]))
+
+    # Neural Network Example
+    ALLURLS = [UWORLDBANK, URIVER, UEARTH]
+    for _ in range(30):
+        MYNET.train_query([WWORLD, WBANK], ALLURLS, UWORLDBANK)
+        MYNET.train_query([WRIVER, WBANK], ALLURLS, URIVER)
+        MYNET.train_query([WWORLD], ALLURLS, UEARTH)
+    print(MYNET.get_result([WWORLD, WBANK], ALLURLS))
+    print(MYNET.get_result([WRIVER, WBANK], ALLURLS))
+    print(MYNET.get_result([WBANK], ALLURLS))
