@@ -1,50 +1,59 @@
-import sys, pdb
+"""
+Module for common ML utilities
+"""
+# import pdb
 import numpy as np
 import matplotlib as mpl
-mpl.use('Agg')
-import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from sklearn.preprocessing import StandardScaler
+mpl.use('Agg')
 
 IMG_PATH = '/home/ec2-user/environment/python_for_finance/research/ml_analysis/png/temp/'
 IMG_ROOT = '/home/ec2-user/environment/python_for_finance/research/ml_analysis/png/'
 
 def update_check(list1, list2):
-    for i,j in zip(list1, list2):
+    """
+    Check the diff between two lists for a change in weights
+    """
+    for i, j in zip(list1, list2):
         if i != j:
             return True
     return False
 
-    
-def plot_decision_regions(X, y, classifier, test_break_idx=None, resolution=0.02):
+
+def plot_decision_regions(x_vals, y_vals, classifier, test_break_idx=None, resolution=0.02):
+    """
+    Will plot a chart using MatPlotLb showing the decision regions of a classifier
+    """
     # setup marker generator and color map
     markers = ('s', 'x', 'o', '^', 'v')
     colors = ('red', 'blue', 'lightgreen', 'gray', 'cyan')
-    cmap = ListedColormap(colors[:len(np.unique(y))])
+    cmap = ListedColormap(colors[:len(np.unique(y_vals))])
 
     # plot the decision surface
-    x1_min, x1_max = X[:, 0].min() - 1, X[:, 0].max() + 1
-    x2_min, x2_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    x1_min, x1_max = x_vals[:, 0].min() - 1, x_vals[:, 0].max() + 1
+    x2_min, x2_max = x_vals[:, 1].min() - 1, x_vals[:, 1].max() + 1
     xx1, xx2 = np.meshgrid(np.arange(x1_min, x1_max, resolution),
                            np.arange(x2_min, x2_max, resolution))
     # will plot over entire decision surface, not just given points
-    Z = classifier.predict(np.array([xx1.ravel(), xx2.ravel()]).T)
-    Z = Z.reshape(xx1.shape)
-    plt.contourf(xx1, xx2, Z, alpha=0.4, cmap=cmap)
+    z_vals = classifier.predict(np.array([xx1.ravel(), xx2.ravel()]).T)
+    z_vals = z_vals.reshape(xx1.shape)
+    plt.contourf(xx1, xx2, z_vals, alpha=0.4, cmap=cmap)
     plt.xlim(xx1.min(), xx1.max())
     plt.ylim(xx2.min(), xx2.max())
 
-    for idx, cl in enumerate(np.unique(y)):
-        plt.scatter(x=X[y == cl, 0], y=X[y == cl, 1],
-                    alpha=0.8, c=cmap(idx),
-                    marker=markers[idx], label=cl)
+    for idx, clss in enumerate(np.unique(y_vals)):
+        edit_cmap = [list(cmap(idx))]
+        plt.scatter(x=x_vals[y_vals == clss, 0], y=x_vals[y_vals == clss, 1],
+                    alpha=0.8, c=edit_cmap,
+                    marker=markers[idx], label=clss)
 
     # highlight test samples
     if test_break_idx:
-        X_test, y_test = X[test_break_idx:], y[test_break_idx:]
-        plt.scatter(X_test[:, 0],
-                    X_test[:, 1],
+        x_test, _ = x_vals[test_break_idx:], y_vals[test_break_idx:]
+        plt.scatter(x_test[:, 0],
+                    x_test[:, 1],
                     c='',
                     alpha=1.0,
                     linewidths=1,
@@ -52,32 +61,45 @@ def plot_decision_regions(X, y, classifier, test_break_idx=None, resolution=0.02
                     s=55, label='test set')
 
 
-def standardize(X_train, X_test=None):
-    # Standardization of the data --> everything based on std's from the mean
-    sc = StandardScaler()
-    sc.fit(X_train)
-    X_train_std = sc.transform(X_train)
-    if X_test != None:
-        X_test_std = sc.transform(X_test)
-        return (X_train_std, X_test_std)
-    else:
-        return X_train_std
+def standardize(x_train, x_test=None):
+    """
+    Standardization of the data --> everything based on std's from the mean
+    """
+    scale = StandardScaler()
+    scale.fit(x_train)
+    x_train_std = scale.transform(x_train)
+    if x_test != None:
+        x_test_std = scale.transform(x_test)
+        return (x_train_std, x_test_std)
+    return x_train_std
 
 
 # Decision Tree criterion funcs
-def gini(p):
-    return (p)*(1 - (p)) + (1-p)*(1 - (1-p))
-
-  
-def entropy(p):
-    return - p*np.log2(p) - (1 - p)*np.log2((1 - p))
-
-  
-def error(p):
-    return 1 - np.max([p, 1 - p])
+def gini(prob):
+    """
+    Decision Tree gini coefficient
+    """
+    return (prob) * (1 - (prob)) + (1 - prob) * (1 - (1 - prob))
 
 
-def lin_regplot(X, y, model):
-    plt.scatter(X, y, c='lightblue')
-    plt.plot(X, model.predict(X), color='red', linewidth=2)
+def entropy(prob):
+    """
+    Decision Tree gini coefficient
+    """
+    return - prob * np.log2(prob) - (1 - prob) * np.log2((1 - prob))
+
+
+def error(prob):
+    """
+    calculate the error of a given probability
+    """
+    return 1 - np.max([prob, 1 - prob])
+
+
+def lin_regplot(x_vals, y_vals, model):
+    """
+    Plot a linear regression
+    """
+    plt.scatter(x_vals, y_vals, c='lightblue')
+    plt.plot(x_vals, model.predict(x_vals), color='red', linewidth=2)
     return None

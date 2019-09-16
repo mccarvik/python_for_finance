@@ -6,8 +6,12 @@ import datetime as dt
 from math import log
 import pandas as pd
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 from utils.ml_utils import IMG_PATH
+mpl.use('Agg')
+
 
 DATA = [['slashdot', 'USA', 'yes', 18, 'None'],
         ['google', 'France', 'yes', 23, 'Premium'],
@@ -107,6 +111,13 @@ def variance(rows):
     mean = sum(data) / len(data)
     var = sum([(d - mean)**2 for d in data]) / len(data)
     return var
+
+
+def error(prob):
+    """
+    Calculates the error of a decision tree output
+    """
+    return 1 - np.max([prob, 1 - prob])
 
 
 class DecisionTree():
@@ -392,7 +403,64 @@ def draw_node(draw, tree, x_val, y_val):
         draw.text((x_val-20, y_val), txt, (0, 0, 0))
 
 
+# def pml_build_tree_test():
+#     # Get Data
+#     IRIS = datasets.load_iris()
+#     Y_VALS = IRIS.target[0:100]
+#     Y_VALS = np.where(Y_VALS == 0, -1, 1)
+#     X_VALS = IRIS.data[0:100, [0, 2]]
+#     X_train, X_test, y_train, y_test = train_test_split(X_VALS, Y_VALS, test_size=0.3, random_state=0)
+#     tree = DecisionTreeClassifier(criterion='entropy', max_depth=3, random_state=0)
+#     tree.fit(X_train, y_train)
+
+#     X_combined = np.vstack((X_train, X_test))
+#     y_combined = np.hstack((y_train, y_test))
+#     plot_decision_regions(X_combined, y_combined,
+#                         classifier=tree, test_idx=range(105,150))
+
+#     plt.xlabel('petal length [cm]')
+#     plt.ylabel('petal width [cm]')
+#     plt.legend(loc='upper left')
+#     plt.tight_layout()
+#     plt.savefig(PIC_LOC + 'decision_tree_decision.png', dpi=300)
+
+#     export_graphviz(tree,
+#                   out_file='tree.dot',
+#                   feature_names=['petal length', 'petal width'])
+
+
+def pml_impurity_test():
+    """
+    Test the decision tree against sklearn
+    """
+    pdb.set_trace()
+    x_vals = np.arange(0.0, 1.0, 0.01)
+    ent = [entropy(p) if p != 0 else None for p in x_vals]
+    sc_ent = [e*0.5 if e else None for e in ent]
+    err = [error(i) for i in x_vals]
+    plt.figure()
+    axs = plt.subplot(111)
+    for i, lab, line_style, ccc, in zip([ent, sc_ent, gini_impurity(x_vals), err],
+                                        ['Entropy', 'Entropy (scaled)',
+                                         'Gini Impurity', 'Misclassification Error'],
+                                        ['-', '-', '--', '-.'],
+                                        ['black', 'lightgray', 'red', 'green', 'cyan']):
+        axs.plot(x_vals, i, label=lab, linestyle=line_style, lw=2, color=ccc)
+
+    axs.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15),
+               ncol=3, fancybox=True, shadow=False)
+    axs.axhline(y=0.5, linewidth=1, color='k', linestyle='--')
+    axs.axhline(y=1.0, linewidth=1, color='k', linestyle='--')
+    plt.ylim([0, 1.1])
+    plt.xlabel('p(i=1)')
+    plt.ylabel('Impurity Index')
+    plt.tight_layout()
+    plt.savefig(IMG_PATH + '/dec_tree_impurity.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+
 if __name__ == '__main__':
+    pml_impurity_test()
     # Testing functionality
     # print(divide_set(DATA, 2, 'yes'))
     # print(gini_impurity(DATA))
@@ -409,7 +477,7 @@ if __name__ == '__main__':
     # print(TREE.missing_data_classify(['google', 'France', None, None]))
 
     # Tree with numerical classification
-    HOUSE_TREE = DecisionTree(data=HOUSING_DATA, score_func=variance)
-    pdb.set_trace()
-    HOUSE_TREE.print_tree()
-    draw_tree(HOUSE_TREE, jpeg='house_tree_{}.jpg')
+    # HOUSE_TREE = DecisionTree(data=HOUSING_DATA, score_func=variance)
+    # pdb.set_trace()
+    # HOUSE_TREE.print_tree()
+    # draw_tree(HOUSE_TREE, jpeg='house_tree_{}.jpg')
