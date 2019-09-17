@@ -1,7 +1,7 @@
 """
 Module for common ML utilities
 """
-# import pdb
+import pdb
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -51,10 +51,11 @@ def plot_decision_regions(x_vals, y_vals, classifier, test_break_idx=None, resol
 
     # highlight test samples
     if test_break_idx:
-        x_test, _ = x_vals[test_break_idx:], y_vals[test_break_idx:]
+        x_test, _ = x_vals[test_break_idx], y_vals[test_break_idx]
         plt.scatter(x_test[:, 0],
                     x_test[:, 1],
-                    c='',
+                    facecolors='none',
+                    edgecolors='black',
                     alpha=1.0,
                     linewidths=1,
                     marker='o',

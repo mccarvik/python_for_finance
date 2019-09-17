@@ -7,10 +7,12 @@ from random import random, randint
 import datetime as dt
 import numpy as np
 from sklearn import datasets
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from utils.ml_utils import plot_decision_regions, IMG_PATH
+from utils.ml_utils import plot_decision_regions, IMG_PATH, IMG_ROOT, standardize
 from research.ml_analysis.dev_work.optimization import anneal_opt, genetic_opt
 mpl.use('Agg')
 
@@ -87,7 +89,8 @@ class KNN():
     """
     K-Nearest neighbor Classifier
     """
-    def __init__(self, data, k_nbrs=3, weight_func=False, knn_func=False, cat=False, opt=False, opt_func=anneal_opt):
+    def __init__(self, data, k_nbrs=3, weight_func=False, knn_func=False, cat=False,
+                 opt=False, opt_func=anneal_opt, dont_div=False):
         """
         Constructor function
         """
@@ -110,7 +113,11 @@ class KNN():
             costf = self.create_cost_func()
             scales = opt_func(wgt_domain, costf, step=2)
             self.data = self.rescale_data(scales)
-        self.train, self.test = self.div_data()
+        if not dont_div:
+            self.train, self.test = self.div_data()
+        else:
+            self.train = self.data
+            self.test = np.array([])
 
     def rescale_data(self, scale):
         """
@@ -142,12 +149,17 @@ class KNN():
                 trainset.append(row)
         return np.array(trainset), np.array(testset)
 
-    def wgt_knn_est(self, vec1):
+    def wgt_knn_est(self, vec1, target=False):
         """
         knn with the distances weighted for the outcome
+        target parameter indicates if the data has the target attached or not
         """
         # Get distances
-        dlist = self.get_dist(vec1[:-1])
+        # pdb.set_trace()
+        if target:
+            dlist = self.get_dist(vec1[:-1])
+        else:
+            dlist = self.get_dist(vec1)
         if not self.cat:
             avg = 0.0
         else:
@@ -216,13 +228,13 @@ class KNN():
         distancelist.sort()
         return distancelist
 
-    def predict(self, vectors):
+    def predict(self, vectors, target=False):
         """
         Predicts the outcome of a list of entries
         """
         ests = []
         for vec in vectors:
-            ests.append(self.knn_func(vec))
+            ests.append(self.knn_func(vec, target))
         return np.array(ests)
 
     def run(self, trials=10, data=np.array([])):
@@ -238,7 +250,7 @@ class KNN():
                     self.train, self.test = self.div_data(data=data)
                 else:
                     self.train, self.test = self.div_data()
-            guesses = self.predict(self.test)
+            guesses = self.predict(self.test, target=True)
             ind = 0
             for est in guesses:
                 if not self.cat:
@@ -341,6 +353,7 @@ class KNN():
                     "{}.png".format(dt.datetime.now().strftime("%Y%m%d")))
         plt.close()
 
+
 def gaussian_wgt(dist, sigma=5.0):
     """
     weight is 1 when distance is 0
@@ -376,7 +389,51 @@ def euclidean(vec1, vec2):
     return math.sqrt(dist)
 
 
+def pml_knn_test():
+    """
+    Test our knn vs sklearn
+    """
+    # Get Data
+    iris = datasets.load_iris()
+    x_vals = iris.data[:, [2, 3]]
+    y_vals = iris.target
+    x_train, x_test, y_train, y_test = train_test_split(x_vals, y_vals,
+                                                        test_size=0.3, random_state=0)
+    x_train_std = standardize(x_train)
+    x_test_std = standardize(x_test)
+    # x_combined = np.vstack((x_train, x_test))
+    x_combined_std = np.vstack((x_train_std, x_test_std))
+    y_combined = np.hstack((y_train, y_test))
+    iris_data = np.concatenate((x_train_std, np.array([y_train]).T), axis=1)
+
+    # Sklearn KNN
+    knn = KNeighborsClassifier(n_neighbors=5, p=2, metric='minkowski')
+    knn.fit(x_train_std, y_train)
+    # x_combined = np.vstack((x_train, x_test))
+    y_combined = np.hstack((y_train, y_test))
+    plot_decision_regions(x_combined_std, y_combined,
+                          classifier=knn, test_break_idx=range(105, 150))
+    plt.xlabel('petal length [standardized]')
+    plt.ylabel('petal width [standardized]')
+    plt.legend(loc='upper left')
+    plt.tight_layout()
+    plt.savefig(IMG_ROOT + "PML/" + 'knn_sklearn.png', dpi=300)
+    plt.close()
+
+    # Custom KNN
+    cust_knn = KNN(iris_data, k_nbrs=5, dont_div=True)
+    plot_decision_regions(x_combined_std, y_combined,
+                          classifier=cust_knn, test_break_idx=range(105, 150))
+    plt.xlabel('petal length [cm]')
+    plt.ylabel('petal width [cm]')
+    plt.legend(loc='upper left')
+    plt.tight_layout()
+    plt.savefig(IMG_ROOT + "PML/" + 'knn_cust.png', dpi=300)
+    plt.close()
+
+
 if __name__ == '__main__':
+    pml_knn_test()
     # regression based data
     DATA = wineset3()
     DATA = wineset1()
@@ -391,7 +448,7 @@ if __name__ == '__main__':
     # print(KNN_INST.probguess([99, 20], 120, 1000))
     # print(KNN_INST.probguess([99, 20], 30, 120))
     # KNN_INST.cum_graph([1, 1], 120)
-    KNN_INST.prob_graph([99, 20], 120)
+    # KNN_INST.prob_graph([99, 20], 120)
 
     # categorical data
     # IRIS = datasets.load_iris()

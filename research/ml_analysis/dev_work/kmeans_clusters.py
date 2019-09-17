@@ -4,7 +4,15 @@ Module to calculate kmeans clusters
 import pdb
 import random
 from math import sqrt
+import numpy as np
 from PIL import Image, ImageDraw
+from sklearn.datasets import make_blobs
+from sklearn.cluster import KMeans
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from utils.ml_utils import IMG_ROOT
+from knn import euclidean
+mpl.use('Agg')
 
 PATH = "/home/ec2-user/environment/python_for_finance/research/ml_analysis/png/temp/"
 
@@ -93,7 +101,8 @@ def hcluster(rows, distance=pearson_corr):
             for j in range(i + 1, len(clust)):
                 # check if we already have this distance
                 if (clust[i].clust_id, clust[j].clust_id) not in distances:
-                    distances[(clust[i].clust_id, clust[j].clust_id)] = distance(clust[i].vec, clust[j].vec)
+                    distances[(clust[i].clust_id, clust[j].clust_id)] = distance(clust[i].vec, \
+                                                                        clust[j].vec)
                 ind_d = distances[(clust[i].clust_id, clust[j].clust_id)]
 
                 # save the closest distance
@@ -240,15 +249,16 @@ def kcluster(rows, distance=pearson_corr, k=4):
     Algorithm for developing the location of the k clusters for the dataset
     """
     # Determine the minimum and maximum values of each vector
+    pdb.set_trace()
     ranges = [(min([row[i] for row in rows]), max([row[i] for row in rows]))
               for i in range(len(rows[0]))]
 
     # Create k randomly placed centroids
     clusters = [[random.random() * (ranges[i][1] - ranges[i][0]) + ranges[i][0]
                  for i in range(len(rows[0]))] for j in range(k)]
-
+    print(clusters)
     lastmatches = None
-    iterations = 100
+    iterations = 3
     # Go through x number of iterations to place centroids
     for _ in range(iterations):
         print('Iteration %d' % _)
@@ -271,6 +281,7 @@ def kcluster(rows, distance=pearson_corr, k=4):
         lastmatches = bestmatches
 
         # Move the centroids to the average of their members
+        # pdb.set_trace()
         for i in range(k):
             avgs = [0.0] * len(rows[0])
             if bestmatches[i]:
@@ -284,7 +295,8 @@ def kcluster(rows, distance=pearson_corr, k=4):
                     avgs[j] /= len(bestmatches[i])
                 # this becomes the location of the centroid
                 clusters[i] = avgs
-    return bestmatches
+        print(clusters)
+    return (np.array(bestmatches), np.array(clusters))
 
 
 def tanamoto(vec1, vec2):
@@ -374,8 +386,52 @@ def draw2d(data, labels, jpeg='mds2d.jpg'):
     img.save(PATH + jpeg, 'JPEG')
 
 
+def test_kmeans():
+    """
+    test custom algo vs sklearn
+    """
+    clusts = 3
+    # Dont need y_vals, unsupervised
+    x_vals, _ = make_blobs(n_samples=150, n_features=2, centers=clusts,
+                           cluster_std=0.5, shuffle=True, random_state=0)
+    plt.scatter(x_vals[:, 0], x_vals[:, 1], c='white', marker='o', s=50)
+    plt.grid()
+    plt.tight_layout()
+
+    # Sklearn solution
+    kmeans = KMeans(n_clusters=clusts, init='random', n_init=10, max_iter=300,
+                    tol=1e-04, random_state=0)
+    y_km = kmeans.fit_predict(x_vals)
+
+    # Custom solution
+    k_clust = kcluster(x_vals, k=clusts, distance=euclidean)
+    # print([BLOGNAMES[r] for r in KCLUST[0]])
+
+    # clusters
+    plt.scatter(x_vals[y_km == 0, 0], x_vals[y_km == 0, 1], s=50, c='lightgreen',
+                marker='s', label='cluster 1')
+    plt.scatter(x_vals[y_km == 1, 0], x_vals[y_km == 1, 1], s=50, c='orange',
+                marker='o', label='cluster 2')
+    plt.scatter(x_vals[y_km == 2, 0], x_vals[y_km == 2, 1], s=50, c='lightblue',
+                marker='v', label='cluster 3')
+    # sklearn centroids
+    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], s=250,
+                marker='*', c='red', label='centroids')
+    # custom kmeans clusters centroids
+    plt.scatter(k_clust[1][:, 0], k_clust[1][:, 1], s=250, marker='X', c='purple',
+                label='centroids')
+
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig(IMG_ROOT + "PML/" + 'kmeans_comp.png', dpi=300)
+    plt.close()
+    print('Distortion: %.2f' % kmeans.inertia_)
+
+
 if __name__ == "__main__":
-    BLOGNAMES, WORDS, DATA = read_blog_file()
+    test_kmeans()
+    # BLOGNAMES, WORDS, DATA = read_blog_file()
 
     # Hierarchical clustering
     # CLUST = hcluster(DATA)
@@ -388,6 +444,5 @@ if __name__ == "__main__":
 
 
     ##### Two-D display example #####
-    COORDS = scaledown(DATA)
-    pdb.set_trace()
-    draw2d(COORDS, BLOGNAMES, jpeg='blogs2d.jpg')
+    # COORDS = scaledown(DATA)
+    # draw2d(COORDS, BLOGNAMES, jpeg='blogs2d.jpg')

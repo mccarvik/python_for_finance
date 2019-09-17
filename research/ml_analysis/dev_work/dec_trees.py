@@ -9,9 +9,12 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
-from utils.ml_utils import IMG_PATH
-mpl.use('Agg')
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, export_graphviz
+from utils.ml_utils import IMG_PATH, IMG_ROOT, plot_decision_regions
 
+mpl.use('Agg')
 
 DATA = [['slashdot', 'USA', 'yes', 18, 'None'],
         ['google', 'France', 'yes', 23, 'Premium'],
@@ -169,6 +172,15 @@ class DecisionTree():
                 else:
                     branch = node.f_branch
         return self.classify(obs, branch)
+
+    def predict(self, obs):
+        """
+        Classify a list of observations
+        """
+        preds = []
+        for ind_ob in obs:
+            preds.append([*self.classify(ind_ob)][0])
+        return np.array(preds)
 
     def prune(self, mingain=0.1, node=None):
         """
@@ -403,64 +415,47 @@ def draw_node(draw, tree, x_val, y_val):
         draw.text((x_val-20, y_val), txt, (0, 0, 0))
 
 
-# def pml_build_tree_test():
-#     # Get Data
-#     IRIS = datasets.load_iris()
-#     Y_VALS = IRIS.target[0:100]
-#     Y_VALS = np.where(Y_VALS == 0, -1, 1)
-#     X_VALS = IRIS.data[0:100, [0, 2]]
-#     X_train, X_test, y_train, y_test = train_test_split(X_VALS, Y_VALS, test_size=0.3, random_state=0)
-#     tree = DecisionTreeClassifier(criterion='entropy', max_depth=3, random_state=0)
-#     tree.fit(X_train, y_train)
-
-#     X_combined = np.vstack((X_train, X_test))
-#     y_combined = np.hstack((y_train, y_test))
-#     plot_decision_regions(X_combined, y_combined,
-#                         classifier=tree, test_idx=range(105,150))
-
-#     plt.xlabel('petal length [cm]')
-#     plt.ylabel('petal width [cm]')
-#     plt.legend(loc='upper left')
-#     plt.tight_layout()
-#     plt.savefig(PIC_LOC + 'decision_tree_decision.png', dpi=300)
-
-#     export_graphviz(tree,
-#                   out_file='tree.dot',
-#                   feature_names=['petal length', 'petal width'])
-
-
-def pml_impurity_test():
+def pml_build_tree_test():
     """
-    Test the decision tree against sklearn
+    Test our decision tree vs sklearn
     """
-    pdb.set_trace()
-    x_vals = np.arange(0.0, 1.0, 0.01)
-    ent = [entropy(p) if p != 0 else None for p in x_vals]
-    sc_ent = [e*0.5 if e else None for e in ent]
-    err = [error(i) for i in x_vals]
-    plt.figure()
-    axs = plt.subplot(111)
-    for i, lab, line_style, ccc, in zip([ent, sc_ent, gini_impurity(x_vals), err],
-                                        ['Entropy', 'Entropy (scaled)',
-                                         'Gini Impurity', 'Misclassification Error'],
-                                        ['-', '-', '--', '-.'],
-                                        ['black', 'lightgray', 'red', 'green', 'cyan']):
-        axs.plot(x_vals, i, label=lab, linestyle=line_style, lw=2, color=ccc)
+    # Get Data
+    iris = datasets.load_iris()
+    x_vals = iris.data[:, [2, 3]]
+    y_vals = iris.target
+    x_train, x_test, y_train, y_test = train_test_split(x_vals, y_vals,
+                                                        test_size=0.3, random_state=0)
+    iris_data = np.concatenate((x_train, np.array([y_train]).T), axis=1)
 
-    axs.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15),
-               ncol=3, fancybox=True, shadow=False)
-    axs.axhline(y=0.5, linewidth=1, color='k', linestyle='--')
-    axs.axhline(y=1.0, linewidth=1, color='k', linestyle='--')
-    plt.ylim([0, 1.1])
-    plt.xlabel('p(i=1)')
-    plt.ylabel('Impurity Index')
+    # Sklearn Tree
+    tree = DecisionTreeClassifier(criterion='entropy', max_depth=3, random_state=0)
+    tree.fit(x_train, y_train)
+    x_combined = np.vstack((x_train, x_test))
+    y_combined = np.hstack((y_train, y_test))
+    plot_decision_regions(x_combined, y_combined,
+                          classifier=tree, test_break_idx=range(105, 150))
+    export_graphviz(tree,
+                    out_file='tree.dot',
+                    feature_names=['petal length', 'petal width'])
+
+    # Custom Tree
+    iris_tree = DecisionTree(data=iris_data)
+    iris_tree.print_tree()
+    x_comb = np.vstack((x_train, x_test))
+    y_comb = np.hstack((y_train, y_test))
+    plot_decision_regions(x_comb, y_comb,
+                          classifier=iris_tree, test_break_idx=range(105, 150))
+    plt.xlabel('petal length [cm]')
+    plt.ylabel('petal width [cm]')
+    plt.legend(loc='upper left')
     plt.tight_layout()
-    plt.savefig(IMG_PATH + '/dec_tree_impurity.png', dpi=300, bbox_inches='tight')
+    plt.savefig(IMG_ROOT + "PML/" + 'decision_tree_decision.png', dpi=300)
     plt.close()
+    draw_tree(iris_tree)
 
 
 if __name__ == '__main__':
-    pml_impurity_test()
+    pml_build_tree_test()
     # Testing functionality
     # print(divide_set(DATA, 2, 'yes'))
     # print(gini_impurity(DATA))
