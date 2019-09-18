@@ -164,7 +164,6 @@ class NeuralNet:
             self.out_i[i] = 1.0
 
         # hidden node activations
-        # pdb.set_trace()
         for j in range(len(self.hiddenids)):
             tot_sum = 0.0
             for i in range(len(self.wordids)):
