@@ -88,7 +88,7 @@ class NeuralNetMLP(object):
         wgt2 = wgt2.reshape(self.n_output, self.n_hidden + 1)
         return wgt1, wgt2
 
-    def _feedforward(self, X, wgt1, wgt2):
+    def _feed_forward(self, x_vals):
         """
         Compute feedforward step
 
@@ -113,29 +113,43 @@ class NeuralNetMLP(object):
         a3 : array, shape = [n_output_units, n_samples]
             Activation of output layer.
         """
-        pdb.set_trace()
-        a1 = add_bias_unit(X, how='column')
-        z2 = wgt1.dot(a1.T)
-        a2 = sigmoid(z2)
-        a2 = add_bias_unit(a2, how='row')
-        z3 = wgt2.dot(a2)
-        a3 = sigmoid(z3)
-        return a1, z2, a2, z3, a3
+        # get the values from input layer (sample data)
+        aa1 = add_bias_unit(x_vals, how='column')
+        # calc "net input" from dot product with current weights
+        zz2 = self.wgt1.dot(aa1.T)
+        # Pass net input to activation function to get values for hidden layer
+        aa2 = sigmoid(zz2)
+        # add y-intercept/bias unit for values going to output layer
+        aa2 = add_bias_unit(aa2, how='row')
+        # calc "net_input" going to output layer with dot product of weights
+        zz3 = self.wgt2.dot(aa2)
+        # Pass to activation function
+        aa3 = sigmoid(zz3)
+        # return everything, including output values
+        return aa1, zz2, aa2, zz3, aa3
 
-    def _L2_reg(self, lambda_, wgt1, wgt2):
-        """Compute L2-regularization cost"""
-        # pdb.set_trace()
-        return (lambda_/2.0) * (np.sum(wgt1[:, 1:] ** 2) +
-                                np.sum(wgt2[:, 1:] ** 2))
+    def _l2_reg(self, wgt1, wgt2):
+        """
+        Compute L2-regularization cost
+        Takes the sum of the squares of all weights, multiplies by lambda and
+        adds it to cost function
+        This punishes algo from having weights to strong, preventing overfitting
+        """
+        return (self.ll2 / 2.0) * (np.sum(wgt1[:, 1:] ** 2) + np.sum(wgt2[:, 1:] ** 2))
 
-    def _L1_reg(self, lambda_, wgt1, wgt2):
-        """Compute L1-regularization cost"""
-        # pdb.set_trace()
-        return (lambda_/2.0) * (np.abs(wgt1[:, 1:]).sum() +
-                                np.abs(wgt2[:, 1:]).sum())
+    def _l1_reg(self, wgt1, wgt2):
+        """
+        Compute L1-regularization cost
+        Takes the sum of the absolute values of all weights, multiplies by lambda and
+        adds it to cost function
+        This punishes algo from having weights to strong, preventing overfitting
+        """
+        return (self.ll1 / 2.0) * (np.abs(wgt1[:, 1:]).sum() + np.abs(wgt2[:, 1:]).sum())
 
     def _get_cost(self, y_enc, output, wgt1, wgt2):
-        """Compute cost function.
+        """
+        Compute cost function.
+
         Parameters
         ----------
         y_enc : array, shape = (n_labels, n_samples)
@@ -151,17 +165,20 @@ class NeuralNetMLP(object):
         cost : float
             Regularized cost.
         """
-        # pdb.set_trace()
+        # Cost function is the logistic cost function
         term1 = -y_enc * (np.log(output))
         term2 = (1.0 - y_enc) * np.log(1.0 - output)
         cost = np.sum(term1 - term2)
-        L1_term = self._L1_reg(self.ll1, wgt1, wgt2)
-        L2_term = self._L2_reg(self.ll2, wgt1, wgt2)
-        cost = cost + L1_term + L2_term
+        # Add regularization terms to punish stronger weights and avoid over fitting
+        l1_term = self._l1_reg(wgt1, wgt2)
+        l2_term = self._l2_reg(wgt1, wgt2)
+        cost = cost + l1_term + l2_term
         return cost
 
     def _get_gradient(self, aa1, aa2, aa3, zz2, y_enc, wgt1, wgt2):
-        """ Compute gradient step using backpropagation.
+        """
+        Compute gradient step using backpropagation.
+
         Parameters
         ------------
         aa1 : array, shape = [n_samples, n_features+1]
@@ -185,9 +202,10 @@ class NeuralNetMLP(object):
         grad2 : array, shape = [n_output_units, n_hidden_units]
             Gradient of the weight matrix wgt2.
         """
-        # pdb.set_trace()
         # backpropagation
+        # First calculate the error vector
         sigma3 = aa3 - y_enc
+        pdb.set_trace()
         zz2 = add_bias_unit(zz2, how='row')
         sigma2 = wgt2.T.dot(sigma3) * sigmoid_gradient(zz2)
         sigma2 = sigma2[1:, :]
@@ -201,7 +219,7 @@ class NeuralNetMLP(object):
         grad2[:, 1:] += self.ll1 * np.sign(wgt2[:, 1:])
         return grad1, grad2
 
-    def predict(self, X):
+    def predict(self, x_vals):
         """
         Predict class labels
 
@@ -214,14 +232,14 @@ class NeuralNetMLP(object):
         y_pred : array, shape = [n_samples]
             Predicted class labels.
         """
-        # pdb.set_trace()
-        if len(X.shape) != 2:
+        pdb.set_trace()
+        if len(x_vals.shape) != 2:
             raise AttributeError('X must be a [n_samples, n_features] array.\n'
                                  'Use X[:,None] for 1-feature classification,'
                                  '\nor X[[i]] for 1-sample classification')
 
-        a1, z2, a2, z3, a3 = self._feedforward(X, self.wgt1, self.wgt2)
-        y_pred = np.argmax(z3, axis=0)
+        _, _, _, zz3, _ = self._feed_forward(x_vals)
+        y_pred = np.argmax(zz3, axis=0)
         return y_pred
 
     def fit(self, x_vals, y_vals, print_progress=False):
@@ -260,13 +278,12 @@ class NeuralNetMLP(object):
                 idx = np.random.permutation(y_data.shape[0])
                 x_data, y_enc = x_data[idx], y_enc[:, idx]
 
-            pdb.set_trace()
             # split into minibatches
             mini = np.array_split(range(y_data.shape[0]), self.minibatches)
             for idx in mini:
-                # feedforward
-                aa1, zz2, aa2, zz3, aa3 = self._feedforward(x_data[idx], self.wgt1,
-                                                            self.wgt2)
+                # Feed forward
+                aa1, zz2, aa2, _, aa3 = self._feed_forward(x_data[idx])
+                # Calculate the cost of current weights
                 cost = self._get_cost(y_enc=y_enc[:, idx], output=aa3,
                                       wgt1=self.wgt1, wgt2=self.wgt2)
                 self.cost_.append(cost)
@@ -286,9 +303,9 @@ class NeuralNetMLP(object):
 def sigmoid(z_val):
     """
     Compute logistic function (sigmoid)
+    This is our activation function
     Uses scipy.special.expit to avoid overflow error for very small input values z
     """
-    pdb.set_trace()
     # return 1.0 / (1.0 + np.exp(-z))
     return expit(z_val)
 
@@ -325,8 +342,8 @@ def encode_labels(y_vals, k_out):
 def add_bias_unit(x_vals, how='column'):
     """
     Add bias unit (column or row of 1s) to array at index 0
+    Functions as the y-intercept value for the array of inputs for a given sample
     """
-    pdb.set_trace()
     if how == 'column':
         x_new = np.ones((x_vals.shape[0], x_vals.shape[1] + 1))
         x_new[:, 1:] = x_vals
