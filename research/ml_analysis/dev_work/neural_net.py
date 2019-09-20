@@ -6,7 +6,10 @@ import sys
 import numpy as np
 from scipy.special import expit
 
-
+####### NOTES ######
+# net-input = values of the layer
+# wgts = values of the connections between layers
+####################
 
 class NeuralNetMLP(object):
     """
@@ -205,14 +208,19 @@ class NeuralNetMLP(object):
         # backpropagation
         # First calculate the error vector
         sigma3 = aa3 - y_enc
-        pdb.set_trace()
+        # add y-intercept feature
         zz2 = add_bias_unit(zz2, how='row')
+        # calculate the error term of the hidden layer
+        # (dot product of wgts * error vector) * gradient of net input of hidden layer
         sigma2 = wgt2.T.dot(sigma3) * sigmoid_gradient(zz2)
+        # remove bias unit
         sigma2 = sigma2[1:, :]
+        # dot product of error term of hidden layer with input values
         grad1 = sigma2.dot(aa1)
+        # dot product of error output vector with activation of hidden layer
         grad2 = sigma3.dot(aa2.T)
 
-        # regularize
+        # add regularization values for each gradient to be used for updating weights
         grad1[:, 1:] += self.ll2 * wgt1[:, 1:]
         grad1[:, 1:] += self.ll1 * np.sign(wgt1[:, 1:])
         grad2[:, 1:] += self.ll2 * wgt2[:, 1:]
@@ -232,7 +240,6 @@ class NeuralNetMLP(object):
         y_pred : array, shape = [n_samples]
             Predicted class labels.
         """
-        pdb.set_trace()
         if len(x_vals.shape) != 2:
             raise AttributeError('X must be a [n_samples, n_features] array.\n'
                                  'Use X[:,None] for 1-feature classification,'
@@ -292,8 +299,10 @@ class NeuralNetMLP(object):
                 grad1, grad2 = self._get_gradient(aa1=aa1, aa2=aa2, aa3=aa3, zz2=zz2,
                                                   y_enc=y_enc[:, idx], wgt1=self.wgt1,
                                                   wgt2=self.wgt2)
-
+                # Apply learning rate
                 delta_w1, delta_w2 = self.eta * grad1, self.eta * grad2
+                # update weights
+                # alpha - constant applied to improve learning speed
                 self.wgt1 -= (delta_w1 + (self.alpha * delta_w1_prev))
                 self.wgt2 -= (delta_w2 + (self.alpha * delta_w2_prev))
                 delta_w1_prev, delta_w2_prev = delta_w1, delta_w2
@@ -314,7 +323,6 @@ def sigmoid_gradient(z_val):
     """
     Compute gradient of the logistic function
     """
-    pdb.set_trace()
     sgm = sigmoid(z_val)
     return sgm * (1.0 - sgm)
 

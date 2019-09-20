@@ -76,7 +76,7 @@ def nn_mlp_ex(val_len=1000, plot=False, acc=True):
         y_train = y_train[:val_len]
 
     neural_net = NeuralNetMLP(n_output=10, n_features=x_train.shape[1], n_hidden=50, ll2=0.1,
-                              ll1=0.0, epochs=10, eta=0.001, alpha=0.001, decrease_const=0.00001,
+                              ll1=0.0, epochs=50, eta=0.001, alpha=0.001, decrease_const=0.00001,
                               minibatches=50, shuffle=True, random_state=1)
     neural_net.fit(x_train, y_train, print_progress=True)
 
