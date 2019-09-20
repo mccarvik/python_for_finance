@@ -58,7 +58,7 @@ class NeuralNetMLP(object):
     def __init__(self, n_output, n_features, n_hidden=30,
                  ll1=0.0, ll2=0.0, epochs=500, eta=0.001,
                  alpha=0.0, decrease_const=0.0, shuffle=True,
-                 minibatches=1, random_state=None):
+                 minibatches=1, random_state=None, grad_check=False):
         """
         Constructor
         """
@@ -76,6 +76,7 @@ class NeuralNetMLP(object):
         self.shuffle = shuffle
         self.minibatches = minibatches
         self.cost_ = []
+        self.grad_check = grad_check
 
     def _initialize_weights(self):
         """
@@ -91,7 +92,7 @@ class NeuralNetMLP(object):
         wgt2 = wgt2.reshape(self.n_output, self.n_hidden + 1)
         return wgt1, wgt2
 
-    def _feed_forward(self, x_vals):
+    def _feed_forward(self, x_vals, wgts=None):
         """
         Compute feedforward step
 
@@ -119,13 +120,19 @@ class NeuralNetMLP(object):
         # get the values from input layer (sample data)
         aa1 = add_bias_unit(x_vals, how='column')
         # calc "net input" from dot product with current weights
-        zz2 = self.wgt1.dot(aa1.T)
+        if not wgts:
+            zz2 = self.wgt1.dot(aa1.T)
+        else:
+            zz2 = wgts[0].dot(aa1.T)
         # Pass net input to activation function to get values for hidden layer
         aa2 = sigmoid(zz2)
         # add y-intercept/bias unit for values going to output layer
         aa2 = add_bias_unit(aa2, how='row')
         # calc "net_input" going to output layer with dot product of weights
-        zz3 = self.wgt2.dot(aa2)
+        if not wgts:
+            zz3 = self.wgt2.dot(aa2)
+        else:
+            zz3 = wgts[1].dot(aa2)
         # Pass to activation function
         aa3 = sigmoid(zz3)
         # return everything, including output values
@@ -299,6 +306,18 @@ class NeuralNetMLP(object):
                 grad1, grad2 = self._get_gradient(aa1=aa1, aa2=aa2, aa3=aa3, zz2=zz2,
                                                   y_enc=y_enc[:, idx], wgt1=self.wgt1,
                                                   wgt2=self.wgt2)
+
+                if self.grad_check:
+                    # start gradient checking
+                    grad_diff = self._gradient_checking(x_vals=x_data[idx], y_enc=y_enc[:, idx],
+                                                        epsilon=1e-5, grad1=grad1, grad2=grad2)
+                    if grad_diff <= 1e-7:
+                        print('Ok: %s' % grad_diff)
+                    elif grad_diff <= 1e-4:
+                        print('Warning: %s' % grad_diff)
+                    else:
+                        print('PROBLEM: %s' % grad_diff)
+
                 # Apply learning rate
                 delta_w1, delta_w2 = self.eta * grad1, self.eta * grad2
                 # update weights
@@ -308,6 +327,48 @@ class NeuralNetMLP(object):
                 delta_w1_prev, delta_w2_prev = delta_w1, delta_w2
         return self
 
+    def _gradient_checking(self, x_vals, y_enc, epsilon, grad1, grad2):
+        """
+        Apply gradient checking (for debugging only)
+
+        Returns
+        ---------
+        relative_error : float
+          Relative error between the numerically
+          approximated gradients and the backpropagated gradients.
+
+        """
+        num_grad1 = np.zeros(np.shape(self.wgt1))
+        epsilon_ary1 = np.zeros(np.shape(self.wgt1))
+        for i in range(self.wgt1.shape[0]):
+            for j in range(self.wgt1.shape[1]):
+                epsilon_ary1[i, j] = epsilon
+                _, _, _, _, aa3 = self._feed_forward(x_vals, [self.wgt1 - epsilon_ary1, self.wgt2])
+                cost1 = self._get_cost(y_enc, aa3, self.wgt1 - epsilon_ary1, self.wgt2)
+                _, _, _, _, aa3 = self._feed_forward(x_vals, [self.wgt1 + epsilon_ary1, self.wgt2])
+                cost2 = self._get_cost(y_enc, aa3, self.wgt1 + epsilon_ary1, self.wgt2)
+                num_grad1[i, j] = (cost2 - cost1) / (2.0 * epsilon)
+                epsilon_ary1[i, j] = 0
+
+        num_grad2 = np.zeros(np.shape(self.wgt2))
+        epsilon_ary2 = np.zeros(np.shape(self.wgt2))
+        for i in range(self.wgt2.shape[0]):
+            for j in range(self.wgt2.shape[1]):
+                epsilon_ary2[i, j] = epsilon
+                _, _, _, _, aa3 = self._feed_forward(x_vals, [self.wgt1, self.wgt2 - epsilon_ary2])
+                cost1 = self._get_cost(y_enc, aa3, self.wgt1, self.wgt2 - epsilon_ary2)
+                _, _, _, _, aa3 = self._feed_forward(x_vals, [self.wgt1, self.wgt2 + epsilon_ary2])
+                cost2 = self._get_cost(y_enc, aa3, self.wgt1, self.wgt2 + epsilon_ary2)
+                num_grad2[i, j] = (cost2 - cost1) / (2.0 * epsilon)
+                epsilon_ary2[i, j] = 0
+
+        num_grad = np.hstack((num_grad1.flatten(), num_grad2.flatten()))
+        grad = np.hstack((grad1.flatten(), grad2.flatten()))
+        norm1 = np.linalg.norm(num_grad - grad)
+        norm2 = np.linalg.norm(num_grad)
+        norm3 = np.linalg.norm(grad)
+        relative_error = norm1 / (norm2 + norm3)
+        return relative_error
 
 def sigmoid(z_val):
     """
